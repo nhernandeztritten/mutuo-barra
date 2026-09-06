@@ -1,21 +1,19 @@
 /**
- * Eventos (inicio) — SPEC §3.1.
- * Tarjeta del evento en curso, próximos con «Abrir barra», pasados con su
- * resumen de una línea y el estado vacío del primer uso.
+ * Eventos (inicio) — SPEC §3.1 y UX-REVISION-1 §D.
+ *
+ * Es la portada de la app: qué barra está abierta, qué evento toca preparar y
+ * qué resultados hay para mirar. En el primer uso explica los cuatro pasos
+ * antes de pedir nada.
  */
 import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
-import { AlertTriangle, CalendarPlus, Coffee, Play } from 'lucide-preact';
+import { AlertTriangle, CalendarPlus, ChevronRight, Coffee, Play } from 'lucide-preact';
 import { createEvent, listAllOrders, openEvent } from '../data/repo';
 import type { BarEvent, Order } from '../data/types';
 import { closeStats, eventStats, loadSuggestion } from '../domain/stats';
-import {
-  formatDateLong,
-  formatInt,
-  formatMoney,
-  formatRate,
-} from '../domain/format';
+import { formatDateLong, formatInt, formatMoney, formatRate } from '../domain/format';
 import { Button } from '../ui/components';
+import { ComoFunciona, Etiqueta } from '../ui/piezas';
 import {
   closedEvents,
   events,
@@ -29,7 +27,7 @@ import {
 /** Qué impide abrir la barra ahora mismo. */
 type Blocker = { kind: 'sin-carga'; eventId: string } | { kind: 'otra-barra'; eventId: string; live: BarEvent };
 
-const TYPE_LABEL: Record<BarEvent['type'], string> = {
+export const TYPE_LABEL: Record<BarEvent['type'], string> = {
   boda: 'Boda',
   privado: 'Evento privado',
   activacion: 'Activación',
@@ -109,63 +107,87 @@ export function Eventos() {
       </header>
 
       {isEmpty ? (
-        <div class="empty">
-          <p class="card__title">Sin eventos todavía</p>
-          <p class="meta">
-            Crea el evento antes de montar la barra: así la carga y la sugerencia ya están hechas
-            cuando llegas.
-          </p>
+        <>
+          <ComoFunciona />
           <div class="row">
             <Button variant="primary" onClick={() => route('/evento/nuevo')}>
               <CalendarPlus size={20} strokeWidth={1.75} /> Nuevo evento
             </Button>
-            <Button variant="ghost" disabled={busy} onClick={() => void createDemo()}>
-              Probar con un evento de ejemplo
+            <Button disabled={busy} onClick={() => void createDemo()}>
+              Probar con un ejemplo
             </Button>
           </div>
-        </div>
+        </>
       ) : null}
 
-      {live ? <LiveCard event={live} orders={ordersOf(live.id)} onGo={() => route(`/evento/${live.id}`)} /> : null}
+      {live ? (
+        <LiveCard
+          event={live}
+          orders={ordersOf(live.id)}
+          onGo={() => route(`/evento/${live.id}`)}
+          onClose={() => route(`/evento/${live.id}/cerrar`)}
+        />
+      ) : null}
 
       {planned.length > 0 ? (
         <div class="eventos__group">
           <h2 class="section-title">Próximos</h2>
-          {planned.map((event) => (
-            <div key={event.id} class="stack">
-              <div class="event-row">
-                <div class="event-row__main">
-                  <span class="event-row__name">{event.name}</span>
-                  <span class="meta">
-                    {TYPE_LABEL[event.type]} · {formatDateLong(`${event.date}T12:00:00`)} ·{' '}
-                    {formatInt(event.guestsExpected)} invitados
-                    {event.stockStart['cafe'] ? '' : ' · sin carga'}
-                  </span>
+          {planned.map((event) => {
+            const conCarga = Boolean(event.stockStart['cafe']);
+            return (
+              <div key={event.id} class="stack">
+                <div class="event-row">
+                  <div class="event-row__main">
+                    <span class="event-row__name">
+                      {event.name}
+                      {event.isDemo ? <Etiqueta>Ejemplo</Etiqueta> : null}
+                    </span>
+                    <span class="meta">
+                      {TYPE_LABEL[event.type]} · {formatDateLong(`${event.date}T12:00:00`)} ·{' '}
+                      {formatInt(event.guestsExpected)} invitados
+                    </span>
+                    <span class="event-row__step">
+                      {conCarga ? 'Paso 1 de 4 · listo para abrir' : 'Paso 1 de 4 · falta la carga'}
+                    </span>
+                  </div>
+                  {conCarga ? (
+                    <>
+                      <Button onClick={() => route(`/evento/${event.id}`)}>Ver datos</Button>
+                      <Button variant="primary" disabled={busy} onClick={() => void tryOpen(event)}>
+                        <Play size={20} strokeWidth={1.75} /> Abrir barra
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button disabled={busy} onClick={() => void tryOpen(event)}>
+                        Abrir barra
+                      </Button>
+                      <Button variant="primary" onClick={() => route(`/evento/${event.id}`)}>
+                        Preparar carga
+                      </Button>
+                    </>
+                  )}
                 </div>
-                <Button onClick={() => route(`/evento/${event.id}`)}>Editar</Button>
-                <Button variant="primary" disabled={busy} onClick={() => void tryOpen(event)}>
-                  <Play size={20} strokeWidth={1.75} /> Abrir barra
-                </Button>
+                {blocker && blocker.eventId === event.id ? (
+                  <BlockerNotice
+                    blocker={blocker}
+                    busy={busy}
+                    onRegister={() => route(`/evento/${event.id}`)}
+                    onAnyway={() => {
+                      // «Pausar y abrir esta» no se salta el aviso de carga:
+                      // vuelve a comprobarla con la otra barra ya descartada.
+                      if (blocker.kind === 'otra-barra' && !event.stockStart['cafe']) {
+                        setBlocker({ kind: 'sin-carga', eventId: event.id });
+                        return;
+                      }
+                      void goToBar(event.id);
+                    }}
+                    onDismiss={() => setBlocker(null)}
+                  />
+                ) : null}
               </div>
-              {blocker && blocker.eventId === event.id ? (
-                <BlockerNotice
-                  blocker={blocker}
-                  busy={busy}
-                  onRegister={() => route(`/evento/${event.id}`)}
-                  onAnyway={() => {
-                    // «Pausar y abrir esta» no se salta el aviso de carga:
-                    // vuelve a comprobarla con la otra barra ya descartada.
-                    if (blocker.kind === 'otra-barra' && !event.stockStart['cafe']) {
-                      setBlocker({ kind: 'sin-carga', eventId: event.id });
-                      return;
-                    }
-                    void goToBar(event.id);
-                  }}
-                  onDismiss={() => setBlocker(null)}
-                />
-              ) : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
 
@@ -177,31 +199,58 @@ export function Eventos() {
             return (
               <div key={event.id} class="event-row">
                 <div class="event-row__main">
-                  <span class="event-row__name">{event.name}</span>
+                  <span class="event-row__name">
+                    {event.name}
+                    {event.isDemo ? <Etiqueta>Ejemplo</Etiqueta> : null}
+                  </span>
                   <span class="meta">
                     {formatDateLong(`${event.date}T12:00:00`)} · {formatInt(stats.served)} bebidas ·{' '}
                     {formatMoney(stats.costPerDrink)} por bebida
                   </span>
+                  <span class="event-row__step">Paso 4 de 4 · cerrado</span>
                 </div>
-                <Button onClick={() => route(`/evento/${event.id}`)}>Ver detalle</Button>
+                <Button variant="primary" onClick={() => route(`/evento/${event.id}`)}>
+                  Ver resultados <ChevronRight size={20} strokeWidth={1.75} />
+                </Button>
               </div>
             );
           })}
         </div>
       ) : null}
+
+      {!isEmpty ? (
+        <p class="meta">
+          ¿Primera vez? <a href="/ajustes">Carta y ajustes</a> explica los cuatro pasos.
+        </p>
+      ) : null}
     </section>
   );
 }
 
-function LiveCard({ event, orders, onGo }: { event: BarEvent; orders: Order[]; onGo: () => void }) {
+/**
+ * La barra abierta manda en la portada: es el único estado en el que hay algo
+ * que se está perdiendo si nadie mira el iPad.
+ */
+function LiveCard({
+  event,
+  orders,
+  onGo,
+  onClose,
+}: {
+  event: BarEvent;
+  orders: Order[];
+  onGo: () => void;
+  onClose: () => void;
+}) {
   const stats = eventStats(event, orders, products.value);
   return (
     <article class="card card--live">
       <div class="row row--tight">
         <Coffee size={22} strokeWidth={1.75} color="var(--primary)" />
         <span class="section-title" style={{ color: 'var(--primary)' }}>
-          En curso
+          Barra abierta
         </span>
+        {event.isDemo ? <Etiqueta>Ejemplo</Etiqueta> : null}
       </div>
       <h2 class="display">{event.name}</h2>
       <div class="live-stats">
@@ -216,9 +265,11 @@ function LiveCard({ event, orders, onGo }: { event: BarEvent; orders: Order[]; o
       </div>
       <div class="row">
         <Button variant="primary" onClick={onGo}>
-          Volver a la barra
+          Seguir sirviendo
         </Button>
+        <Button onClick={onClose}>Cerrar barra</Button>
       </div>
+      <p class="meta">Puedes salir y volver; la barra sigue abierta hasta que la cierres.</p>
     </article>
   );
 }
@@ -256,7 +307,7 @@ function BlockerNotice({
           </>
         ) : (
           <Button variant="primary" disabled={busy} onClick={onAnyway}>
-            Pausar y abrir esta
+            Dejar aquella y abrir esta
           </Button>
         )}
         <Button variant="ghost" onClick={onDismiss}>

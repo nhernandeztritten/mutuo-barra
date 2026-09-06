@@ -1,6 +1,9 @@
 /**
- * App shell: rutas de SPEC §5, navegación mínima, tema y el aviso
- * «Hay una versión nueva · Recargar» del service worker.
+ * App shell: rutas de SPEC §5, navegación por tareas y el aviso «Hay una
+ * versión nueva · Recargar» del service worker.
+ *
+ * Tres entradas, ninguna vacía (UX-REVISION-1 §A): Eventos · Resultados ·
+ * Carta y ajustes. La barra no es una sección, es el paso 2 de un evento.
  */
 import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
@@ -8,20 +11,26 @@ import { LocationProvider, Route, Router, useLocation, useRoute } from 'preact-i
 import { initDb } from './data/db';
 import { ToastHost } from './ui/components';
 import { barMode } from './ui/layout';
-import { bootstrap, eventById, liveEvent, ready } from './ui/store';
+import { bootstrap, eventById, ready } from './ui/store';
+import { Ajustes } from './routes/ajustes';
+import { AjustesCarta } from './routes/ajustes-carta';
+import { AjustesInsumos } from './routes/ajustes-insumos';
 import { Barra } from './routes/barra';
+import { Cierre } from './routes/cierre';
 import { EventoDetalle } from './routes/evento-detalle';
 import { EventoForm } from './routes/evento-form';
 import { Eventos } from './routes/eventos';
-import { Ajustes, AjustesCarta, AjustesInsumos, Cierre, NoEncontrado, Panel, Resumen } from './routes/placeholders';
+import { Resultados } from './routes/resultados';
+import { Resumen } from './routes/resumen';
+import { NoEncontrado } from './routes/no-encontrado';
 
 /** Set by main.tsx when Workbox reports a new build sitting in the wings. */
 export const needsRefresh = signal(false);
 export const applyUpdate = signal<() => void>(() => window.location.reload());
 
 /**
- * `/evento/:id` es la barra si el evento está `live`, el formulario si está
- * `planned` y el detalle si está `closed` (SPEC §5).
+ * `/evento/:id` es la barra si el evento está abierto, el formulario de
+ * preparación si aún no se ha abierto y los resultados si ya se cerró.
  */
 function EventoRoute() {
   const { params } = useRoute();
@@ -31,23 +40,25 @@ function EventoRoute() {
   return <EventoForm />;
 }
 
+/** `/panel` era la dirección de la fase 2; ahora vive en `/resultados`. */
+function PanelRedirect() {
+  const { route } = useLocation();
+  useEffect(() => route('/resultados', true), []);
+  return null;
+}
+
 function Nav() {
   const { path } = useLocation();
-  const live = liveEvent.value;
-  // Sin evento en curso, «Barra» lleva a Eventos: ahí está «Abrir barra».
-  const barPath = live ? `/evento/${live.id}` : '/';
 
-  const links: { href: string; label: string; match: string | null }[] = [
+  const links = [
     { href: '/', label: 'Eventos', match: '/' },
-    // Sin barra abierta, «Barra» no se marca como sección actual en Eventos.
-    { href: barPath, label: 'Barra', match: live ? barPath : null },
-    { href: '/panel', label: 'Panel', match: '/panel' },
-    { href: '/ajustes', label: 'Ajustes', match: '/ajustes' },
+    { href: '/resultados', label: 'Resultados', match: '/resultados' },
+    { href: '/ajustes', label: 'Carta y ajustes', match: '/ajustes' },
   ];
 
-  const isCurrent = (match: string | null): boolean => {
-    if (match === null) return false;
-    if (match === '/') return path === '/';
+  // Un evento es parte de «Eventos»: la sección no se apaga al entrar en uno.
+  const isCurrent = (match: string): boolean => {
+    if (match === '/') return path === '/' || path.startsWith('/evento');
     return path === match || path.startsWith(`${match}/`);
   };
 
@@ -101,7 +112,8 @@ export function App() {
               <Route path="/evento/:id" component={EventoRoute} />
               <Route path="/evento/:id/resumen" component={Resumen} />
               <Route path="/evento/:id/cerrar" component={Cierre} />
-              <Route path="/panel" component={Panel} />
+              <Route path="/resultados" component={Resultados} />
+              <Route path="/panel" component={PanelRedirect} />
               <Route path="/ajustes" component={Ajustes} />
               <Route path="/ajustes/carta" component={AjustesCarta} />
               <Route path="/ajustes/insumos" component={AjustesInsumos} />

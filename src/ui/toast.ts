@@ -43,8 +43,20 @@ export function clearToasts(): void {
   toasts.value = [];
 }
 
-/** @param timeout ms on screen; 8000 for the undo window. */
-export function showToast(message: string, action: ToastAction | null = null, timeout = 8000): number {
+/** Aviso informativo: 3 s. Lo justo para leerlo sin taparle la barra al barista. */
+export const TOAST_INFO_MS = 3000;
+/** Aviso con acción («· Deshacer»): 8 s, el tiempo de reaccionar a un error. */
+export const TOAST_ACTION_MS = 8000;
+
+/**
+ * @param timeout ms en pantalla. Por defecto 3 s, u 8 s si el aviso lleva acción:
+ *   un «Deshacer» que se va en tres segundos no sirve de nada.
+ */
+export function showToast(
+  message: string,
+  action: ToastAction | null = null,
+  timeout = action ? TOAST_ACTION_MS : TOAST_INFO_MS,
+): number {
   const id = ++nextId;
   const queue = [...toasts.value, { id, message, action, timeout }];
   for (const stale of queue.slice(0, Math.max(0, queue.length - MAX_TOASTS))) {

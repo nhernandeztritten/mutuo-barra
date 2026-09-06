@@ -1,5 +1,5 @@
-/* Pantallas de la fase 2: eventos, formulario de evento y barra.
-   Todas las medidas salen de DESIGN.md, no del gusto. */
+/* Pantallas de la app: eventos, evento, barra, resumen, cierre, resultados y
+   ajustes. Todas las medidas salen de DESIGN.md, no del gusto. */
 
 /* ================= Utilidades compartidas ================= */
 
@@ -292,7 +292,8 @@
 .barra__header {
   display: flex;
   align-items: center;
-  gap: var(--s-4);
+  /* A 1180 px caben doce elementos solo con el aire justo. */
+  gap: var(--s-3);
   min-height: var(--h-header);
   padding-inline: max(var(--s-4), env(safe-area-inset-left)) max(var(--s-4), env(safe-area-inset-right));
   padding-block-start: env(safe-area-inset-top);
@@ -308,6 +309,7 @@
 
 .barra__event {
   font-size: var(--fs-body);
+  flex: none;
   font-weight: 500;
   white-space: nowrap;
   /* Se recorta, pero nunca desaparece: hay que saber en qué evento estás. */
@@ -362,7 +364,7 @@
   /* `display` explícito: un span en línea ignora width, height y el relleno. */
   display: block;
   flex: none;
-  width: 96px;
+  width: 72px;
   height: 10px;
   border-radius: var(--r-pill);
   background: var(--surface-2);
@@ -416,6 +418,7 @@
   align-items: center;
   gap: var(--s-2);
   margin-inline-start: auto;
+  flex: none;
 }
 
 .barra__actions .btn {
@@ -492,10 +495,13 @@
 }
 
 .grid-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Con más de 12 productos hace scroll aquí dentro, nunca la página. */
+  /* Si el grid agrupado no cabe, hace scroll aquí dentro, nunca la página. */
   padding-block-end: var(--s-2);
 }
 
@@ -861,4 +867,775 @@
   font-size: var(--fs-meta);
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
+}
+
+/* ================= Ciclo del evento, resumen, cierre, resultados y ajustes ================= */
+
+/* ---------- Indicador de los cuatro pasos ---------- */
+
+.pasos {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex-wrap: wrap;
+}
+
+.pasos__item {
+  display: flex;
+  align-items: center;
+}
+
+/* La flecha entre pasos es del CSS: es decoración, no contenido. */
+.pasos__item + .pasos__item::before {
+  content: '';
+  width: 12px;
+  height: 1px;
+  margin-inline: var(--s-1);
+  background: var(--line);
+}
+
+.pasos__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  color: var(--ink-3);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pasos__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+  border: 1px solid currentColor;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pasos__item.is-actual .pasos__link {
+  background: var(--primary);
+  color: var(--primary-ink);
+  font-weight: 600;
+}
+
+.pasos__item.is-actual .pasos__num {
+  border-color: transparent;
+  background: rgb(255 255 255 / 0.2);
+}
+
+.pasos__item.is-hecho .pasos__link {
+  color: var(--ink-2);
+}
+
+.pasos__item.is-disponible .pasos__link {
+  color: var(--accent-text);
+  border: 1px solid var(--line);
+}
+
+.pasos__item.is-futuro .pasos__link {
+  color: var(--ink-3);
+  opacity: 0.45;
+}
+
+/* En la cabecera de la barra, el indicador se resume en una línea legible. */
+.pasos-linea {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.pasos-linea b {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ---------- Cómo funciona ---------- */
+
+.como__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.como__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  font-size: var(--fs-body);
+}
+
+.como__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.como__text {
+  padding-block-start: 2px;
+}
+
+/* ---------- Etiquetas y filas ---------- */
+
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: var(--s-2);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.etiqueta--warn {
+  background: transparent;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+}
+
+.etiqueta--accent {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.fila {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  min-height: 36px;
+  padding-block: var(--s-1);
+  border-block-end: 1px solid var(--line);
+  font-size: var(--fs-body);
+}
+
+.fila:last-child {
+  border-block-end: 0;
+}
+
+.fila__label {
+  display: flex;
+  flex-direction: column;
+}
+
+.fila__hint {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+
+.fila__value {
+  font-weight: 600;
+}
+
+.fila__value.is-warn,
+.is-warn {
+  color: var(--warn);
+}
+
+.fila__value.is-danger,
+.is-danger {
+  color: var(--danger);
+}
+
+.stat__hint {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.stat--warn .stat__value {
+  color: var(--warn);
+}
+
+.stat--danger .stat__value {
+  color: var(--danger);
+}
+
+/* ---------- Filas de evento ---------- */
+
+.event-row__step {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.event-row--link {
+  width: 100%;
+  text-align: start;
+  color: var(--ink);
+}
+
+.event-row.is-off {
+  opacity: 0.6;
+}
+
+/* ---------- Cabecera de la barra ---------- */
+
+.barra__salir {
+  flex: none;
+  padding-inline: var(--s-2);
+  gap: var(--s-1);
+}
+
+.barra__ident {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  /* UX-REVISION-1 §F: hasta 260 px; el resto se recorta con `title`. */
+  flex: 0 1 260px;
+  min-width: 130px;
+  max-width: 260px;
+  overflow: hidden;
+}
+
+.barra__ident .barra__event {
+  flex: none;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.switch--stacked {
+  align-items: center;
+  padding-inline: var(--s-3);
+  text-align: start;
+}
+
+.switch__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.switch__label {
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+
+/* 13 px: el tamaño que fija UX-REVISION-1 §C para este subtítulo. */
+.switch__hint {
+  font-size: 13px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* El único terminal de la barra: contorno, nunca relleno. */
+.barra__cerrar {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+/* ---------- Grid único agrupado por categoría ---------- */
+
+/* El encabezado ocupa la fila entera del grid compartido. */
+.tile-grid--agrupado .grupo__title {
+  grid-column: 1 / -1;
+  align-self: end;
+  scroll-margin-block-start: var(--s-2);
+}
+
+.tile-grid--agrupado .grupo__title:not(:first-child) {
+  margin-block-start: var(--s-1);
+}
+
+.grupo__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+}
+
+.grupo__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--cat, var(--cat-otros));
+}
+
+/* ---------- Hoja ancha (resumen sobre la barra) ---------- */
+
+.sheet--wide {
+  width: min(620px, 96vw);
+}
+
+.resumen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+/* ---------- Gráficos ---------- */
+
+.grafico {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin: 0;
+  padding: var(--s-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sheet);
+}
+
+.grafico__cap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.grafico__lienzo {
+  width: 100%;
+  min-width: 0;
+}
+
+.grafico__lienzo svg {
+  display: block;
+  max-width: 100%;
+}
+
+.barras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.barras__fila {
+  display: grid;
+  grid-template-columns: minmax(90px, 150px) minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 32px;
+}
+
+.barras__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+.barras__pista {
+  display: block;
+  height: 20px;
+  background: var(--bg);
+  border-radius: 4px;
+}
+
+.barras__fill {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--primary);
+}
+
+.barras__valor {
+  text-align: end;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.apilada {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.apilada__pista {
+  display: flex;
+  /* Separador de 2 px del color del fondo: nunca un borde alrededor del segmento. */
+  gap: 2px;
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.apilada__seg {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+
+.leyenda__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.leyenda__punto {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.leyenda__valor {
+  color: var(--ink-3);
+}
+
+.medidor {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 36px;
+  font-size: var(--fs-meta);
+}
+
+.medidor__label {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.medidor__pista {
+  display: block;
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--primary-soft);
+  overflow: hidden;
+}
+
+.medidor__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+}
+
+.medidor--warn .medidor__fill {
+  background: var(--warn);
+}
+
+.medidor--danger .medidor__fill {
+  background: var(--danger);
+}
+
+.medidor__detalle {
+  color: var(--ink-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.medidor--warn .medidor__detalle {
+  color: var(--warn);
+}
+
+.medidor--danger .medidor__detalle {
+  color: var(--danger);
+}
+
+/* ---------- Lista de pedidos ---------- */
+
+.pedidos {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pedido {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  min-height: var(--h-row);
+  padding-block: var(--s-2);
+  border-block-end: 1px solid var(--line);
+  font-size: var(--fs-body);
+}
+
+.pedido__hora {
+  flex: none;
+  color: var(--ink-3);
+  font-size: var(--fs-meta);
+}
+
+.pedido__lineas {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 140px;
+}
+
+.pedido__mods {
+  color: var(--ink-3);
+  font-size: var(--fs-meta);
+}
+
+.pedido__motivo {
+  color: var(--danger);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+}
+
+.pedido__importe {
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+}
+
+.pedido.is-anulado .pedido__linea,
+.pedido.is-anulado .pedido__importe {
+  text-decoration: line-through;
+  color: var(--ink-3);
+}
+
+.pedido__motivos {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.chip--mini {
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
+  font-size: var(--fs-meta);
+}
+
+/* ---------- Recuento del cierre ---------- */
+
+.recuento {
+  display: flex;
+  flex-direction: column;
+}
+
+.recuento__head,
+.recuento__row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.6fr) 96px 96px 150px 110px 110px;
+  align-items: center;
+  gap: var(--s-3);
+  padding-block: var(--s-2);
+  border-block-end: 1px solid var(--line);
+}
+
+.recuento__head {
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recuento__name {
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+
+.recuento__cell {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+  text-align: end;
+}
+
+.recuento__cell.is-ok {
+  color: var(--ink-3);
+}
+
+.recuento__input {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.recuento__input .input {
+  min-height: var(--h-step);
+  width: 100%;
+  text-align: end;
+}
+
+.recuento__unit {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+  min-width: 2ch;
+}
+
+@media (max-width: 899px) {
+  .recuento__head {
+    display: none;
+  }
+  .recuento__row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .recuento__name {
+    grid-column: 1 / -1;
+  }
+  .recuento__cell::before {
+    content: attr(data-label) ': ';
+    color: var(--ink-3);
+  }
+  .recuento__cell {
+    text-align: start;
+  }
+  .recuento__input {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Tablas ---------- */
+
+.tabla-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  /* 14 px solo aquí: DESIGN.md lo permite en las tablas de Resultados. */
+  font-size: var(--fs-table);
+}
+
+.tabla th,
+.tabla td {
+  padding: var(--s-3);
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.tabla thead th {
+  padding: 0;
+  color: var(--ink-3);
+  font-weight: 600;
+  border-block-end: 1px solid var(--line);
+}
+
+.tabla tbody th {
+  font-weight: 500;
+}
+
+.tabla__num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla__sort {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  width: 100%;
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+}
+
+.tabla__num .tabla__sort {
+  justify-content: flex-end;
+}
+
+.tabla th[aria-sort='ascending'],
+.tabla th[aria-sort='descending'] {
+  color: var(--ink);
+}
+
+.tabla__arrow {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.tabla tbody tr:hover {
+  background: var(--bg);
+}
+
+/* ---------- Resultados y ajustes ---------- */
+
+.resultados,
+.ajustes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+  max-width: 1240px;
+}
+
+.graficos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--s-5);
+}
+
+.receta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 40px var(--h-step);
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.receta-row .input {
+  min-height: var(--h-step);
+  text-align: end;
+}
+
+.receta-row .select {
+  min-height: var(--h-step);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--h-step);
+  font-size: var(--fs-body);
+}
+
+.check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primary);
+}
+
+.check-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  padding-inline-start: var(--s-8);
 }

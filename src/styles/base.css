@@ -1,5 +1,5 @@
-/* Base reset + shared component classes. Screens live in phase 2; this file only
-   provides the primitives DESIGN.md describes. */
+/* Reset y componentes base: los primitivos que describe DESIGN.md. Las pantallas
+   viven en screens.css. */
 
 *,
 *::before,
@@ -458,10 +458,4 @@ table {
   color: var(--ink);
   font-size: var(--fs-body);
   font-weight: 500;
-}
-
-.placeholder {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
 }

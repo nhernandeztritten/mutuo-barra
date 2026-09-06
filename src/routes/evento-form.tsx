@@ -10,6 +10,7 @@ import type { BarEvent, EventMode, EventType, StockMap } from '../data/types';
 import { loadSuggestion } from '../domain/stats';
 import { formatDecimal, formatQty } from '../domain/format';
 import { Button } from '../ui/components';
+import { Pasos } from '../ui/pasos';
 import { showToast } from '../ui/toast';
 import { eventById, liveEvent, refreshEvents, trackedIngredients } from '../ui/store';
 
@@ -174,8 +175,14 @@ export function EventoForm() {
 
   return (
     <section class="form">
-      <header class="row">
+      <header class="stack">
         <h1 class="display">{isNew ? 'Nuevo evento' : form.name || 'Evento'}</h1>
+        {existing ? <Pasos eventId={existing.id} status={existing.status} /> : null}
+        <p class="meta">
+          {isNew
+            ? 'Paso 1 de 4: los datos del evento y lo que subes al carro. La carga se puede rellenar después.'
+            : 'Comprueba los datos y la carga antes de abrir la barra.'}
+        </p>
       </header>
 
       <div class="form__block">
