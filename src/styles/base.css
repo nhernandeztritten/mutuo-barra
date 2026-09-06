@@ -1,0 +1,467 @@
+/* Base reset + shared component classes. Screens live in phase 2; this file only
+   provides the primitives DESIGN.md describes. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  line-height: 1.5;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* No page scroll on the bar; inner containers scroll instead. */
+html,
+body,
+#app {
+  height: 100%;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--accent-text);
+}
+
+:where(button, [role='tab'], .tile, .chip) {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Every figure in the app is tabular so columns of numbers do not dance. */
+.num,
+.display,
+.money,
+.qty,
+table {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ---------- Tipografía ---------- */
+
+.display {
+  font-size: var(--fs-display);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.wordmark {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--ink);
+  text-transform: uppercase;
+}
+
+.meta {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Botones ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--h-chip);
+  padding: 0 var(--s-5);
+  border: 1px solid transparent;
+  border-radius: var(--r-chip);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  transition: transform var(--t-press) var(--ease), background-color var(--t-press) var(--ease);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.btn--secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.btn--danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--line);
+}
+
+/* The single big confirmation of the bar: «Servir 3 bebidas». */
+.btn--action {
+  width: 100%;
+  min-height: var(--h-action);
+  font-size: var(--fs-action);
+  font-weight: 600;
+}
+
+.btn--step {
+  width: var(--h-step);
+  height: var(--h-step);
+  min-height: var(--h-step);
+  padding: 0;
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  border-color: var(--line);
+  font-size: var(--fs-row);
+  font-weight: 600;
+}
+
+/* ---------- Chip ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-chip);
+  padding: 0 var(--s-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-chip);
+  font-weight: 500;
+  transition: transform var(--t-press) var(--ease), background-color var(--t-press) var(--ease);
+}
+
+.chip:active {
+  transform: scale(0.97);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Chip que no aplica: sacudida de 2 px, 200 ms. */
+.chip--shake {
+  animation: shake 200ms var(--ease);
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+/* ---------- Tile de producto ---------- */
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--s-1);
+  min-height: var(--h-tile);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-tile);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  text-wrap: balance;
+  transition: transform var(--t-press) var(--ease);
+}
+
+.tile:active {
+  transform: scale(0.97);
+}
+
+/* Punto de categoría de 10 px en la esquina. Nunca franjas laterales. */
+.tile__dot {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--cat, var(--cat-otros));
+}
+
+.tile__price {
+  font-size: var(--fs-meta);
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--tile-min), 1fr));
+  gap: var(--s-3);
+}
+
+/* ---------- Input ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.field__label {
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.input {
+  min-height: var(--h-chip);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  /* 16 px mínimo: por debajo, Safari en iPad hace zoom al enfocar. */
+  font-size: var(--fs-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.input:disabled {
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+
+/* ---------- Hoja lateral ---------- */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 40;
+}
+
+.sheet {
+  position: fixed;
+  z-index: 41;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: min(440px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-6);
+  padding-block-start: calc(var(--s-6) + env(safe-area-inset-top));
+  padding-block-end: calc(var(--s-6) + env(safe-area-inset-bottom));
+  padding-inline-end: calc(var(--s-6) + env(safe-area-inset-right));
+  background: var(--surface);
+  border-start-start-radius: var(--r-sheet);
+  border-end-start-radius: var(--r-sheet);
+  box-shadow: var(--shadow-sheet);
+  overflow-y: auto;
+  animation: sheet-in var(--t-enter) var(--ease);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+.sheet__title {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+/* ---------- Toast ---------- */
+
+.toast-layer {
+  position: fixed;
+  inset-block-end: calc(var(--s-6) + env(safe-area-inset-bottom));
+  inset-inline: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: var(--h-chip);
+  padding: 0 var(--s-3) 0 var(--s-5);
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--fs-row);
+  font-weight: 500;
+  box-shadow: var(--shadow-sheet);
+  pointer-events: auto;
+  animation: toast-in var(--t-toast-in) var(--ease);
+}
+
+.toast__action {
+  min-height: var(--h-step);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 0.16);
+  color: inherit;
+  font-weight: 600;
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+/* ---------- Shell ---------- */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.shell__main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-6);
+  padding-inline: max(var(--s-6), env(safe-area-inset-left)) max(var(--s-6), env(safe-area-inset-right));
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-header);
+  padding: 0 var(--s-4);
+  padding-block-start: env(safe-area-inset-top);
+  padding-inline: max(var(--s-4), env(safe-area-inset-left)) max(var(--s-4), env(safe-area-inset-right));
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.navbar__brand {
+  margin-inline-end: var(--s-4);
+}
+
+.navlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-step);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.navlink[aria-current='page'] {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  min-height: var(--h-chip);
+  padding: 0 var(--s-4);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}

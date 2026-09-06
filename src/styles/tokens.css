@@ -1,0 +1,128 @@
+/* Design tokens — see DESIGN.md. Light is the default (outdoor sun); night is manual. */
+
+:root {
+  /* ---- Color · claro ---- */
+  --bg: #f5f4f3;
+  --surface: #ffffff;
+  --surface-2: #dfd6cb;
+  --ink: #262625;
+  --ink-2: #4a4845;
+  --ink-3: #5f5c57;
+  --line: #e4dfd8;
+
+  --primary: #005f5a;
+  --primary-ink: #ffffff;
+  --primary-soft: #e0eceb;
+
+  --accent: #715aff;
+  --accent-ink: #ffffff;
+  --accent-text: #6248f5;
+  --accent-soft: #ebe7ff;
+
+  --warn: #b3541e;
+  --danger: #a3271c;
+  --ok: var(--primary);
+
+  --overlay: rgb(38 38 37 / 0.32);
+  --shadow-sheet: 0 8px 24px rgb(0 0 0 / 0.12);
+
+  /* ---- Color por categoría (solo acento) ---- */
+  --cat-espresso: #262625;
+  --cat-con-leche: #b9a98f;
+  --cat-filtro: #005f5a;
+  --cat-frios: #3f7fc8;
+  --cat-especiales: #715aff;
+  --cat-otros: #808080;
+
+  /* ---- Espaciado, escala de 4 px ---- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* ---- Tamaños de interacción (DESIGN.md) ---- */
+  --h-header: 64px;
+  --h-tile: 96px;
+  --h-chip: 56px;
+  --h-action: 72px;
+  --h-row: 56px;
+  --h-tab: 48px;
+  --h-step: 44px;
+  --w-ticket: 360px;
+  --tile-min: 150px;
+
+  /* ---- Radios ---- */
+  --r-tile: 12px;
+  --r-chip: 12px;
+  --r-sheet: 16px;
+  --r-pill: 999px;
+
+  /* ---- Tipografía ---- */
+  --font: 'Archivo', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --fs-display: 36px;
+  --fs-action: 22px;
+  --fs-tile: 20px;
+  --fs-row: 18px;
+  --fs-chip: 17px;
+  --fs-body: 16px;
+  --fs-meta: 15px;
+  --fs-table: 14px;
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-press: 90ms;
+  --t-enter: 160ms;
+  --t-serve: 180ms;
+  --t-toast-in: 200ms;
+  --t-toast-out: 140ms;
+  --t-tick: 240ms;
+}
+
+[data-theme='night'] {
+  --bg: #1c1c1b;
+  --surface: #262625;
+  --surface-2: #33322f;
+  --ink: #f0efed;
+  --ink-2: #cfcbc4;
+  --ink-3: #aaa59d;
+  --line: #3d3b38;
+
+  --primary: #2a8f88;
+  --primary-ink: #0b1615;
+  --primary-soft: #1e3634;
+
+  --accent: #9d8bff;
+  --accent-ink: #14102b;
+  --accent-text: #b6a8ff;
+  --accent-soft: #2c2748;
+
+  --warn: #e08a4a;
+  --danger: #e2695c;
+
+  --overlay: rgb(0 0 0 / 0.5);
+  --shadow-sheet: 0 8px 24px rgb(0 0 0 / 0.4);
+
+  --cat-espresso: #f0efed;
+  --cat-con-leche: #cbb996;
+  --cat-filtro: #2a8f88;
+  --cat-frios: #6ba4e0;
+  --cat-especiales: #9d8bff;
+  --cat-otros: #9a958e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-press: 0ms;
+    --t-enter: 120ms;
+    --t-serve: 120ms;
+    --t-toast-in: 120ms;
+    --t-toast-out: 120ms;
+    --t-tick: 0ms;
+  }
+}
