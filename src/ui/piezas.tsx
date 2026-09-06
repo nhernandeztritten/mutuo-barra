@@ -45,7 +45,8 @@ export function Cifra({
 }) {
   return (
     <div class={['stat', state ? `stat--${state}` : ''].filter(Boolean).join(' ')}>
-      <span class="stat__value">{value}</span>
+      {/* `num`: DESIGN.md prohíbe cifras sin tabular, también las grandes. */}
+      <span class="stat__value num">{value}</span>
       <span class="stat__label">{label}</span>
       {hint ? <span class="stat__hint">{hint}</span> : null}
     </div>
