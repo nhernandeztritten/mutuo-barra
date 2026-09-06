@@ -15,9 +15,22 @@ principal es **servir**, no cobrar. El cobro es un modo del evento.
 
 ## Estado
 
-**Fase 1 (cimientos) completa**: scaffold PWA, tokens de diseño, modelo de datos
-con la carta sembrada, dominio puro con tests y shell con rutas. Las pantallas de
-producto llegan en la fase 2.
+**La app está completa de punta a punta**: se crea un evento con su carga, se
+abre la barra, se sirve, se ve el resumen en vivo, se cierra con recuento, se
+miran los resultados del evento y se comparan entre eventos, y la carta y los
+insumos se editan sin tocar código. Quedan para el final el pulido, la
+instalación en el iPad y el despliegue.
+
+El menú tiene tres entradas, por tarea:
+
+| Sección | Ruta | Qué hay |
+|---|---|---|
+| Eventos | `/` | barra abierta, próximos y pasados; es la portada |
+| Resultados | `/resultados` | tabla de eventos cerrados, comparativas, exportar e importar |
+| Carta y ajustes | `/ajustes` | carta, insumos, dispositivo y «Cómo funciona» |
+
+Un evento recorre siempre los mismos cuatro pasos, y en su pantalla se ve en
+cuál está: **1 Preparar → 2 Servir → 3 Cerrar → 4 Resultados**.
 
 ## Arrancar
 
@@ -56,7 +69,7 @@ persistente, Safari puede **borrar IndexedDB tras 7 días sin uso**.
 > El service worker (y por tanto el modo offline y la instalación) necesita
 > `https` o `localhost`. Por IP en la red local, `http://192.168.1.130:5173`
 > sirve para probar la interfaz, pero **no** registra el service worker. El
-> offline real se verifica con el despliegue de la fase 4.
+> offline real se verifica con el despliegue.
 
 ## Cómo está montado
 
@@ -73,7 +86,16 @@ src/
     format.ts     es-ES: «1,50 €», «3,25 kg», «47/h», 24 h
   styles/     tokens.css (claro y noche) y base.css
   ui/         componentes base: botón, chip, tile, input, hoja lateral, toast
-  routes/     placeholders de las pantallas (fases 2 y 3)
+  ui/         piezas compartidas: pasos del ciclo, gráficos SVG, archivos, orden
+  routes/     una pantalla por archivo
+    eventos.tsx        portada: barra abierta, próximos, pasados
+    evento-form.tsx    paso 1, datos y carga con sugerencia
+    barra.tsx          paso 2, la pantalla caliente
+    resumen.tsx        hoja lateral sobre la barra y página del evento
+    cierre.tsx         paso 3, recuento, notas y resultado en vivo
+    evento-detalle.tsx paso 4, resultados de un evento cerrado
+    resultados.tsx     comparativa entre eventos, exportar e importar
+    ajustes*.tsx       carta, insumos y dispositivo
   app.tsx     rutas de SPEC §5, navegación y aviso de versión nueva
 ```
 

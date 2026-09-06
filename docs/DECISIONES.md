@@ -199,3 +199,114 @@ está.
   para el coste, mal para los ingresos. Se decide en la fase 3, al construir el
   cierre: o se excluye `payment: 'invitacion'` de `revenue`, o se guarda con
   precio 0 y se pierde el «cuánto se regaló». La segunda opción parece peor.
+
+---
+
+## 06/09/2026 · Fase 3
+
+### 27. La barra deja de ser una sección y pasa a ser el paso 2 de un evento
+El menú tiene tres entradas por tarea —**Eventos · Resultados · Carta y
+ajustes**— y ninguna puede estar vacía (UX-REVISION-1 §A). «Barra» desaparece
+porque no es un lugar: sin evento abierto no significaba nada, y con evento
+abierto duplicaba la tarjeta del inicio. «Panel» desaparece porque no decía qué
+era; `/panel` redirige a `/resultados` para no romper un enlace guardado.
+
+### 28. El indicador de pasos, en la barra, es una línea de texto y no cuatro pastillas
+`Pasos` tiene dos formas. En Eventos, el evento y el cierre pinta las cuatro
+pastillas tocables. En la cabecera de la barra pinta **«Paso 2 de 4 · Servir»**.
+Motivo: cuatro pastillas legibles no caben en una cabecera de 64 px sin bajar de
+15 px, y `DESIGN.md` prohíbe texto más pequeño en la pantalla que se lee a 75 cm
+con las manos mojadas. La línea contesta la misma pregunta —dónde estoy— y el
+salto al paso 3 lo da «Cerrar barra», que está en esa misma cabecera.
+
+El subtítulo del interruptor **Rápido** sí baja a 13 px: lo fija UX-REVISION-1
+§C de forma explícita, y es la única excepción al mínimo de 15 px en la barra.
+
+### 29. La cabecera de la barra tiene una salida blanda y una terminal
+`‹ Eventos` sale sin cerrar nada (y el inicio lo dice: «la barra sigue abierta
+hasta que la cierres»). **Cerrar barra**, con contorno, es la única acción
+terminal. **Pausar** desaparece: hacía lo mismo que salir pero con otro nombre,
+y el barista no podía distinguirla de cerrar. `pauseEvent` sigue en el
+repositorio porque abrir otra barra pausa la anterior; ya no hay botón.
+
+### 30. Grid único agrupado; las pestañas vuelven solo por encima de 16 productos
+Con 14 bebidas en seis categorías, las pestañas escondían el 80 % de la carta
+para ahorrar un scroll. Ahora hay **un solo grid** con un encabezado de 15 px y
+el punto de color por categoría. Por encima de **16 productos activos** vuelven
+las pestañas, ya no como filtro sino como atajos de scroll.
+
+**Lo que no cabe, y por qué**: a 1180 × 820 el grid mide 871 px y el hueco
+disponible es 652 px, así que las dos últimas categorías quedan bajo el borde y
+hay que arrastrar. La cuenta es cerrada: seis encabezados + seis filas de tiles
+de 96 px + los huecos no entran en 652 px. Bajar el tile a ~72 px lo arreglaría,
+pero 96 px es una medida de `DESIGN.md` y no se toca sin que lo decida Nicolas.
+Las dos palancas quedan anotadas para la fase 4: menos categorías o tiles más
+bajos.
+
+### 31. Una invitación no es un ingreso
+Resuelta la duda que quedó abierta en la fase 2. Un pedido con
+`payment: 'invitacion'` **no suma a `revenue`**, pero conserva el precio
+congelado de sus líneas y aparece en dos contadores nuevos: `compedCount`
+(bebidas regaladas) y `compedValue` (lo que habrían valido). Así el coste sigue
+completo, la caja cuadra y se sabe cuánto se regaló. La propina sí suma aunque
+la bebida fuera de invitación: es dinero recibido.
+
+### 32. Los avisos duran 3 s; los que llevan acción, 8 s
+`showToast` decide el tiempo por sí mismo: 3 s para informar, 8 s cuando hay un
+«Deshacer» que pulsar. Un deshacer que se va en tres segundos no sirve de nada,
+y un aviso informativo de ocho tapa la barra media boda.
+
+### 33. Reabrir no borra nada y se explica en la propia pantalla
+Reabrir devuelve el evento al paso 1 conservando pedidos y recuento. Se dice con
+esas palabras bajo el botón, porque «Reabrir» a secas se puede leer como
+«empezar de cero».
+
+### 34. Los colores de los gráficos son los de la marca, en otro orden
+Las seis categorías ya tienen color en `DESIGN.md` (punto del tile, encabezado
+del grupo). Cambiarlos solo para los gráficos rompería la regla de que el color
+sigue a la entidad, así que se mantienen. Lo que sí cambia es el **orden de los
+segmentos** en las barras apiladas: `Espresso · Fríos · Con leche · Filtro ·
+Otros · Especiales`. Con el orden de la carta, violeta y azul quedaban pegados y
+el validador de paleta daba ΔE 13,6 (por debajo de 15: dos colores que ni con
+vista normal se distinguen). Con este orden, el peor par adyacente sube a 17,9 y
+pasa las dos comprobaciones de separación.
+
+Los avisos que quedan del validador —cuatro de los seis colores son de croma
+baja y la arena no llega a 3:1 sobre el fondo— son consecuencia de la paleta
+«restringida» de la marca y se compensan como manda el método: **leyenda
+siempre, valor y porcentaje escritos en cada segmento, y la tabla de Resultados
+como gemelo en texto**. Ninguna cifra vive solo en un color.
+
+### 35. La línea de referencia es lo único discontinuo de un gráfico
+Rejilla y ejes van en línea sólida de 1 px. La discontinua se reserva para un
+umbral de verdad: el techo de la barra (`baristas × 25` por media hora) y la
+media de coste por bebida entre eventos. Las etiquetas de valor y de umbral
+llevan un halo de 3 px del color del fondo para que no se pisen cuando una
+columna llega justo a la línea.
+
+### 36. Un coste a 0 € se queda «Sin costear», diga lo que diga el desplegable
+En Ajustes → Insumos se puede elegir el origen del dato, pero si el coste es 0
+se guarda como `sin-costear`. Es la regla de no inventar un número: mientras la
+tónica y el licor sigan a 0 €, el coste de un Espresso tonic y de un Cremaet
+está incompleto y la pantalla lo dice.
+
+### 37. El precio deja de ser provisional en cuanto se toca
+`priceProvisional` pasa a `false` al editar el campo del precio, no al guardar
+sin más. Guardar una bebida sin tocar el precio la deja provisional: el
+compromiso de Mutuo con ese número no ha cambiado.
+
+### 38. La versión sale de `package.json`
+`vite.config.ts` inyecta `__APP_VERSION__` y `db.ts` lo usa. Antes había un
+`'1.0.0-fase1'` escrito a mano que iba a envejecer sin que nadie se diera cuenta.
+
+### 39. Exportar prueba primero la hoja de Compartir del iPad
+`guardarArchivo` intenta `navigator.share({ files })` y, si el navegador no lo
+admite o el usuario cancela, descarga el archivo. **Aviso**: esa primera vía no
+se ha podido probar en el navegador de las capturas —sin escritorio no hay hoja
+de Compartir y la llamada se queda colgada—, así que lo verificado de punta a
+punta es la descarga. Queda para la fase 4, con el iPad delante.
+
+### 40. El pedido a medias no se pierde al cerrar
+La pantalla de cierre lee el ticket en curso y, si tiene bebidas, avisa arriba
+con dos salidas: **Servir ahora** (lo guarda como un pedido más) o **Descartar**.
+Antes se quedaba en `localStorage` sin que nadie volviera a verlo.
