@@ -74,7 +74,7 @@ export function TicketPanel({
   return (
     <aside class={['ticket', sheet ? 'ticket--sheet' : ''].filter(Boolean).join(' ')}>
       <header class="ticket__head">
-        <span>{oneTap ? 'Modo un toque activo' : `Pedido actual (${formatInt(drinks)})`}</span>
+        <span>{oneTap ? 'Modo rápido activo' : `Pedido actual (${formatInt(drinks)})`}</span>
         {onCollapse ? (
           <>
             <span class="spacer" />

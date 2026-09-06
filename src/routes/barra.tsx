@@ -1,17 +1,22 @@
 /**
- * La barra — SPEC §3.2, las once reglas.
+ * La barra — SPEC §3.2 y UX-REVISION-1 §C y §F.
  *
  * Pantalla caliente: cinco segundos por interacción, manos mojadas, cola de
  * seis. Nada de diálogos de confirmación; se sirve y se ofrece «Deshacer».
+ *
+ * La cabecera tiene una sola salida terminal —«Cerrar barra»— y una salida
+ * blanda —«‹ Eventos»—, que no cierra nada. «Pausar» no existía para el
+ * barista: no se distinguía de cerrar.
  */
+import { Fragment } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
-import { Moon, Pause, Sun, Zap } from 'lucide-preact';
-import { addOrder, listOrders, pauseEvent, voidOrder } from '../data/repo';
+import { ChevronLeft, Moon, Sun, Zap } from 'lucide-preact';
+import { addOrder, listOrders, voidOrder } from '../data/repo';
 import type { Category, Order, Product } from '../data/types';
 import { eventConsumption, eventStats } from '../domain/stats';
 import { formatInt, formatQty, formatRate, formatTime } from '../domain/format';
-import { Button, Chip, Tile } from '../ui/components';
+import { Button, Chip, Sheet, Tile } from '../ui/components';
 import { clearToasts, showToast } from '../ui/toast';
 import {
   CATEGORY_COLOR,
@@ -21,6 +26,8 @@ import {
   type PaymentResult,
   type RecentDrink,
 } from '../ui/barra-parts';
+import { Pasos } from '../ui/pasos';
+import { ResumenContenido } from './resumen';
 import {
   activeProducts,
   eventById,
@@ -29,7 +36,6 @@ import {
   modifierOptions,
   oneTap,
   optionsById,
-  refreshEvents,
   setOneTap,
   setTheme,
 } from '../ui/store';
@@ -67,6 +73,13 @@ const QUICK_CHIPS = [
  */
 const CHIP_LABEL: Record<string, string> = { cafe_descafeinado: 'Desca' };
 
+/**
+ * A partir de aquí el grid agrupado no cabe de un vistazo y las pestañas vuelven,
+ * ya no para filtrar sino como atajos de scroll. Con la carta de v1 (14 activos)
+ * no aparecen.
+ */
+const TABS_DESDE = 16;
+
 const SHAKE_MS = 220;
 const SERVE_FADE_MS = 180;
 
@@ -79,7 +92,6 @@ export function Barra() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [armed, setArmed] = useState<string[]>([]);
   const [shaking, setShaking] = useState<string[]>([]);
-  const [category, setCategory] = useState<Category | null>(null);
   const [editing, setEditing] = useState<TicketLine | null>(null);
   const [paying, setPaying] = useState(false);
   const [serving, setServing] = useState(false);
@@ -87,9 +99,10 @@ export function Barra() {
   const [fading, setFading] = useState<TicketLine[]>([]);
   const [tick, setTick] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [resumenOpen, setResumenOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const [busy, setBusy] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   /* ---- Ciclo de vida ---- */
 
@@ -128,13 +141,21 @@ export function Barra() {
 
   const products = activeProducts.value;
 
-  const categories = useMemo(() => {
-    const seen: Category[] = [];
-    for (const p of products) if (!seen.includes(p.category)) seen.push(p.category);
-    return seen;
+  /** Grid único agrupado por categoría: un toque menos que las pestañas. */
+  const groups = useMemo(() => {
+    const order: Category[] = [];
+    const byCategory = new Map<Category, Product[]>();
+    for (const p of products) {
+      if (!byCategory.has(p.category)) {
+        byCategory.set(p.category, []);
+        order.push(p.category);
+      }
+      byCategory.get(p.category)!.push(p);
+    }
+    return order.map((category) => ({ category, items: byCategory.get(category) ?? [] }));
   }, [products]);
 
-  const currentCategory = category ?? categories[0] ?? null;
+  const showTabs = products.length > TABS_DESDE;
 
   if (!event || event.status !== 'live') {
     return (
@@ -226,23 +247,22 @@ export function Barra() {
       await voidOrder(order.id, 'deshacer');
       await reloadOrders();
       if (restore) restoreTicket(served);
-      showToast('Pedido deshecho', null, 4000);
+      showToast('Pedido deshecho');
     })();
   }
 
   async function serve(toServe: TicketLine[], payment: PaymentResult | null): Promise<void> {
-    // Sin candado: en modo un toque hay que aguantar tres toques seguidos sin
+    // Sin candado: en modo rápido hay que aguantar tres toques seguidos sin
     // perder ninguno. Cada pedido es una fila con su uuid, no se pisan.
     if (toServe.length === 0) return;
     const drinks = toServe.reduce((sum, l) => sum + l.qty, 0);
     const order = await persistOrder(toServe, payment);
     await reloadOrders();
     pulse();
-    showToast(
-      `${formatInt(drinks)} ${drinks === 1 ? 'bebida servida' : 'bebidas servidas'}`,
-      { label: 'Deshacer', onAction: () => undoServe(order, toServe, !oneTap.value) },
-      8000,
-    );
+    showToast(`${formatInt(drinks)} ${drinks === 1 ? 'bebida servida' : 'bebidas servidas'}`, {
+      label: 'Deshacer',
+      onAction: () => undoServe(order, toServe, !oneTap.value),
+    });
   }
 
   /**
@@ -294,20 +314,19 @@ export function Barra() {
       servedAt: o.servedAt,
     }));
 
-  async function pause(): Promise<void> {
-    setBusy(true);
-    await pauseEvent(event!.id);
-    await refreshEvents();
-    setBusy(false);
-    route('/');
-  }
-
   const editingProduct = editing ? products.find((p) => p.id === editing.productId) : undefined;
   const drinks = ticketDrinks(lines);
 
   function onServeButton(): void {
     if (event!.mode === 'venta') setPaying(true);
     else void serveTicket(null);
+  }
+
+  function scrollToGroup(category: Category): void {
+    const node = gridRef.current?.querySelector<HTMLElement>(
+      `[data-grupo="${CSS.escape(category)}"]`,
+    );
+    node?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   const ticketProps = {
@@ -326,8 +345,16 @@ export function Barra() {
   return (
     <div class="barra">
       <header class="barra__header">
-        <span class="wordmark">Mutuo.</span>
-        <span class="barra__event">{event.name}</span>
+        <Button class="barra__salir" onClick={() => route('/')}>
+          <ChevronLeft size={20} strokeWidth={1.75} /> Eventos
+        </Button>
+
+        <div class="barra__ident">
+          <span class="barra__event" title={event.name}>
+            {event.name}
+          </span>
+          <Pasos eventId={event.id} status={event.status} compact />
+        </div>
 
         <div class="barra__count">
           <span class={['barra__count-value', 'num', tick ? 'is-tick' : ''].filter(Boolean).join(' ')}>
@@ -358,11 +385,15 @@ export function Barra() {
         <div class="barra__actions">
           <button
             type="button"
-            class="switch"
+            class="switch switch--stacked"
             aria-pressed={oneTap.value}
             onClick={() => void setOneTap(!oneTap.value)}
           >
-            <Zap size={20} strokeWidth={1.75} /> Un toque
+            <Zap size={20} strokeWidth={1.75} />
+            <span class="switch__text">
+              <span class="switch__label">Rápido</span>
+              <span class="switch__hint">cada toque sirve una bebida</span>
+            </span>
           </button>
           <button
             type="button"
@@ -377,11 +408,10 @@ export function Barra() {
             )}{' '}
             Noche
           </button>
-          <Button onClick={() => route(`/evento/${event.id}/resumen`)}>Resumen</Button>
-          <Button disabled={busy} onClick={() => void pause()}>
-            <Pause size={20} strokeWidth={1.75} /> Pausar
+          <Button onClick={() => setResumenOpen(true)}>Resumen</Button>
+          <Button class="barra__cerrar" onClick={() => route(`/evento/${event.id}/cerrar`)}>
+            Cerrar barra
           </Button>
-          <Button onClick={() => route(`/evento/${event.id}/cerrar`)}>Cerrar evento</Button>
         </div>
       </header>
 
@@ -400,37 +430,45 @@ export function Barra() {
             ))}
           </div>
 
-          <div class="tabs" role="tablist" aria-label="Categorías">
-            {categories.map((cat) => (
-              <button
-                type="button"
-                class="tab"
-                key={cat}
-                role="tab"
-                aria-selected={cat === currentCategory}
-                style={{ '--cat': CATEGORY_COLOR[cat] }}
-                onClick={() => setCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+          {showTabs ? (
+            <div class="tabs" role="group" aria-label="Ir a una categoría">
+              {groups.map(({ category }) => (
+                <button
+                  type="button"
+                  class="tab"
+                  key={category}
+                  style={{ '--cat': CATEGORY_COLOR[category] }}
+                  onClick={() => scrollToGroup(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
-          <div class="grid-wrap">
-            <div class="tile-grid">
-              {products
-                .filter((p) => p.category === currentCategory)
-                .map((product) => (
-                  <Tile
-                    key={product.id}
-                    label={product.shortName}
-                    accent={CATEGORY_COLOR[product.category]}
-                    {...(event.mode === 'venta'
-                      ? { price: `${product.price.toFixed(2).replace('.', ',')} €` }
-                      : {})}
-                    onClick={() => onTile(product)}
-                  />
-                ))}
+          {/* Un solo grid: todas las categorías comparten columnas, así los
+              tiles miden lo mismo en toda la pantalla y no hay huecos raros. */}
+          <div class="grid-wrap" ref={gridRef}>
+            <div class="tile-grid tile-grid--agrupado">
+              {groups.map(({ category, items }) => (
+                <Fragment key={category}>
+                  <h2 class="grupo__title" data-grupo={category}>
+                    <span class="grupo__dot" style={{ '--cat': CATEGORY_COLOR[category] }} />
+                    {category}
+                  </h2>
+                  {items.map((product) => (
+                    <Tile
+                      key={product.id}
+                      label={product.shortName}
+                      accent={CATEGORY_COLOR[product.category]}
+                      {...(event.mode === 'venta'
+                        ? { price: `${product.price.toFixed(2).replace('.', ',')} €` }
+                        : {})}
+                      onClick={() => onTile(product)}
+                    />
+                  ))}
+                </Fragment>
+              ))}
             </div>
           </div>
         </div>
@@ -441,7 +479,7 @@ export function Barra() {
       {/* Vertical o pantalla estrecha: barra inferior de 72 px que se despliega. */}
       <div class="ticket-bar">
         <button type="button" class="ticket-bar__label" onClick={() => setSheetOpen(true)}>
-          {oneTap.value ? 'Modo un toque activo' : `Pedido (${formatInt(drinks)})`}
+          {oneTap.value ? 'Modo rápido activo' : `Pedido (${formatInt(drinks)})`}
           {event.mode === 'venta' && drinks > 0
             ? ` · ${ticketTotal(lines).toFixed(2).replace('.', ',')} €`
             : ''}
@@ -456,6 +494,12 @@ export function Barra() {
           <div class="sheet-backdrop" onClick={() => setSheetOpen(false)} />
           <TicketPanel {...ticketProps} sheet onCollapse={() => setSheetOpen(false)} />
         </>
+      ) : null}
+
+      {resumenOpen ? (
+        <Sheet title="Resumen" wide onClose={() => setResumenOpen(false)}>
+          <ResumenContenido event={event} orders={orders} onOrdersChange={setOrders} />
+        </Sheet>
       ) : null}
 
       {editing && editingProduct ? (

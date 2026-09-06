@@ -79,16 +79,24 @@ export function Field({ label, numeric = false, hint, id, class: cls, ...rest }:
 export function Sheet({
   title,
   onClose,
+  wide = false,
   children,
 }: {
   title: string;
   onClose: () => void;
+  /** Ancha para el resumen: los gráficos necesitan más de 440 px. */
+  wide?: boolean;
   children: ComponentChildren;
 }) {
   return (
     <>
       <div class="sheet-backdrop" onClick={onClose} />
-      <aside class="sheet" role="dialog" aria-modal="true" aria-label={title}>
+      <aside
+        class={['sheet', wide ? 'sheet--wide' : ''].filter(Boolean).join(' ')}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 class="sheet__title">{title}</h2>
           <Button variant="ghost" onClick={onClose} aria-label="Cerrar">

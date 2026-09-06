@@ -101,8 +101,13 @@ export interface EventStats {
   /** `baristas × 50` drinks/h. */
   capacity: number;
   costTheoretical: number;
+  /** Cobrado de verdad. Excluye los pedidos servidos como invitación. */
   revenue: number;
   tips: number;
+  /** Bebidas regaladas (`payment: 'invitacion'`). */
+  compedCount: number;
+  /** Lo que habrían valido esas bebidas a precio de carta. */
+  compedValue: number;
   drinksPerGuest: number;
 }
 
@@ -130,6 +135,8 @@ export function eventStats(
   let costTheoretical = 0;
   let revenue = 0;
   let tips = 0;
+  let compedCount = 0;
+  let compedValue = 0;
   let lastHourRate = 0;
 
   const byProductMap = new Map<string, ProductTally>();
@@ -138,12 +145,18 @@ export function eventStats(
   const milk: MilkSplit = { vaca: 0, avena: 0, sin_lactosa: 0, total: 0 };
 
   for (const order of live) {
-    revenue += order.subtotal;
+    // Una invitación no es un ingreso. Guarda su precio congelado para saber
+    // cuánto se regaló, pero fuera de la caja (decisión pendiente de la fase 2).
+    const comped = order.payment === 'invitacion';
+    if (comped) compedValue += order.subtotal;
+    else revenue += order.subtotal;
+    // La propina siempre es dinero recibido, aunque la bebida fuera invitación.
     tips += order.tip;
     const servedMs = Date.parse(order.servedAt);
 
     for (const line of order.lines) {
       served += line.qty;
+      if (comped) compedCount += line.qty;
       costTheoretical += line.unitCost * line.qty;
 
       const tally = byProductMap.get(line.productId);
@@ -220,6 +233,8 @@ export function eventStats(
     costTheoretical: round(costTheoretical, 4),
     revenue: round(revenue, 2),
     tips: round(tips, 2),
+    compedCount,
+    compedValue: round(compedValue, 2),
     drinksPerGuest: guests > 0 ? round(served / guests, 2) : 0,
   };
 }

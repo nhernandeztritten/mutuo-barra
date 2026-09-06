@@ -6,11 +6,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { LocationProvider, Route, Router } from 'preact-iso';
 import { initDb, resetDb } from '../../data/db';
-import { createEvent, listOrders, openEvent } from '../../data/repo';
+import { createEvent, listOrders, openEvent, saveProduct } from '../../data/repo';
 import type { EventMode } from '../../data/types';
 import { Barra } from '../../routes/barra';
 import { ToastHost } from '../components';
-import { loadCatalog, loadSettings, refreshEvents } from '../store';
+import { loadCatalog, loadSettings, products, refreshEvents } from '../store';
 import { clearToasts } from '../toast';
 import { detachTicket } from '../ticket';
 
@@ -26,7 +26,7 @@ function BarraHarness() {
   );
 }
 
-/** Botón de producto del grid, por su nombre corto. */
+/** Botón de producto del grid único, por su nombre corto. */
 function tile(name: string): HTMLButtonElement {
   const found = [...document.querySelectorAll<HTMLButtonElement>('.tile-grid .tile')].find(
     (el) => el.textContent?.trim().startsWith(name),
@@ -41,14 +41,6 @@ function chip(name: string): HTMLButtonElement {
     (el) => el.textContent?.trim() === name,
   );
   if (!found) throw new Error(`No hay chip «${name}»`);
-  return found;
-}
-
-function tab(name: string): HTMLButtonElement {
-  const found = [...document.querySelectorAll<HTMLButtonElement>('.tab')].find(
-    (el) => el.textContent?.trim() === name,
-  );
-  if (!found) throw new Error(`No hay pestaña «${name}»`);
   return found;
 }
 
@@ -95,7 +87,6 @@ beforeEach(() => {
 describe('tocar un producto', () => {
   it('agrupa dos toques de la misma bebida en una línea con cantidad 2', async () => {
     await setupBar();
-    fireEvent.click(tab('Con leche'));
     fireEvent.click(tile('Cortado'));
     fireEvent.click(tile('Cortado'));
 
@@ -106,7 +97,6 @@ describe('tocar un producto', () => {
 
   it('un chip armado se aplica y se desarma tras añadir', async () => {
     await setupBar();
-    fireEvent.click(tab('Con leche'));
     fireEvent.click(chip('Avena'));
     expect(chip('Avena').getAttribute('aria-pressed')).toBe('true');
 
@@ -138,7 +128,6 @@ describe('chip que no aplica al producto', () => {
   it('sacude ese chip y la línea sale sin el modificador', async () => {
     await setupBar();
     fireEvent.click(chip('Avena'));
-    fireEvent.click(tab('Espresso'));
     fireEvent.click(tile('Espresso'));
 
     await waitFor(() => expect(rows()).toHaveLength(1));
@@ -154,7 +143,6 @@ describe('chip que no aplica al producto', () => {
 describe('servir y deshacer', () => {
   it('servir sube el contador, vacía el ticket y ofrece deshacer', async () => {
     const eventId = await setupBar();
-    fireEvent.click(tab('Con leche'));
     fireEvent.click(tile('Cortado'));
     await waitFor(() => expect(rows()).toHaveLength(1));
 
@@ -177,7 +165,6 @@ describe('servir y deshacer', () => {
 
   it('deshacer anula el pedido y devuelve la línea al ticket', async () => {
     const eventId = await setupBar();
-    fireEvent.click(tab('Con leche'));
     fireEvent.click(chip('Avena'));
     fireEvent.click(tile('Cortado'));
     await waitFor(() => expect(rows()).toHaveLength(1));
@@ -209,7 +196,6 @@ describe('servir y deshacer', () => {
 describe('recargar la página en medio del evento', () => {
   it('el ticket en curso sigue ahí y los chips vuelven desarmados', async () => {
     await setupBar();
-    fireEvent.click(tab('Con leche'));
     fireEvent.click(chip('Avena'));
     fireEvent.click(tile('Cortado'));
     fireEvent.click(tile('Latte'));
@@ -233,7 +219,6 @@ describe('recargar la página en medio del evento', () => {
 describe('modo venta', () => {
   it('el botón dice «Cobrar» y la hoja de cobro calcula el cambio', async () => {
     await setupBar('venta');
-    fireEvent.click(tab('Espresso'));
     fireEvent.click(tile('Espresso')); // 2,00
     fireEvent.click(tile('Americano')); // 2,50
     await waitFor(() => expect(rows()).toHaveLength(2));
@@ -252,5 +237,63 @@ describe('modo venta', () => {
     await waitFor(() =>
       expect(sheet.querySelector('.pay__change-value')?.textContent).toBe('5,50 €'),
     );
+  });
+});
+
+describe('grid único agrupado por categoría', () => {
+  it('pinta un encabezado por categoría, en el orden de la carta', async () => {
+    await setupBar();
+    const titulos = [...document.querySelectorAll('.tile-grid .grupo__title')].map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(titulos).toEqual(['Espresso', 'Con leche', 'Filtro', 'Fríos', 'Especiales', 'Otros']);
+  });
+
+  it('enseña las catorce bebidas de la carta a la vez, sin pestañas', async () => {
+    await setupBar();
+    expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(14);
+    // Con 14 productos las pestañas no aparecen: sobran.
+    expect(document.querySelectorAll('.tab')).toHaveLength(0);
+  });
+
+  it('una bebida desactivada desaparece del grid y su categoría también si se queda vacía', async () => {
+    await setupBar();
+    const te = products.value.find((p) => p.id === 'te')!;
+    const agua = products.value.find((p) => p.id === 'agua_botella')!;
+    await saveProduct({ ...te, active: false });
+    await saveProduct({ ...agua, active: false });
+    await loadCatalog();
+
+    await waitFor(() => expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(12));
+    const titulos = [...document.querySelectorAll('.tile-grid .grupo__title')].map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(titulos).not.toContain('Otros');
+    expect(document.querySelector('.tile-grid')?.textContent).not.toContain('Té');
+  });
+});
+
+describe('cabecera de la barra', () => {
+  it('sale a Eventos sin cerrar y ofrece un único terminal: Cerrar barra', async () => {
+    await setupBar();
+    const cabecera = document.querySelector('.barra__header')!;
+    expect(cabecera.textContent).toContain('Eventos');
+    expect(cabecera.textContent).toContain('Cerrar barra');
+    // «Pausar» desaparece: no se distinguía de cerrar.
+    expect(cabecera.textContent).not.toContain('Pausar');
+  });
+
+  it('el interruptor se llama Rápido y explica qué hace', async () => {
+    await setupBar();
+    const cabecera = document.querySelector('.barra__header')!;
+    expect(cabecera.textContent).toContain('Rápido');
+    expect(cabecera.textContent).toContain('cada toque sirve una bebida');
+    expect(cabecera.textContent).not.toContain('Un toque');
+  });
+
+  it('dice en qué paso del evento estás', async () => {
+    await setupBar();
+    expect(document.querySelector('.pasos-linea')?.textContent).toContain('Paso 2 de 4');
+    expect(document.querySelector('.pasos-linea')?.textContent).toContain('Servir');
   });
 });

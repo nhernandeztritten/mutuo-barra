@@ -105,6 +105,41 @@ describe('eventStats', () => {
     expect(stats2.tips).toBe(1);
   });
 
+  it('una invitación no entra en los ingresos, pero se cuenta aparte', () => {
+    const venta = [
+      order('v1', '2026-09-12T18:10:00.000Z', [line('latte', 2)], { mode: 'venta', payment: 'tarjeta' }),
+      order('v2', '2026-09-12T18:20:00.000Z', [line('espresso', 1)], {
+        mode: 'venta',
+        payment: 'invitacion',
+      }),
+    ];
+    const stats2 = eventStats(event({ mode: 'venta' }), venta, PRODUCTS, NOW);
+    // Dos lattes a 3,20 €. El espresso de 2,00 € se regaló.
+    expect(stats2.revenue).toBe(6.4);
+    expect(stats2.compedCount).toBe(1);
+    expect(stats2.compedValue).toBe(2);
+    // Regalada o no, la bebida se sirvió y su coste se pagó.
+    expect(stats2.served).toBe(3);
+  });
+
+  it('la propina de un pedido de invitación sigue siendo dinero recibido', () => {
+    const venta = [
+      order('v1', '2026-09-12T18:10:00.000Z', [line('espresso', 1)], {
+        mode: 'venta',
+        payment: 'invitacion',
+        tip: 0.5,
+      }),
+    ];
+    const stats2 = eventStats(event({ mode: 'venta' }), venta, PRODUCTS, NOW);
+    expect(stats2.revenue).toBe(0);
+    expect(stats2.tips).toBe(0.5);
+  });
+
+  it('sin invitaciones, los contadores de regalo están a cero', () => {
+    expect(eventStats(event(), ORDERS, PRODUCTS, NOW).compedCount).toBe(0);
+    expect(eventStats(event(), ORDERS, PRODUCTS, NOW).compedValue).toBe(0);
+  });
+
   it('un evento cerrado mide el ritmo contra su hora de cierre, no contra el reloj', () => {
     const closed = event({ status: 'closed', closedAt: '2026-09-12T23:00:00.000Z' });
     expect(eventStats(closed, ORDERS, PRODUCTS, NOW).lastHourRate).toBe(0);
@@ -156,6 +191,28 @@ describe('closeStats', () => {
 
   it('mide la duración real del evento', () => {
     expect(stats.durationMinutes).toBe(120);
+  });
+
+  it('con recuento parcial, cada insumo va por su lado', () => {
+    // Café contado, leche no: uno usa el recuento y el otro el teórico.
+    expect(stats.hasCount).toBe(true);
+    const cafe = stats.byIngredient.find((i) => i.ingredientId === 'cafe')!;
+    const leche = stats.byIngredient.find((i) => i.ingredientId === 'leche')!;
+    expect(cafe.counted).toBe(true);
+    expect(leche.counted).toBe(false);
+    expect(leche.real).toBe(leche.theoretical);
+    // El coste real mezcla los dos: café contado + leche teórica.
+    expect(stats.realConsumption['cafe']).toBe(200);
+    expect(stats.realConsumption['leche']).toBe(leche.theoretical);
+  });
+
+  it('un recuento imposible (queda más de lo cargado) no da consumo negativo', () => {
+    const raro = closeStats(
+      event({ stockStart: { cafe: 3000 }, stockEnd: { cafe: 3200 } }),
+      ORDERS,
+      INGREDIENTS,
+    );
+    expect(raro.byIngredient.find((i) => i.ingredientId === 'cafe')?.real).toBe(0);
   });
 
   it('sin recuento ninguno, real = teórico y hasCount es falso', () => {
