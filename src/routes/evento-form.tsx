@@ -3,13 +3,14 @@
  * Una sola página con dos bloques: Datos y Carga. Se puede guardar sin carga.
  */
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { useLocation, useRoute } from 'preact-iso';
+import { useRoute } from 'preact-iso';
 import { Play, Wand2 } from 'lucide-preact';
 import { createEvent, openEvent, updateEvent } from '../data/repo';
 import type { BarEvent, EventMode, EventType, StockMap } from '../data/types';
 import { loadSuggestion } from '../domain/stats';
 import { formatDecimal, formatQty } from '../domain/format';
 import { Button } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { Pasos } from '../ui/pasos';
 import { showToast } from '../ui/toast';
 import { eventById, liveEvent, refreshEvents, trackedIngredients } from '../ui/store';
@@ -70,7 +71,7 @@ function initialState(event: BarEvent | undefined): FormState {
 }
 
 export function EventoForm() {
-  const { route } = useLocation();
+  const route = useIr();
   const { params } = useRoute();
   const id = params['id'];
   const existing = eventById(id);

@@ -462,3 +462,41 @@ evento con carga, abre la barra con sus 14 bebidas, sirve dos, recarga otra vez
 —todavía sin red— y comprueba que las dos siguen ahí. Después devuelve la red y
 vuelve a comprobarlo. 30 comprobaciones, todas en verde, y cinco capturas en
 `docs/capturas/fase-4/`.
+
+### 55. La app sabe dónde vive: `VITE_BASE` y `src/ui/navegar.ts`
+Vercel deja la app en la raíz de un dominio; GitHub Pages la cuelga del nombre
+del repositorio (`/mutuo-barra/`). `preact-iso` compara la ruta del navegador
+tal cual, así que publicada en una carpeta **ninguna ruta encajaba** y todo
+caía en «Aquí no hay nada» — un fallo que solo se ve al desplegar, nunca en
+desarrollo.
+
+`VITE_BASE` alimenta a la vez el `base` de Vite (assets), el `start_url` y el
+`scope` del manifest, el `navigateFallback` del service worker y una constante
+`__APP_BASE__`. La regla dentro del código no cambia: **las rutas se escriben
+siempre desde la raíz** (`/evento/:id`), y la base se pega en los dos únicos
+sitios por donde una ruta sale al navegador —el `href` de un enlace y el
+`route()` de un salto, que ahora pasa por `useIr()`— y se quita en el único por
+el que entra: saber en qué sección estamos.
+
+Verificado de verdad, no supuesto: construido con `VITE_BASE=/mutuo-barra/`,
+servido desde una carpeta como lo hace Pages y recorrido con Playwright.
+Navegación entre secciones, creación de evento, barra con sus 14 tiles, recarga
+directa de `/mutuo-barra/resultados` y `scope` del service worker en
+`http://localhost:4199/mutuo-barra/`. Cero errores de consola.
+
+Alternativas descartadas: **enrutar por hash** (`#/evento/x`), que funciona en
+cualquier sitio pero ensucia todas las direcciones y rompe los enlaces ya
+guardados; y **publicar solo en la raíz**, que habría sido más simple pero deja
+a Nicolas sin la salida de emergencia si no quiere abrir cuenta en Vercel.
+
+### 56. Las cabeceras de caché, o una versión nueva no llega nunca
+`vercel.json` marca `index.html`, `sw.js` y el manifest como `no-cache`, y
+`assets/*` como inmutable durante un año. No es afinar: los assets llevan el
+hash en el nombre y no cambian jamás, pero si la CDN cachea `index.html` o
+`sw.js`, el iPad se queda con la versión vieja indefinidamente y el aviso «Hay
+una versión nueva» no se dispara nunca.
+
+En GitHub Pages no hay control de cabeceras. Lo que sí hace falta ahí es
+`404.html`, que es una copia de `index.html`: Pages no sabe de rutas de una app,
+así que al recargar `/mutuo-barra/resultados` devuelve el 404 — y ese 404 es la
+propia app, que lee la dirección y pinta lo que toca.

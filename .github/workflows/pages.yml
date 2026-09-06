@@ -1,0 +1,67 @@
+# Publica la app en GitHub Pages en cada empujón a `main`.
+#
+# Para encenderlo, una vez: en GitHub, Settings → Pages → Source: «GitHub
+# Actions». La app queda en https://<usuario>.github.io/<repositorio>/.
+#
+# `VITE_BASE` es el nombre del repositorio porque en Pages la app cuelga de una
+# carpeta, no de la raíz del dominio. `dist/404.html` es una copia de
+# `index.html`: Pages no sabe de rutas de una app, así que cuando alguien recarga
+# `/mutuo-barra/resultados` devuelve el 404, y ese 404 es la propia app, que lee
+# la dirección y pinta la pantalla que toca.
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue a la vez; si llegan dos empujones seguidos, gana el último.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    env:
+      # Los navegadores de Playwright pesan 100 MB y aquí no se usan.
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      # No se publica nada que no pase los tipos y las pruebas.
+      - run: npm run typecheck
+      - run: npm test
+
+      - run: npm run build
+        env:
+          VITE_BASE: ${{ github.event.repository.name }}
+
+      - name: Copiar index.html como 404.html
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - id: despliegue
+        uses: actions/deploy-pages@v4

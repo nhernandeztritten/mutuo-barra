@@ -5,7 +5,6 @@
  * bebida, a qué hora se forma la cola, cuánta avena hay que subir al carro.
  */
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { useLocation } from 'preact-iso';
 import { Download, Upload } from 'lucide-preact';
 import {
   exportAllConsumptionCsv,
@@ -25,6 +24,7 @@ import {
   formatPct,
 } from '../domain/format';
 import { Button } from '../ui/components';
+import { conBase, useIr } from '../ui/navegar';
 import { guardarArchivo, nombreConFecha, pedirArchivo } from '../ui/archivos';
 import { BarraApilada, Columnas, Curva, Grafico } from '../ui/graficos';
 import { ordenarPor, siguienteOrden, type Direccion } from '../ui/orden';
@@ -92,7 +92,7 @@ const COLUMNAS: { key: ColKey; label: string; num: boolean }[] = [
 ];
 
 export function Resultados() {
-  const { route } = useLocation();
+  const route = useIr();
   const [orders, setOrders] = useState<Order[]>([]);
   const [conEjemplos, setConEjemplos] = useState(false);
   const [orden, setOrden] = useState<{ key: ColKey; dir: Direccion }>({
@@ -361,7 +361,7 @@ export function Resultados() {
                   <tr key={r.event.id}>
                     <td class="tabla__num">{formatDate(`${r.fecha}T12:00:00`)}</td>
                     <th scope="row">
-                      <a href={`/evento/${r.event.id}`}>{r.nombre}</a>
+                      <a href={conBase(`/evento/${r.event.id}`)}>{r.nombre}</a>
                       {r.event.isDemo ? <Etiqueta>Ejemplo</Etiqueta> : null}
                     </th>
                     <td>{r.tipo}</td>

@@ -5,7 +5,7 @@
  * ritmo, qué se consumió de verdad y cuánto costó.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { useLocation, useRoute } from 'preact-iso';
+import { useRoute } from 'preact-iso';
 import { Download, RotateCcw } from 'lucide-preact';
 import { exportJson, exportLinesCsv, listOrders, reopenEvent } from '../data/repo';
 import type { Order } from '../data/types';
@@ -23,6 +23,7 @@ import {
   formatTime,
 } from '../domain/format';
 import { Button } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { guardarArchivo, nombreConFecha } from '../ui/archivos';
 import { BarraApilada, BarrasHorizontales, Columnas, Grafico } from '../ui/graficos';
 import { Pasos } from '../ui/pasos';
@@ -45,7 +46,7 @@ function tono(pct: number): 'warn' | 'danger' | undefined {
 }
 
 export function EventoDetalle() {
-  const { route } = useLocation();
+  const route = useIr();
   const { params } = useRoute();
   const event = eventById(params['id']);
   const [orders, setOrders] = useState<Order[]>([]);

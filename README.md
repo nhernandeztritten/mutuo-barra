@@ -12,6 +12,7 @@ principal es **servir**, no cobrar. El cobro es un modo del evento.
 - Tokens, tamaños y motion: [`DESIGN.md`](DESIGN.md)
 - Plan de fases: [`docs/PLAN.md`](docs/PLAN.md)
 - Decisiones tomadas al construir: [`docs/DECISIONES.md`](docs/DECISIONES.md)
+- Sincronizar dos iPads (v2, sin construir): [`docs/SYNC.md`](docs/SYNC.md)
 
 ## Estado
 
@@ -44,9 +45,20 @@ npm run dev        # http://localhost:5173 (ya escucha en toda la red local)
 | `npm run dev` | Servidor de desarrollo, accesible desde la red local |
 | `npm run build` | Construye `dist/` con el service worker |
 | `npm run preview` | Sirve `dist/` como en producción |
-| `npm test` | Tests del dominio y de la capa de datos (vitest) |
+| `npm test` | Tests del dominio, de la capa de datos y de la barra (vitest) |
 | `npm run typecheck` | TypeScript en modo estricto, sin emitir |
 | `npm run icons` | Regenera los iconos PNG de la PWA |
+| `npm run contraste` | Mide el contraste WCAG de cada par texto/fondo, en claro y en noche |
+| `npm run verifica:ui` | Mide el grid, los objetivos táctiles y el scroll (necesita `preview`) |
+| `npm run verifica:pwa` | Prueba la instalación y el modo sin red (necesita `preview`) |
+| `npm run capturas` | Recorre la app entera y guarda las capturas (necesita `preview`) |
+
+Las tres últimas hablan con la app construida:
+
+```bash
+npm run build && npm run preview &
+npm run verifica:ui && npm run verifica:pwa && npm run capturas
+```
 
 ## Probar en el iPad por red local
 
@@ -59,17 +71,81 @@ npm run dev        # http://localhost:5173 (ya escucha en toda la red local)
 Para probar la app tal como se verá en el evento, construida y con el service
 worker activo: `npm run build && npm run preview` y abre el puerto **4173**.
 
-### Instalar en la pantalla de inicio
-
-En Safari: **Compartir → Añadir a pantalla de inicio**. Importa hacerlo, no es
-cosmético: instalada, la app arranca a pantalla completa y iPadOS deja de
-considerar sus datos desechables. Sin instalar y sin permiso de almacenamiento
-persistente, Safari puede **borrar IndexedDB tras 7 días sin uso**.
-
 > El service worker (y por tanto el modo offline y la instalación) necesita
 > `https` o `localhost`. Por IP en la red local, `http://192.168.1.130:5173`
-> sirve para probar la interfaz, pero **no** registra el service worker. El
-> offline real se verifica con el despliegue.
+> sirve para probar la interfaz, pero **no** registra el service worker. Para
+> ver el offline de verdad hace falta publicar la app.
+
+## Publicar
+
+Hay dos caminos. Los dos necesitan una cuenta de Nicolas, así que este paso no
+se puede dejar hecho desde aquí.
+
+### 1. Vercel (recomendado)
+
+Es el corto y el que deja la app en la raíz del dominio.
+
+1. Sube el repositorio a GitHub (privado sirve).
+2. Entra en [vercel.com](https://vercel.com) → **Add New → Project** e importa
+   el repositorio.
+3. Framework: **Vite**. Build `npm run build`, salida `dist`. Sin variables de
+   entorno.
+4. **Deploy**. Vercel da una URL `https://…vercel.app`; esa es la que se abre en
+   el iPad.
+
+`vercel.json` ya lleva lo que hace falta: todas las direcciones caen en
+`index.html` (si no, recargar `/resultados` daría un 404) y las cabeceras de
+caché — `no-cache` para `index.html`, `sw.js` y el manifest, para que una
+versión nueva se vea; un año e inmutable para `assets/`, que llevan el hash en
+el nombre.
+
+### 2. GitHub Pages
+
+Sin cuenta de Vercel, con el repositorio en GitHub.
+
+1. En GitHub: **Settings → Pages → Source: GitHub Actions**.
+2. Empuja a `main`. El flujo `.github/workflows/pages.yml` comprueba tipos,
+   pasa los tests, construye y publica.
+3. La app queda en `https://<usuario>.github.io/<repositorio>/`.
+
+Aquí la app cuelga de una carpeta, no de la raíz, así que el flujo construye con
+`VITE_BASE` puesto al nombre del repositorio: `vite.config.ts` lo usa para los
+assets, el `start_url` y el `scope` del service worker, y `src/ui/navegar.ts`
+para las rutas. Probado sirviendo la carpeta como lo hace Pages: navegación,
+recarga directa de una ruta profunda y service worker, todo correcto.
+
+## Instalar en el iPad
+
+1. Abre la URL publicada **en Safari** (no en Chrome).
+2. Toca **Compartir**, el cuadrado con la flecha hacia arriba.
+3. Baja hasta **Añadir a pantalla de inicio** y confirma.
+4. A partir de ahí, **abre siempre la app desde su icono**.
+
+La primera vez hace falta internet, para que se descargue entera. Después
+funciona con el iPad en modo avión.
+
+Instalarla no es cosmético: la app arranca a pantalla completa y iPadOS deja de
+tratar sus datos como desechables. Sin instalar y sin permiso de almacenamiento
+persistente, Safari puede **borrar IndexedDB tras 7 días sin uso**, que es
+justo el tiempo que pasa entre un evento y el siguiente. En **Carta y ajustes**
+están el estado de instalación, el del almacenamiento y el botón de copia.
+
+## Antes de la boda
+
+Repaso corto la víspera, con el iPad delante:
+
+- [ ] **Rellenar los costes que faltan.** Tónica, licor y sirope están a 0 € y
+      marcados «sin costear»: mientras sigan así, el coste de un Espresso tonic
+      y de un Cremaet está incompleto. Carta y ajustes → Insumos.
+- [ ] **Revisar los precios si se va a vender.** Las 14 bebidas llevan precio
+      provisional. Solo importa en los eventos en modo «venta»; si el anfitrión
+      paga la tarifa, se pueden dejar como están.
+- [ ] **Registrar la carga real.** Lo que sube de verdad al carro, no la
+      sugerencia. Sin la carga del café, la barra no enseña cuánto queda.
+- [ ] **Comprobar que la app está instalada** y que Ajustes dice «Protegido» en
+      Almacenamiento.
+- [ ] **Hacer una copia al cerrar.** Carta y ajustes → «Copia de seguridad
+      ahora», o desde los resultados del evento. Es la red de seguridad.
 
 ## Cómo está montado
 
@@ -87,6 +163,8 @@ src/
   styles/     tokens.css (claro y noche) y base.css
   ui/         componentes base: botón, chip, tile, input, hoja lateral, toast
   ui/         piezas compartidas: pasos del ciclo, gráficos SVG, archivos, orden
+              navegar.ts    rutas con base configurable (raíz o carpeta)
+              instalacion.ts  detectar y explicar la instalación en el iPad
   routes/     una pantalla por archivo
     eventos.tsx        portada: barra abierta, próximos, pasados
     evento-form.tsx    paso 1, datos y carga con sugerencia
@@ -97,6 +175,11 @@ src/
     resultados.tsx     comparativa entre eventos, exportar e importar
     ajustes*.tsx       carta, insumos y dispositivo
   app.tsx     rutas de SPEC §5, navegación y aviso de versión nueva
+scripts/
+  contraste.mjs     ratio WCAG de cada par texto/fondo, leído de tokens.css
+  verifica-ui.mjs   grid, objetivos táctiles, foco y scroll, con Playwright
+  verifica-pwa.mjs  service worker, iconos y el recorrido completo sin red
+  capturas.mjs      el recorrido de la app en capturas
 ```
 
 Todo es **append-only con uuid y deviceId**: anular un pedido escribe `voidedAt`,

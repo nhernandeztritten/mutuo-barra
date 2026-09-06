@@ -6,13 +6,13 @@
  * antes de pedir nada.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { useLocation } from 'preact-iso';
 import { AlertTriangle, CalendarPlus, ChevronRight, Coffee, Play, Smartphone } from 'lucide-preact';
 import { createEvent, listAllOrders, openEvent } from '../data/repo';
 import type { BarEvent, Order } from '../data/types';
 import { closeStats, eventStats, loadSuggestion } from '../domain/stats';
 import { formatDateLong, formatInt, formatMoney, formatRate } from '../domain/format';
 import { Button } from '../ui/components';
+import { conBase, useIr } from '../ui/navegar';
 import { estaInstalada } from '../ui/instalacion';
 import { ComoFunciona, Etiqueta } from '../ui/piezas';
 import {
@@ -40,7 +40,7 @@ export const TYPE_LABEL: Record<BarEvent['type'], string> = {
 };
 
 export function Eventos() {
-  const { route } = useLocation();
+  const route = useIr();
   const [orders, setOrders] = useState<Order[]>([]);
   const [blocker, setBlocker] = useState<Blocker | null>(null);
   const [busy, setBusy] = useState(false);
@@ -232,7 +232,7 @@ export function Eventos() {
 
       {!isEmpty ? (
         <p class="meta">
-          ¿Primera vez? <a href="/ajustes">Carta y ajustes</a> explica los cuatro pasos.
+          ¿Primera vez? <a href={conBase('/ajustes')}>Carta y ajustes</a> explica los cuatro pasos.
         </p>
       ) : null}
     </section>

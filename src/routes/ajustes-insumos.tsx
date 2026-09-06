@@ -6,11 +6,11 @@
  * llevan está incompleto y así se dice.
  */
 import { useMemo, useState } from 'preact/hooks';
-import { useLocation } from 'preact-iso';
 import { Plus } from 'lucide-preact';
 import { createIngredient, saveIngredient } from '../data/repo';
 import type { CostSource, Ingredient, RecipeUnit, StockUnit } from '../data/types';
 import { Button, Sheet } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { Etiqueta } from '../ui/piezas';
 import { showToast } from '../ui/toast';
 import { ingredients, loadCatalog, products } from '../ui/store';
@@ -53,7 +53,7 @@ function insumoVacio(sortOrder: number): Ingredient {
 }
 
 export function AjustesInsumos() {
-  const { route } = useLocation();
+  const route = useIr();
   const [editando, setEditando] = useState<Ingredient | null>(null);
   const [busy, setBusy] = useState(false);
 

@@ -9,13 +9,14 @@
  * barista: no se distinguía de cerrar.
  */
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { useLocation, useRoute } from 'preact-iso';
+import { useRoute } from 'preact-iso';
 import { ChevronLeft, Moon, Sun, Zap } from 'lucide-preact';
 import { addOrder, listOrders, voidOrder } from '../data/repo';
 import type { Category, Order, Product } from '../data/types';
 import { eventConsumption, eventStats } from '../domain/stats';
 import { formatInt, formatQty, formatRate } from '../domain/format';
 import { Button, Chip, Sheet, Tile } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { clearToasts, showToast } from '../ui/toast';
 import {
   CATEGORY_COLOR,
@@ -81,7 +82,7 @@ const SHAKE_MS = 220;
 const SERVE_FADE_MS = 180;
 
 export function Barra() {
-  const { route } = useLocation();
+  const route = useIr();
   const { params } = useRoute();
   const eventId = params['id'];
   const event = eventById(eventId);

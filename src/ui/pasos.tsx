@@ -5,6 +5,7 @@
  * del Trunk Test: «¿dónde estoy y qué viene después?».
  */
 import type { EventStatus } from '../data/types';
+import { conBase } from './navegar';
 
 export type PasoId = 1 | 2 | 3 | 4;
 
@@ -127,7 +128,7 @@ export function Pasos({
             {p.href ? (
               <a
                 class="pasos__link"
-                href={p.href}
+                href={conBase(p.href)}
                 {...(p.estado === 'actual' ? { 'aria-current': 'step' as const } : {})}
               >
                 {inner}

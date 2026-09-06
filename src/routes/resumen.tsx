@@ -5,7 +5,7 @@
  * UX-REVISION-1 §C) y también como página para un evento ya cerrado.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { useLocation, useRoute } from 'preact-iso';
+import { useRoute } from 'preact-iso';
 import { listOrders, voidOrder } from '../data/repo';
 import type { BarEvent, Ingredient, Order } from '../data/types';
 import { DRINKS_PER_BARISTA_HOUR, eventConsumption, eventStats } from '../domain/stats';
@@ -18,6 +18,7 @@ import {
   formatTime,
 } from '../domain/format';
 import { Button } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { BarraApilada, BarrasHorizontales, Columnas, Grafico, Medidor } from '../ui/graficos';
 import { Pasos } from '../ui/pasos';
 import { Cifra, Fila } from '../ui/piezas';
@@ -262,7 +263,7 @@ export function ResumenContenido({
 
 /** `/evento/:id/resumen` — la misma información como página. */
 export function Resumen() {
-  const { route } = useLocation();
+  const route = useIr();
   const { params } = useRoute();
   const event = eventById(params['id']);
   const [orders, setOrders] = useState<Order[]>([]);

@@ -5,7 +5,7 @@
  * vivo. El recuento es opcional: sin él se usa el consumo teórico y se dice.
  */
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { useLocation, useRoute } from 'preact-iso';
+import { useRoute } from 'preact-iso';
 import { AlertTriangle } from 'lucide-preact';
 import { addOrder, closeEvent, listOrders } from '../data/repo';
 import type { BarEvent, Order, StockMap } from '../data/types';
@@ -19,6 +19,7 @@ import {
   formatQty,
 } from '../domain/format';
 import { Button } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { Pasos } from '../ui/pasos';
 import { Cifra, Fila } from '../ui/piezas';
 import { showToast } from '../ui/toast';
@@ -40,7 +41,7 @@ function tonoDesviacion(pct: number): 'warn' | 'danger' | undefined {
 }
 
 export function Cierre() {
-  const { route } = useLocation();
+  const route = useIr();
   const { params } = useRoute();
   const event = eventById(params['id']);
 

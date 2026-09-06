@@ -1,9 +1,9 @@
 /** Dirección que no existe. Siempre con salida a Eventos. */
-import { useLocation } from 'preact-iso';
 import { Button } from '../ui/components';
+import { useIr } from '../ui/navegar';
 
 export function NoEncontrado() {
-  const { route } = useLocation();
+  const route = useIr();
   return (
     <section class="stack" style={{ maxWidth: '640px' }}>
       <h1 class="display">Aquí no hay nada</h1>

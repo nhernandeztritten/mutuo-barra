@@ -11,6 +11,7 @@ import { LocationProvider, Route, Router, useLocation, useRoute } from 'preact-i
 import { initDb } from './data/db';
 import { ToastHost } from './ui/components';
 import { barMode } from './ui/layout';
+import { conBase, sinBase, useIr } from './ui/navegar';
 import { bootstrap, eventById, ready } from './ui/store';
 import { Ajustes } from './routes/ajustes';
 import { AjustesCarta } from './routes/ajustes-carta';
@@ -42,13 +43,15 @@ function EventoRoute() {
 
 /** `/panel` era la dirección de la fase 2; ahora vive en `/resultados`. */
 function PanelRedirect() {
-  const { route } = useLocation();
+  const route = useIr();
   useEffect(() => route('/resultados', true), []);
   return null;
 }
 
 function Nav() {
-  const { path } = useLocation();
+  // La ruta sin la base: dentro del código las secciones se escriben siempre
+  // desde la raíz, viva la app donde viva.
+  const path = sinBase(useLocation().path);
 
   const links = [
     { href: '/', label: 'Eventos', match: '/' },
@@ -69,7 +72,7 @@ function Nav() {
         <a
           class="navlink"
           key={link.label}
-          href={link.href}
+          href={conBase(link.href)}
           aria-current={isCurrent(link.match) ? 'page' : undefined}
         >
           {link.label}
@@ -107,16 +110,18 @@ export function App() {
         <main class="shell__main">
           {ready.value ? (
             <Router>
-              <Route path="/" component={Eventos} />
-              <Route path="/evento/nuevo" component={EventoForm} />
-              <Route path="/evento/:id" component={EventoRoute} />
-              <Route path="/evento/:id/resumen" component={Resumen} />
-              <Route path="/evento/:id/cerrar" component={Cierre} />
-              <Route path="/resultados" component={Resultados} />
-              <Route path="/panel" component={PanelRedirect} />
-              <Route path="/ajustes" component={Ajustes} />
-              <Route path="/ajustes/carta" component={AjustesCarta} />
-              <Route path="/ajustes/insumos" component={AjustesInsumos} />
+              {/* `conBase`: publicada en una carpeta, el navegador dice
+                  `/mutuo-barra/evento/x` y el patrón tiene que decir lo mismo. */}
+              <Route path={conBase('/')} component={Eventos} />
+              <Route path={conBase('/evento/nuevo')} component={EventoForm} />
+              <Route path={conBase('/evento/:id')} component={EventoRoute} />
+              <Route path={conBase('/evento/:id/resumen')} component={Resumen} />
+              <Route path={conBase('/evento/:id/cerrar')} component={Cierre} />
+              <Route path={conBase('/resultados')} component={Resultados} />
+              <Route path={conBase('/panel')} component={PanelRedirect} />
+              <Route path={conBase('/ajustes')} component={Ajustes} />
+              <Route path={conBase('/ajustes/carta')} component={AjustesCarta} />
+              <Route path={conBase('/ajustes/insumos')} component={AjustesInsumos} />
               <Route default component={NoEncontrado} />
             </Router>
           ) : (

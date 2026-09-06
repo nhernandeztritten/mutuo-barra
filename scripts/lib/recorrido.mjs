@@ -45,7 +45,9 @@ export async function crearEvento(page, { nombre = 'Boda Ana y Marc', invitados 
   await page.fill('#ev-invitados', invitados);
   await page.getByRole('button', { name: 'Usar todas las sugerencias' }).click();
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await page.waitForURL(`${BASE}/`);
+  // La portada, no una URL concreta: publicada en carpeta la raíz no lleva
+  // barra final y `waitForURL` con la barra no llegaría nunca.
+  await page.waitForSelector('.eventos');
   return nombre;
 }
 

@@ -5,7 +5,6 @@
  * receta y su precio congelados. Lo que se cambia aquí vale para lo que venga.
  */
 import { useMemo, useState } from 'preact/hooks';
-import { useLocation } from 'preact-iso';
 import { Plus, Trash2 } from 'lucide-preact';
 import { createModifierOption, createProduct, saveProduct } from '../data/repo';
 import type {
@@ -19,6 +18,7 @@ import type {
 import { formatMoney } from '../domain/format';
 import { costOfUsage } from '../domain/modifiers';
 import { Button, Sheet } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { Etiqueta } from '../ui/piezas';
 import { showToast } from '../ui/toast';
 import { ingredients, loadCatalog, modifierGroups, modifierOptions, products } from '../ui/store';
@@ -58,7 +58,7 @@ function productoVacio(sortOrder: number): Product {
 }
 
 export function AjustesCarta() {
-  const { route } = useLocation();
+  const route = useIr();
   const [editando, setEditando] = useState<Product | null>(null);
   const [nuevaOpcion, setNuevaOpcion] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

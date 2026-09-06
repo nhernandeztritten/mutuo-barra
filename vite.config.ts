@@ -8,8 +8,24 @@ import pkg from './package.json';
 /** La versión que enseña Ajustes sale de package.json, no de una constante a mano. */
 const version: string = pkg.version;
 
+/**
+ * Dónde vivirá la app. En Vercel o en un dominio propio es la raíz; en GitHub
+ * Pages cuelga del nombre del repositorio (`/mutuo-barra/`). Se pasa como
+ * variable de entorno al construir para no tener dos configuraciones:
+ *
+ *   VITE_BASE=/mutuo-barra/ npm run build
+ *
+ * Se normaliza con barras a los dos lados porque el `scope` del service worker
+ * y el `start_url` del manifest salen de aquí, y sin la barra final el service
+ * worker no controlaría la propia página que lo registró.
+ */
+declare const process: { env: Record<string, string | undefined> };
+const carpeta = (process.env['VITE_BASE'] ?? '').replace(/^\/+|\/+$/g, '');
+const base = carpeta === '' ? '/' : `/${carpeta}/`;
+
 export default defineConfig({
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  base,
+  define: { __APP_VERSION__: JSON.stringify(version), __APP_BASE__: JSON.stringify(base) },
   plugins: [
     preact(),
     VitePWA({
@@ -22,8 +38,8 @@ export default defineConfig({
         description: 'Cuaderno de barra del coffee cart de Mutuo. Funciona sin internet.',
         lang: 'es',
         dir: 'ltr',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         orientation: 'any',
         background_color: '#f5f4f3',
@@ -40,7 +56,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,woff,woff2}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        navigateFallback: 'index.html',
+        navigateFallback: `${base}index.html`,
       },
       devOptions: { enabled: false },
     }),

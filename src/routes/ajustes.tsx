@@ -5,11 +5,11 @@
  * pantalla porque se editan de otra manera y con otra cabeza.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { useLocation } from 'preact-iso';
 import { ChevronRight, Download, HardDrive, Moon, Smartphone, Sun } from 'lucide-preact';
 import { APP_VERSION } from '../data/db';
 import { exportJson } from '../data/repo';
 import { Button } from '../ui/components';
+import { useIr } from '../ui/navegar';
 import { guardarArchivo, nombreConFecha } from '../ui/archivos';
 import { PASOS_INSTALACION, estaInstalada } from '../ui/instalacion';
 import { ComoFunciona, Etiqueta } from '../ui/piezas';
@@ -27,7 +27,7 @@ import {
 import { theme } from '../ui/theme';
 
 export function Ajustes() {
-  const { route } = useLocation();
+  const route = useIr();
   const s = settings.value;
   const [nombre, setNombre] = useState(s?.deviceName ?? '');
   const [busy, setBusy] = useState(false);
