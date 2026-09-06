@@ -1,66 +1,69 @@
 /**
- * App shell: routes of SPEC §5, minimal navigation, theme and the
- * «Hay una versión nueva · Recargar» notice from the service worker.
+ * App shell: rutas de SPEC §5, navegación mínima, tema y el aviso
+ * «Hay una versión nueva · Recargar» del service worker.
  */
 import { useEffect } from 'preact/hooks';
 import { signal } from '@preact/signals';
-import { LocationProvider, Route, Router, useLocation } from 'preact-iso';
+import { LocationProvider, Route, Router, useLocation, useRoute } from 'preact-iso';
 import { initDb } from './data/db';
-import { getLiveEvent } from './data/repo';
-import type { BarEvent } from './data/types';
 import { ToastHost } from './ui/components';
-import { applyTheme } from './ui/theme';
-import {
-  Ajustes,
-  AjustesCarta,
-  AjustesInsumos,
-  Barra,
-  Cierre,
-  Eventos,
-  EventoNuevo,
-  NoEncontrado,
-  Panel,
-  Resumen,
-} from './routes/placeholders';
-
-const liveEvent = signal<BarEvent | undefined>(undefined);
-const ready = signal(false);
+import { barMode } from './ui/layout';
+import { bootstrap, eventById, liveEvent, ready } from './ui/store';
+import { Barra } from './routes/barra';
+import { EventoDetalle } from './routes/evento-detalle';
+import { EventoForm } from './routes/evento-form';
+import { Eventos } from './routes/eventos';
+import { Ajustes, AjustesCarta, AjustesInsumos, Cierre, NoEncontrado, Panel, Resumen } from './routes/placeholders';
 
 /** Set by main.tsx when Workbox reports a new build sitting in the wings. */
 export const needsRefresh = signal(false);
 export const applyUpdate = signal<() => void>(() => window.location.reload());
 
+/**
+ * `/evento/:id` es la barra si el evento está `live`, el formulario si está
+ * `planned` y el detalle si está `closed` (SPEC §5).
+ */
+function EventoRoute() {
+  const { params } = useRoute();
+  const event = eventById(params['id']);
+  if (event?.status === 'live') return <Barra />;
+  if (event?.status === 'closed') return <EventoDetalle />;
+  return <EventoForm />;
+}
+
 function Nav() {
   const { path } = useLocation();
   const live = liveEvent.value;
-  const barPath = live ? `/evento/${live.id}` : null;
+  // Sin evento en curso, «Barra» lleva a Eventos: ahí está «Abrir barra».
+  const barPath = live ? `/evento/${live.id}` : '/';
 
-  const links: { href: string | null; label: string }[] = [
-    { href: '/', label: 'Eventos' },
-    { href: barPath, label: 'Barra' },
-    { href: '/panel', label: 'Panel' },
-    { href: '/ajustes', label: 'Ajustes' },
+  const links: { href: string; label: string; match: string | null }[] = [
+    { href: '/', label: 'Eventos', match: '/' },
+    // Sin barra abierta, «Barra» no se marca como sección actual en Eventos.
+    { href: barPath, label: 'Barra', match: live ? barPath : null },
+    { href: '/panel', label: 'Panel', match: '/panel' },
+    { href: '/ajustes', label: 'Ajustes', match: '/ajustes' },
   ];
+
+  const isCurrent = (match: string | null): boolean => {
+    if (match === null) return false;
+    if (match === '/') return path === '/';
+    return path === match || path.startsWith(`${match}/`);
+  };
 
   return (
     <nav class="navbar" aria-label="Secciones">
       <span class="wordmark navbar__brand">Mutuo.</span>
-      {links.map((link) =>
-        link.href === null ? (
-          <span class="navlink" key={link.label} aria-disabled="true" style={{ opacity: 0.45 }}>
-            {link.label}
-          </span>
-        ) : (
-          <a
-            class="navlink"
-            key={link.label}
-            href={link.href}
-            aria-current={path === link.href || (link.href !== '/' && path.startsWith(link.href)) ? 'page' : undefined}
-          >
-            {link.label}
-          </a>
-        ),
-      )}
+      {links.map((link) => (
+        <a
+          class="navlink"
+          key={link.label}
+          href={link.href}
+          aria-current={isCurrent(link.match) ? 'page' : undefined}
+        >
+          {link.label}
+        </a>
+      ))}
     </nav>
   );
 }
@@ -80,24 +83,22 @@ function UpdateBanner() {
 export function App() {
   useEffect(() => {
     void (async () => {
-      const { settings } = await initDb();
-      applyTheme(settings.theme);
-      liveEvent.value = await getLiveEvent();
-      ready.value = true;
+      await initDb();
+      await bootstrap();
     })();
   }, []);
 
   return (
     <LocationProvider>
-      <div class="shell">
+      <div class={['shell', barMode.value ? 'shell--bar' : ''].filter(Boolean).join(' ')}>
         <UpdateBanner />
         <Nav />
         <main class="shell__main">
           {ready.value ? (
             <Router>
               <Route path="/" component={Eventos} />
-              <Route path="/evento/nuevo" component={EventoNuevo} />
-              <Route path="/evento/:id" component={Barra} />
+              <Route path="/evento/nuevo" component={EventoForm} />
+              <Route path="/evento/:id" component={EventoRoute} />
               <Route path="/evento/:id/resumen" component={Resumen} />
               <Route path="/evento/:id/cerrar" component={Cierre} />
               <Route path="/panel" component={Panel} />

@@ -9,6 +9,7 @@ import '@fontsource/archivo/latin-600.css';
 
 import './styles/tokens.css';
 import './styles/base.css';
+import './styles/screens.css';
 
 import { App, applyUpdate, needsRefresh } from './app';
 
