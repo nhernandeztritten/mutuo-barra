@@ -500,3 +500,21 @@ En GitHub Pages no hay control de cabeceras. Lo que sí hace falta ahí es
 `404.html`, que es una copia de `index.html`: Pages no sabe de rutas de una app,
 así que al recargar `/mutuo-barra/resultados` devuelve el 404 — y ese 404 es la
 propia app, que lee la dirección y pinta lo que toca.
+
+### 57. Con el ticket desplegado, la barra inferior se esconde
+Lo vio una captura del recorrido en vertical, no un test: con la hoja del ticket
+abierta, el «Servir» de la barra inferior asomaba por detrás del «Servir 1
+bebida» de la hoja, atenuado por el fondo. Dos botones iguales, uno de ellos
+inalcanzable. La barra inferior se oculta mientras la hoja está abierta.
+
+Es el argumento para mirar las capturas y no solo el verde de los tests: ningún
+aserto habría cazado esto.
+
+### 58. El recorrido completo también es un script
+`npm run capturas` hace de punta a punta lo que haría Nicolas —primer uso, nuevo
+evento con carga, abrir barra, cortado con avena en dos toques, servir, resumen,
+cerrar con recuento, resultados, exportar— y comprueba 24 cosas por el camino a
+la vez que guarda 16 capturas, en horizontal y en vertical. Verificado en esta
+pasada: el grid entero a la vista (420 px de 484), «Paso 2 de 4 · Servir» en la
+barra y «3 Cerrar» en el cierre, tres archivos al exportar, el ticket como
+diálogo en vertical y el modo noche.

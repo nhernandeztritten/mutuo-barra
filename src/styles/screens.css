@@ -689,6 +689,11 @@
     padding-block-end: calc(var(--h-action) + var(--s-4));
   }
 
+  /* Con el ticket desplegado, la barra inferior sobra y estorba. */
+  .ticket-bar.is-oculta {
+    display: none;
+  }
+
   .ticket-bar {
     position: fixed;
     inset-inline: 0;

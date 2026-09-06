@@ -16,11 +16,18 @@ principal es **servir**, no cobrar. El cobro es un modo del evento.
 
 ## Estado
 
-**La app está completa de punta a punta**: se crea un evento con su carga, se
-abre la barra, se sirve, se ve el resumen en vivo, se cierra con recuento, se
-miran los resultados del evento y se comparan entre eventos, y la carta y los
-insumos se editan sin tocar código. Quedan para el final el pulido, la
-instalación en el iPad y el despliegue.
+**La app está completa de punta a punta y verificada**: se crea un evento con
+su carga, se abre la barra, se sirve, se ve el resumen en vivo, se cierra con
+recuento, se miran los resultados del evento y se comparan entre eventos, y la
+carta y los insumos se editan sin tocar código.
+
+El modo sin internet está **probado de verdad**, no supuesto: con la red
+cortada la app carga, crea un evento, abre la barra, sirve y recupera los
+pedidos tras recargar (`npm run verifica:pwa`). El contraste y los objetivos
+táctiles se miden con scripts, no a ojo.
+
+Lo único que queda es **publicarla**, que necesita una cuenta de Nicolas; los
+dos caminos están abajo, en «Publicar».
 
 El menú tiene tres entradas, por tarea:
 

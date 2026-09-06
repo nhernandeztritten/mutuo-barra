@@ -475,8 +475,10 @@ export function Barra() {
         <TicketPanel {...ticketProps} />
       </div>
 
-      {/* Vertical o pantalla estrecha: barra inferior de 72 px que se despliega. */}
-      <div class="ticket-bar">
+      {/* Vertical o pantalla estrecha: barra inferior de 72 px que se despliega.
+          Con la hoja abierta se esconde: si no, su «Servir» asoma por detrás
+          del de la hoja y quedan dos botones iguales, uno de ellos muerto. */}
+      <div class={['ticket-bar', sheetOpen ? 'is-oculta' : ''].filter(Boolean).join(' ')}>
         <button type="button" class="ticket-bar__label" onClick={() => setSheetOpen(true)}>
           {oneTap.value ? 'Modo rápido activo' : `Pedido (${formatInt(drinks)})`}
           {event.mode === 'venta' && drinks > 0
