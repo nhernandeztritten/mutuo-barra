@@ -27,11 +27,14 @@ body {
   overscroll-behavior: none;
 }
 
-/* No page scroll on the bar; inner containers scroll instead. */
+/* No page scroll on the bar; inner containers scroll instead.
+   `dvh` y no `vh`: en Safari, `100vh` cuenta una barra de herramientas que a
+   veces no está, y la barra inferior del ticket se iba fuera de la pantalla. */
 html,
 body,
 #app {
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
 }
 
 h1,
@@ -133,9 +136,27 @@ table {
   transform: scale(0.97);
 }
 
+/* Deshabilitado con colores propios, no con opacidad: al 45 % el texto de
+   «Toca una bebida» daba 2,2:1 sobre el ticket (scripts/contraste.mjs). */
 .btn:disabled {
-  opacity: 0.45;
   cursor: not-allowed;
+}
+
+.btn:disabled:active {
+  transform: none;
+}
+
+.btn--primary:disabled,
+.btn--secondary:disabled,
+.btn--danger:disabled {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--ink-2);
+}
+
+.btn--ghost:disabled {
+  background: transparent;
+  color: var(--ink-3);
 }
 
 .btn--primary {
@@ -209,7 +230,7 @@ table {
 
 /* Chip que no aplica: sacudida de 2 px, 200 ms. */
 .chip--shake {
-  animation: shake 200ms var(--ease);
+  animation: shake var(--t-shake) var(--ease);
 }
 
 @keyframes shake {
@@ -412,6 +433,7 @@ table {
   overflow-y: auto;
   padding: var(--s-6);
   padding-inline: max(var(--s-6), env(safe-area-inset-left)) max(var(--s-6), env(safe-area-inset-right));
+  padding-block-end: max(var(--s-6), env(safe-area-inset-bottom));
 }
 
 .navbar {
@@ -458,4 +480,27 @@ table {
   color: var(--ink);
   font-size: var(--fs-body);
   font-weight: 500;
+}
+
+/* ---------- Movimiento reducido ---------- */
+
+/* Los tiempos ya bajan a 120 ms en tokens.css; aquí se quita el desplazamiento:
+   lo que queda es un fundido, que es lo que pide DESIGN.md. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .ticket--sheet,
+  .toast,
+  .ticket__row {
+    animation-name: fundido;
+  }
+
+  @keyframes fundido {
+    from {
+      opacity: 0;
+    }
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }

@@ -156,7 +156,7 @@ function InsumoSheet({ ingredient, onClose }: { ingredient: Ingredient; onClose:
 
   async function guardar(): Promise<void> {
     if (name.trim() === '') {
-      showToast('El insumo necesita un nombre');
+      showToast('El insumo necesita un nombre: escríbelo arriba');
       return;
     }
     setBusy(true);

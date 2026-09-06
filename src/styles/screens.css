@@ -371,12 +371,17 @@
   overflow: hidden;
 }
 
+/* La animación va por `transform`, nunca por `width`: animar el ancho obliga al
+   navegador a rehacer el layout de la cabecera en cada bebida servida. */
 .meter__fill {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: var(--r-pill);
   background: var(--primary);
-  transition: width var(--t-enter) var(--ease);
+  transform-origin: left center;
+  transform: scaleX(var(--pct, 1));
+  transition: transform var(--t-enter) var(--ease);
 }
 
 .meter--warn .meter__fill {

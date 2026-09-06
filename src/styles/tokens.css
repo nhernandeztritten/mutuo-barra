@@ -82,6 +82,7 @@
   --t-toast-in: 200ms;
   --t-toast-out: 140ms;
   --t-tick: 240ms;
+  --t-shake: 200ms;
 }
 
 [data-theme='night'] {
@@ -124,5 +125,6 @@
     --t-toast-in: 120ms;
     --t-toast-out: 120ms;
     --t-tick: 0ms;
+    --t-shake: 0ms;
   }
 }

@@ -2,6 +2,7 @@
  * Piezas de la barra: ticket, hoja lateral de una línea y hoja de cobro.
  * Separadas de `routes/barra.tsx` para que cada archivo se lea de una sentada.
  */
+import type { RefObject } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { Minus, Plus, Undo2 } from 'lucide-preact';
 import { applyModifiers } from '../domain/modifiers';
@@ -14,7 +15,7 @@ import type {
   PaymentMethod,
   Product,
 } from '../data/types';
-import { Button, Sheet } from './components';
+import { Button, Sheet, useHoja } from './components';
 import { lineContent, replaceLine, ticketDrinks, ticketTotal, type TicketLine } from './ticket';
 
 /** Acento por categoría: punto de 10 px y subrayado de la pestaña. Nunca franjas. */
@@ -35,20 +36,7 @@ export interface RecentDrink {
   servedAt: string;
 }
 
-export function TicketPanel({
-  lines,
-  displayLines,
-  mode,
-  oneTap,
-  recent,
-  serving,
-  sheet = false,
-  onEdit,
-  onQty,
-  onUndoLast,
-  onServe,
-  onCollapse,
-}: {
+export interface TicketPanelProps {
   lines: TicketLine[];
   /** Lo que se pinta; durante el fundido de «Servir» es la copia del pedido ya guardado. */
   displayLines?: TicketLine[];
@@ -57,12 +45,39 @@ export function TicketPanel({
   recent: RecentDrink[];
   serving: boolean;
   sheet?: boolean;
+  /** Solo la versión desplegada: la ref que atrapa el foco dentro de la hoja. */
+  hojaRef?: RefObject<HTMLElement>;
   onEdit: (line: TicketLine) => void;
   onQty: (lineId: string, qty: number) => void;
   onUndoLast: () => void;
   onServe: () => void;
   onCollapse?: () => void;
-}) {
+}
+
+/**
+ * El ticket desplegado en vertical. Es una hoja de verdad: atrapa el foco, se
+ * cierra con Escape y devuelve el foco a donde estaba.
+ */
+export function TicketHoja(props: TicketPanelProps & { onCollapse: () => void }) {
+  const ref = useHoja<HTMLElement>(props.onCollapse);
+  return <TicketPanel {...props} sheet hojaRef={ref} />;
+}
+
+export function TicketPanel({
+  lines,
+  displayLines,
+  mode,
+  oneTap,
+  recent,
+  serving,
+  sheet = false,
+  hojaRef,
+  onEdit,
+  onQty,
+  onUndoLast,
+  onServe,
+  onCollapse,
+}: TicketPanelProps) {
   const shown = displayLines ?? lines;
   const drinks = ticketDrinks(lines);
   const total = ticketTotal(lines);
@@ -72,7 +87,10 @@ export function TicketPanel({
       : `Servir ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`;
 
   return (
-    <aside class={['ticket', sheet ? 'ticket--sheet' : ''].filter(Boolean).join(' ')}>
+    <aside
+      {...(sheet ? { ref: hojaRef, role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pedido actual' } : {})}
+      class={['ticket', sheet ? 'ticket--sheet' : ''].filter(Boolean).join(' ')}
+    >
       <header class="ticket__head">
         <span>{oneTap ? 'Modo rápido activo' : `Pedido actual (${formatInt(drinks)})`}</span>
         {onCollapse ? (

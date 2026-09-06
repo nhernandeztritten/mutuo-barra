@@ -11,7 +11,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "contraste": "node scripts/contraste.mjs",
+    "verifica:ui": "node scripts/verifica-ui.mjs",
+    "verifica:pwa": "node scripts/verifica-pwa.mjs",
+    "capturas": "node scripts/capturas.mjs"
   },
   "dependencies": {
     "@fontsource/archivo": "^5.3.0",
@@ -27,6 +31,7 @@
     "@testing-library/preact": "^3.2.4",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.1",
+    "playwright": "^1.63.0",
     "sharp": "^0.33.5",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",

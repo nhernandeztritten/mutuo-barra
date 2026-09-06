@@ -2,7 +2,8 @@
  * Base building blocks only — the screens themselves land in phase 2.
  * Every size here comes from DESIGN.md, not from taste.
  */
-import type { ComponentChildren, JSX } from 'preact';
+import type { ComponentChildren, JSX, RefObject } from 'preact';
+import { useEffect, useRef } from 'preact/hooks';
 import { X } from 'lucide-preact';
 import { dismissToast, toasts } from './toast';
 
@@ -75,6 +76,67 @@ export function Field({ label, numeric = false, hint, id, class: cls, ...rest }:
   );
 }
 
+const ENFOCABLES =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Comportamiento de diálogo para una hoja: foco dentro al abrir, Tab que da la
+ * vuelta sin salirse, Escape que cierra y el foco devuelto a donde estaba.
+ *
+ * Sin esto, con el teclado o con VoiceOver se sigue navegando la barra que hay
+ * detrás de la hoja, que es como no tener hoja.
+ *
+ * @returns la ref que hay que poner en el elemento de la hoja.
+ */
+export function useHoja<T extends HTMLElement>(onClose: () => void): RefObject<T> {
+  const ref = useRef<T>(null);
+  // El cierre cambia en cada render; el efecto se monta una sola vez.
+  const cerrar = useRef(onClose);
+  cerrar.current = onClose;
+
+  useEffect(() => {
+    const previo = document.activeElement as HTMLElement | null;
+    // Sin filtro de visibilidad a propósito: dentro de una hoja no hay nada
+    // oculto, y `getClientRects()`/`offsetParent` no miden nada en las pruebas.
+    const enfocables = (): HTMLElement[] => [
+      ...(ref.current?.querySelectorAll<HTMLElement>(ENFOCABLES) ?? []),
+    ];
+
+    enfocables()[0]?.focus();
+
+    function onKey(e: KeyboardEvent): void {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        cerrar.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const lista = enfocables();
+      if (lista.length === 0) return;
+      const primero = lista[0]!;
+      const ultimo = lista[lista.length - 1]!;
+      const activo = document.activeElement;
+      const dentro = ref.current?.contains(activo ?? null) ?? false;
+      if (e.shiftKey && (activo === primero || !dentro)) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && (activo === ultimo || !dentro)) {
+        e.preventDefault();
+        primero.focus();
+      }
+    }
+
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      if (previo && document.contains(previo)) previo.focus();
+    };
+  }, []);
+
+  return ref;
+}
+
 /** Side sheet, never a centred modal in the serving flow. */
 export function Sheet({
   title,
@@ -88,10 +150,12 @@ export function Sheet({
   wide?: boolean;
   children: ComponentChildren;
 }) {
+  const ref = useHoja<HTMLElement>(onClose);
   return (
     <>
       <div class="sheet-backdrop" onClick={onClose} />
       <aside
+        ref={ref}
         class={['sheet', wide ? 'sheet--wide' : ''].filter(Boolean).join(' ')}
         role="dialog"
         aria-modal="true"

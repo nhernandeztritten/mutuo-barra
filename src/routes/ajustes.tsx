@@ -54,7 +54,7 @@ export function Ajustes() {
         ? 'El navegador ya no borrará los datos por su cuenta'
         : granted === false
           ? 'El navegador no lo ha concedido; haz copias de seguridad'
-          : 'Este navegador no permite pedirlo',
+          : 'Este navegador no permite pedirlo: haz copias de seguridad a menudo',
     );
   }
 
@@ -142,7 +142,7 @@ export function Ajustes() {
           <p class="meta">
             {s?.persistentStorage === true
               ? 'El navegador guarda los datos aunque pasen semanas sin abrir la app.'
-              : 'Sin protección, el navegador puede borrar los datos tras unos días sin usarlos. Pídesela y haz copias.'}
+              : 'Sin protección, el navegador puede borrar los datos tras unos días sin abrir la app. Pídela y haz copias.'}
           </p>
           <div class="row">
             {s?.persistentStorage === true ? null : (

@@ -357,3 +357,61 @@ El placeholder `0 kg` se leía como un recuento hecho que daba cero, que es lo
 contrario de lo que significa una celda vacía. Ahora pone «sin contar» y la
 unidad la sigue dando la columna de al lado. La fila cambia a la desviación en
 vivo en cuanto se escribe algo, como ya hacía.
+
+### 45. El botón deshabilitado deja de ser una opacidad
+`.btn:disabled { opacity: .45 }` dejaba «Toca una bebida» —blanco sobre petróleo
+al 45 % encima del ticket— en **2,2:1 en claro y 2:1 en noche**, muy por debajo
+del 4,5:1. La opacidad no es un color: compone los dos, texto y fondo, contra lo
+que haya detrás. Ahora el estado deshabilitado tiene su propio par —arena
+(`--surface-2`) con `--ink-2`, **6,34:1 en claro y 7,93:1 en noche**— y el
+fantasma («Deshacer último») baja a `--ink-3` sobre superficie, 6,66:1.
+
+Medido con `npm run contraste`, que lee `tokens.css` y compone las opacidades
+antes de calcular. **58 pares medidos, ninguno por debajo del mínimo.** Los más
+justos, todos por encima: chip armado 4,56:1 (claro), «Sin proteger» 4,55:1
+(claro), «Servir» en noche 4,72:1, «Protegido» 4,62:1 (claro), medidor en rojo
+4,62:1 (noche). El subtítulo de «Rápido», que es el sospechoso habitual por ir a
+13 px con opacidad 0,8, da 5,17:1 en claro y 6,54:1 en noche.
+
+### 46. Una hoja es un diálogo, no un panel que tapa
+Las hojas tenían `role="dialog"` y `aria-modal` pero no se comportaban como
+tales: con teclado o con VoiceOver se seguía navegando la barra de detrás, y
+Escape no hacía nada. El hook `useHoja` mete el foco dentro al abrir, hace que
+Tab dé la vuelta, cierra con Escape y devuelve el foco a donde estaba. Lo usan
+las tres hojas y también el ticket desplegado en vertical, que hasta ahora era
+un `aside` sin papel.
+
+**Aviso de método**: el efecto que ata el teclado corre después del primer
+pintado, así que un script que pulse Escape en el mismo milisegundo en que se
+abre la hoja no encuentra nada escuchando. No es un fallo del producto —son
+milisegundos— pero sí lo era del script de verificación, que ahora espera a que
+la hoja se lleve el foco.
+
+### 47. Nada se anima por `width`
+El medidor de café restante transicionaba `width`, que obliga al navegador a
+rehacer el layout de la cabecera entera en cada bebida servida. Pasa a
+`transform: scaleX(var(--pct))`. Es la única animación de la app que tocaba una
+propiedad de layout; el resto ya iba por `transform` y `opacity`.
+
+Con `prefers-reduced-motion`, los tiempos ya bajaban a 120 ms desde los tokens;
+ahora además las hojas y los avisos **se funden en vez de desplazarse** y la
+sacudida del chip pasa a 0 ms (era un `200ms` escrito a mano, ahora es
+`--t-shake`).
+
+### 48. El contador vivo ya no repite la hora
+La región `aria-live` de la barra decía «84 bebidas servidas a las 21:14», y
+como la hora se refresca sola cada 30 segundos, un lector de pantalla repetía la
+frase entera media boda. Se queda solo el número, que es lo que cambia cuando
+pasa algo.
+
+### 49. `100dvh` en vez de `100vh`
+En Safari, `100vh` cuenta una barra de herramientas que a veces no está, y la
+barra inferior del ticket se salía de la pantalla en vertical. Se deja `100vh`
+como respaldo para navegadores viejos y `100dvh` encima.
+
+### 50. Objetivos táctiles, medidos y no supuestos
+`scripts/verifica-ui.mjs` recorre la barra con Playwright y mide cada control
+con `getBoundingClientRect`: **32 controles en la barra, ninguno por debajo de
+44 × 44 y ninguna pareja vecina a menos de 8 px**. Lo mismo en la hoja de
+modificadores y en el resumen. También comprueba que ninguna de las diez rutas
+hace scroll horizontal a 1180, 1024, 820 ni 768 px de ancho.

@@ -14,13 +14,14 @@ import { ChevronLeft, Moon, Sun, Zap } from 'lucide-preact';
 import { addOrder, listOrders, voidOrder } from '../data/repo';
 import type { Category, Order, Product } from '../data/types';
 import { eventConsumption, eventStats } from '../domain/stats';
-import { formatInt, formatQty, formatRate, formatTime } from '../domain/format';
+import { formatInt, formatQty, formatRate } from '../domain/format';
 import { Button, Chip, Sheet, Tile } from '../ui/components';
 import { clearToasts, showToast } from '../ui/toast';
 import {
   CATEGORY_COLOR,
   LineSheet,
   PaymentSheet,
+  TicketHoja,
   TicketPanel,
   type PaymentResult,
   type RecentDrink,
@@ -321,7 +322,8 @@ export function Barra() {
     const grid = gridRef.current;
     const node = grid?.querySelector<HTMLElement>(`[data-cat="${CSS.escape(category)}"]`);
     if (grid && grid.scrollHeight > grid.clientHeight) {
-      node?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const suave = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      node?.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
       return;
     }
     setFlash(category);
@@ -369,7 +371,10 @@ export function Barra() {
         {stockCafe > 0 ? (
           <div class={`meter meter--${meterState}`} title={`Café restante: ${formatQty(remainingCafe, 'g')}`}>
             <span class="meter__track">
-              <span class="meter__fill" style={{ width: `${Math.max(0, Math.min(100, cafePct))}%` }} />
+              <span
+                class="meter__fill"
+                style={{ '--pct': Math.max(0, Math.min(100, cafePct)) / 100 }}
+              />
             </span>
             <span class="meter__value num">
               {formatQty(remainingCafe, 'g')} · {Math.round(cafePct)} %
@@ -485,7 +490,7 @@ export function Barra() {
       {sheetOpen ? (
         <>
           <div class="sheet-backdrop" onClick={() => setSheetOpen(false)} />
-          <TicketPanel {...ticketProps} sheet onCollapse={() => setSheetOpen(false)} />
+          <TicketHoja {...ticketProps} onCollapse={() => setSheetOpen(false)} />
         </>
       ) : null}
 
@@ -518,8 +523,10 @@ export function Barra() {
         />
       ) : null}
 
-      <span class="visually-hidden" aria-live="polite">
-        {formatInt(stats.served)} bebidas servidas a las {formatTime(now)}
+      {/* Se anuncia solo cuando cambia el número: con la hora dentro, un lector
+          de pantalla repetiría lo mismo cada 30 segundos. */}
+      <span class="visually-hidden" role="status" aria-live="polite">
+        {formatInt(stats.served)} bebidas servidas
       </span>
     </div>
   );

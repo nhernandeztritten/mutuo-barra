@@ -246,7 +246,7 @@ export function Resultados() {
       mime: 'application/json',
     });
     setBusy(false);
-    showToast('Tres archivos: pedidos, consumo y copia completa');
+    showToast('Tres archivos guardados: pedidos, consumo y copia de seguridad');
   }
 
   async function importar(): Promise<void> {
@@ -263,7 +263,7 @@ export function Resultados() {
         `${formatInt(ev)} ${ev === 1 ? 'evento' : 'eventos'} y ${formatInt(pe)} ${pe === 1 ? 'pedido' : 'pedidos'} nuevos`,
       );
     } catch {
-      showToast('Ese archivo no es una copia de Mutuo · Barra');
+      showToast('Ese archivo no es una copia de Mutuo · Barra: busca el que empieza por «mutuo-barra-copia»');
     }
     setBusy(false);
   }
@@ -288,10 +288,22 @@ export function Resultados() {
         <Button disabled={busy} onClick={() => void importar()}>
           <Upload size={20} strokeWidth={1.75} /> Importar
         </Button>
-        <Button variant="primary" disabled={busy || vacio} onClick={() => void exportarTodo()}>
+        <Button
+          variant="primary"
+          disabled={busy || vacio}
+          // Un botón apagado sin explicación es un callejón sin salida.
+          title={vacio ? 'Sin eventos cerrados: no hay nada que exportar' : undefined}
+          onClick={() => void exportarTodo()}
+        >
           <Download size={20} strokeWidth={1.75} /> Exportar todo
         </Button>
       </header>
+
+      {vacio ? (
+        <p class="meta">
+          «Exportar todo» está apagado porque no hay ningún evento cerrado todavía.
+        </p>
+      ) : null}
 
       {vacio ? (
         <div class="empty">

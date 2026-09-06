@@ -131,7 +131,7 @@ export function EventoForm() {
   async function save(): Promise<BarEvent | null> {
     const name = form.name.trim();
     if (name === '') {
-      showToast('El evento necesita un nombre');
+      showToast('El evento necesita un nombre: escríbelo arriba');
       return null;
     }
     setBusy(true);
@@ -319,7 +319,7 @@ export function EventoForm() {
           </Button>
         </div>
         <p class="meta">
-          Lo que subes de verdad al carro. Se puede guardar vacía y rellenarla al abrir la barra.
+          Lo que subes de verdad al carro. Puedes guardarla vacía y rellenarla al abrir la barra.
           {Object.keys(suggestion).length === 0
             ? ' Escribe los invitados para ver las sugerencias.'
             : null}

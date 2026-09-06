@@ -125,7 +125,7 @@ export function EventoDetalle() {
       mime: 'application/json',
     });
     setBusy(false);
-    showToast('Dos archivos: pedidos en CSV y copia en JSON');
+    showToast('Dos archivos guardados: los pedidos (CSV) y la copia de seguridad (JSON)');
   }
 
   return (

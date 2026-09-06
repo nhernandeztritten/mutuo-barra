@@ -242,7 +242,7 @@ function ProductoSheet({
 
   async function guardar(): Promise<void> {
     if (name.trim() === '') {
-      showToast('La bebida necesita un nombre');
+      showToast('La bebida necesita un nombre: escríbelo arriba');
       return;
     }
     setBusy(true);
@@ -448,7 +448,7 @@ function OpcionSheet({ groupId, onClose }: { groupId: string; onClose: () => voi
 
   async function crear(): Promise<void> {
     if (name.trim() === '') {
-      showToast('La opción necesita un nombre');
+      showToast('La opción necesita un nombre: escríbelo arriba');
       return;
     }
     const effects: ModifierEffect[] =

@@ -345,3 +345,55 @@ describe('cabecera de la barra', () => {
     expect(document.querySelector('.pasos-linea')?.textContent).toContain('Servir');
   });
 });
+
+describe('las hojas se comportan como diálogos', () => {
+  it('la hoja de una línea se anuncia como diálogo modal', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(document.querySelector('.ticket__name')!);
+    const hoja = await screen.findByRole('dialog');
+    expect(hoja.getAttribute('aria-modal')).toBe('true');
+    expect(hoja.getAttribute('aria-label')).toBe('Cortado');
+  });
+
+  it('al abrirla el foco entra dentro, y al cerrarla vuelve a donde estaba', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    const nombre = document.querySelector<HTMLButtonElement>('.ticket__name')!;
+    nombre.focus();
+    fireEvent.click(nombre);
+
+    const hoja = await screen.findByRole('dialog');
+    await waitFor(() => expect(hoja.contains(document.activeElement)).toBe(true));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(nombre);
+  });
+
+  it('Escape cierra la hoja sin guardar cambios', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(document.querySelector('.ticket__name')!);
+    await screen.findByRole('dialog');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // La línea sigue tal cual: sin modificadores.
+    expect(document.querySelector('.ticket__mods')).toBeNull();
+  });
+
+  it('Tab da la vuelta dentro de la hoja en vez de salirse a la barra', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(document.querySelector('.ticket__name')!);
+    const hoja = await screen.findByRole('dialog');
+
+    const enfocables = [...hoja.querySelectorAll<HTMLElement>('button, input, textarea, [href]')];
+    const ultimo = enfocables[enfocables.length - 1]!;
+    ultimo.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(hoja.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(enfocables[0]);
+  });
+});
