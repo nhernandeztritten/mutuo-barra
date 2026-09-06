@@ -310,3 +310,50 @@ punta es la descarga. Queda para la fase 4, con el iPad delante.
 La pantalla de cierre lee el ticket en curso y, si tiene bebidas, avisa arriba
 con dos salidas: **Servir ahora** (lo guarda como un pedido más) o **Descartar**.
 Antes se quedaba en `localStorage` sin que nadie volviera a verlo.
+
+---
+
+## 06/09/2026 · Fase 4
+
+### 41. El grid pierde las filas de encabezado y gana una leyenda
+La decisión 30 dejaba anotado que el grid agrupado no cabía: seis encabezados
+más seis filas de tiles medían 871 px en un hueco de 652. Se quitan los
+encabezados y queda **un grid continuo**: los tiles se ordenan por categoría (la
+de la carta, no la alfabética) y luego por `sortOrder`, conservan el punto de
+color y fluyen en `repeat(auto-fit, minmax(150px, 1fr))`.
+
+Medido con Playwright a 1180 × 820 (`scripts/verifica-ui.mjs`): **14 tiles en 4
+filas × 4 columnas, el grid mide 420 px en un hueco de 484 px, sobran 64**. El
+tile sigue en los 96 px de `DESIGN.md`; no hubo que tocarlo.
+
+Encima del grid, donde estaban las pestañas, va una **leyenda de una línea**
+(punto + nombre, 15 px) que explica qué significa cada color. Es tocable, pero
+no filtra: si el grid tiene scroll lleva a su primer tile, y si cabe entero
+—como ahora— resalta sus tiles 400 ms con borde violeta. Filtrar escondería
+bebidas para ahorrar un scroll que ya no existe, que es justo el error de la
+decisión 30. Las pestañas y el umbral de 16 productos desaparecen del código.
+
+### 42. La pantalla de cierre dice «3 Cerrar», aunque el evento siga abierto
+El indicador leía solo `event.status`, y en `/evento/:id/cerrar` el evento
+todavía es `live` —la barra no se cierra hasta pulsar el botón—, así que
+marcaba «2 Servir» en la pantalla del paso 3. `Pasos` acepta ahora un `paso`
+que fuerza cuál está encendido. El paso que deja de ser el actual queda
+**disponible**, no apagado: desde el cierre se vuelve a la barra tocando
+«2 Servir», que es donde se busca.
+
+### 43. Los nombres cortos dejan de abreviar, y una base ya sembrada se entera
+«Esp. tonic» y «Té/infusión» eran abreviaturas sin motivo: con cuatro columnas
+caben «Espresso tonic» y «Té / infusión» a 20 px sin bajar el tamaño ni recortar.
+`DESIGN.md` prohíbe las abreviaturas en los tiles, así que era una deuda.
+
+El problema no era cambiar la semilla sino que **`initDb` solo siembra si la
+base está vacía**: el iPad de Nicolas se habría quedado con los nombres viejos
+para siempre. Se sube `SEED_VERSION` a 2 y se añade una migración mínima que
+solo toca el producto **si su nombre corto sigue siendo el de la semilla**: lo
+que él haya escrito en Ajustes no se pisa.
+
+### 44. «Queda» vacío dice «sin contar», no «0 kg»
+El placeholder `0 kg` se leía como un recuento hecho que daba cero, que es lo
+contrario de lo que significa una celda vacía. Ahora pone «sin contar» y la
+unidad la sigue dando la columna de al lado. La fila cambia a la desviación en
+vivo en cuanto se escribe algo, como ya hacía.

@@ -3,7 +3,7 @@
  * cada estado del evento (UX-REVISION-1 §B).
  */
 import { describe, expect, it } from 'vitest';
-import { pasoActual, pasosDeEvento } from '../pasos';
+import { conPasoActual, pasoActual, pasosDeEvento } from '../pasos';
 
 const EV = 'ev-1';
 const estados = (status: 'planned' | 'live' | 'closed') =>
@@ -65,5 +65,34 @@ describe('nombres', () => {
       'Cerrar',
       'Resultados',
     ]);
+  });
+});
+
+describe('paso forzado (la pantalla de cierre)', () => {
+  /**
+   * En `/evento/:id/cerrar` el evento sigue `live` —la barra no se cierra hasta
+   * pulsar el botón— pero quien está ahí está en el paso 3.
+   */
+  const cierre = () => conPasoActual(pasosDeEvento(EV, 'live'), 3);
+
+  it('enciende «3 Cerrar», no «2 Servir»', () => {
+    expect(cierre().map((p) => p.estado)).toEqual([
+      'hecho',
+      'disponible',
+      'actual',
+      'futuro',
+    ]);
+  });
+
+  it('el paso actual ya no lleva a ningún sitio: estás en él', () => {
+    expect(cierre()[2]?.href).toBeNull();
+  });
+
+  it('«2 Servir» sigue siendo tocable para volver a la barra', () => {
+    expect(cierre()[1]?.href).toBe(`/evento/${EV}`);
+  });
+
+  it('sin forzar nada, el paso lo manda el estado del evento', () => {
+    expect(pasosDeEvento(EV, 'live')[1]?.estado).toBe('actual');
   });
 });

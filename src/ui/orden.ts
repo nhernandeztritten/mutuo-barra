@@ -1,9 +1,43 @@
 /**
- * Ordenación de la tabla de Resultados. Fuera del componente para poder
- * probarla: la tabla es lo primero que Nicolas va a mirar en el ordenador.
+ * Ordenación de la tabla de Resultados y del grid de la barra. Fuera de los
+ * componentes para poder probarla: la tabla es lo primero que Nicolas va a
+ * mirar en el ordenador, y el grid es lo primero que ve el barista.
  */
+import { CATEGORIES } from '../data/seed';
+import type { Category, Product } from '../data/types';
 
 export type Direccion = 'asc' | 'desc';
+
+/* ---------------- Grid de la barra ---------------- */
+
+const RANGO_CATEGORIA = new Map<string, number>(CATEGORIES.map((c, i) => [c, i]));
+
+/** Una categoría que no esté en la lista de la carta cae al final, no en medio. */
+const rango = (category: string): number => RANGO_CATEGORIA.get(category) ?? CATEGORIES.length;
+
+/**
+ * El orden de los tiles del grid continuo: primero por categoría (la de la
+ * carta, no la alfabética) y dentro de cada una por `sortOrder`. Sin filas de
+ * encabezado, el orden es lo único que agrupa, así que tiene que ser estable
+ * aunque en Ajustes se cree una bebida con un `sortOrder` cualquiera.
+ */
+export function ordenarTiles(items: Product[]): Product[] {
+  return [...items].sort((a, b) => {
+    const porCategoria = rango(a.category) - rango(b.category);
+    if (porCategoria !== 0) return porCategoria;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.shortName.localeCompare(b.shortName, 'es');
+  });
+}
+
+/** Las categorías que de verdad tienen bebidas, en el orden en que salen en el grid. */
+export function categoriasDe(items: Product[]): Category[] {
+  const vistas: Category[] = [];
+  for (const p of ordenarTiles(items)) if (!vistas.includes(p.category)) vistas.push(p.category);
+  return vistas;
+}
+
+/* ---------------- Tabla de Resultados ---------------- */
 
 /**
  * Ordena por una columna sin tocar el array original. Los números se comparan

@@ -463,35 +463,42 @@
   flex: none;
 }
 
-.tabs {
+/* Leyenda de categorías: ocupa la fila donde estaban las pestañas. Dice qué
+   significa cada punto de color y, si el grid crece hasta tener scroll, lleva
+   al primer tile de esa categoría. */
+.leyenda-cat {
   display: flex;
-  gap: var(--s-1);
+  align-items: center;
+  gap: var(--s-2);
   overflow-x: auto;
-  border-block-end: 1px solid var(--line);
   scrollbar-width: none;
 }
 
-.tabs::-webkit-scrollbar {
+.leyenda-cat::-webkit-scrollbar {
   display: none;
 }
 
-.tab {
+.leyenda-cat__item {
   flex: none;
-  min-height: var(--h-tab);
-  padding: 0 var(--s-4);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
   border: 0;
-  border-block-end: 3px solid transparent;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--ink-2);
-  font-size: var(--fs-body);
+  font-size: var(--fs-meta);
   font-weight: 500;
   white-space: nowrap;
 }
 
-.tab[aria-selected='true'] {
-  color: var(--ink);
-  font-weight: 600;
-  border-block-end-color: var(--cat, var(--primary));
+.leyenda-cat__punto {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--cat, var(--cat-otros));
 }
 
 .grid-wrap {
@@ -1152,35 +1159,17 @@
   color: var(--ink);
 }
 
-/* ---------- Grid único agrupado por categoría ---------- */
+/* ---------- Grid continuo ---------- */
 
-/* El encabezado ocupa la fila entera del grid compartido. */
-.tile-grid--agrupado .grupo__title {
-  grid-column: 1 / -1;
-  align-self: end;
+/* Tocar una categoría de la leyenda con el grid ya entero a la vista: no hay
+   a dónde desplazarse, así que se resaltan sus tiles y se acabó. */
+.tile--flash {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.tile {
   scroll-margin-block-start: var(--s-2);
-}
-
-.tile-grid--agrupado .grupo__title:not(:first-child) {
-  margin-block-start: var(--s-1);
-}
-
-.grupo__title {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  margin: 0;
-  font-size: var(--fs-meta);
-  font-weight: 600;
-  color: var(--ink-2);
-  letter-spacing: 0.02em;
-}
-
-.grupo__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--r-pill);
-  background: var(--cat, var(--cat-otros));
 }
 
 /* ---------- Hoja ancha (resumen sobre la barra) ---------- */

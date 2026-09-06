@@ -1,6 +1,8 @@
 /** Ordenación de la tabla de eventos cerrados (SPEC §3.5). */
 import { describe, expect, it } from 'vitest';
-import { ordenarPor, siguienteOrden } from '../orden';
+import { categoriasDe, ordenarPor, ordenarTiles, siguienteOrden } from '../orden';
+import { PRODUCTS } from '../../data/seed';
+import type { Product } from '../../data/types';
 
 const FILAS = [
   { nombre: 'Boda Ana y Marc', bebidas: 142, coste: 0.84 },
@@ -53,5 +55,56 @@ describe('siguienteOrden', () => {
     const dos = siguienteOrden(uno, 'bebidas', false);
     expect(dos.dir).toBe('asc');
     expect(siguienteOrden(dos, 'bebidas', false).dir).toBe('desc');
+  });
+});
+
+describe('orden del grid de la barra', () => {
+  it('agrupa por categoría en el orden de la carta, no en el alfabético', () => {
+    const cats = ordenarTiles(PRODUCTS).map((p) => p.category);
+    expect([...new Set(cats)]).toEqual([
+      'Espresso',
+      'Con leche',
+      'Filtro',
+      'Fríos',
+      'Especiales',
+      'Otros',
+    ]);
+  });
+
+  it('dentro de una categoría manda sortOrder', () => {
+    const conLeche = ordenarTiles(PRODUCTS)
+      .filter((p) => p.category === 'Con leche')
+      .map((p) => p.sortOrder);
+    expect(conLeche).toEqual([...conLeche].sort((a, b) => a - b));
+  });
+
+  it('una bebida creada en Ajustes cae en su categoría, no al final', () => {
+    const nueva = {
+      ...PRODUCTS[0]!,
+      id: 'nuevo',
+      shortName: 'Nuevo',
+      category: 'Filtro',
+      sortOrder: 999,
+    } as Product;
+    const ids = ordenarTiles([...PRODUCTS, nueva]).map((p) => p.id);
+    expect(ids.indexOf('nuevo')).toBeGreaterThan(ids.indexOf('filtro'));
+    expect(ids.indexOf('nuevo')).toBeLessThan(ids.indexOf('cold_brew'));
+  });
+
+  it('no toca el array original', () => {
+    const copia = [...PRODUCTS];
+    ordenarTiles(PRODUCTS);
+    expect(PRODUCTS).toEqual(copia);
+  });
+
+  it('la leyenda solo nombra las categorías que tienen bebidas', () => {
+    const sinOtros = PRODUCTS.filter((p) => p.category !== 'Otros');
+    expect(categoriasDe(sinOtros)).toEqual([
+      'Espresso',
+      'Con leche',
+      'Filtro',
+      'Fríos',
+      'Especiales',
+    ]);
   });
 });

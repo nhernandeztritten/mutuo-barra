@@ -65,6 +65,23 @@ export function pasosDeEvento(eventId: string, status: EventStatus): Paso[] {
 }
 
 /**
+ * Marca un paso concreto como el actual, aunque el estado del evento diga otra
+ * cosa. Lo necesita la pantalla de cierre: el evento sigue `live` —la barra no
+ * se cierra hasta pulsar el botón— pero quien está ahí está en el paso 3, y el
+ * indicador tiene que decírselo.
+ */
+export function conPasoActual(pasos: Paso[], id: PasoId): Paso[] {
+  return pasos.map((p) => {
+    if (p.id === id) return { ...p, estado: 'actual', href: null };
+    // El que deja de ser actual sigue siendo visitable: desde el cierre se
+    // vuelve a la barra tocando «2 Servir», que es donde se busca.
+    if (p.estado === 'actual') return { ...p, estado: 'disponible' };
+    return p;
+  });
+}
+
+/**
+ * @param paso fuerza cuál de los cuatro está encendido (la pantalla de cierre).
  * @param compact versión para la cabecera de la barra. Ahí no caben cuatro
  *   pastillas sin bajar de 15 px, y DESIGN.md prohíbe texto más pequeño en la
  *   pantalla que se lee a 75 cm con las manos mojadas. Se resume en una línea
@@ -74,13 +91,16 @@ export function pasosDeEvento(eventId: string, status: EventStatus): Paso[] {
 export function Pasos({
   eventId,
   status,
+  paso,
   compact = false,
 }: {
   eventId: string;
   status: EventStatus;
+  paso?: PasoId;
   compact?: boolean;
 }) {
-  const pasos = pasosDeEvento(eventId, status);
+  const base = pasosDeEvento(eventId, status);
+  const pasos = paso === undefined ? base : conPasoActual(base, paso);
   const actual = pasos.find((p) => p.estado === 'actual');
 
   if (compact) {

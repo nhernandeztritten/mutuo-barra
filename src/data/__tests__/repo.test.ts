@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BarraDb, getSettings, initDb } from '../db';
+import { BarraDb, getSettings, initDb, updateSettings } from '../db';
 import {
   addOrder,
   closeEvent,
@@ -16,7 +16,7 @@ import {
   reopenEvent,
   voidOrder,
 } from '../repo';
-import { INGREDIENTS, MODIFIER_GROUPS, MODIFIER_OPTIONS, PRODUCTS } from '../seed';
+import { INGREDIENTS, MODIFIER_GROUPS, MODIFIER_OPTIONS, PRODUCTS, SEED_VERSION } from '../seed';
 import { applyModifiers } from '../../domain/modifiers';
 import type { NewOrderLine } from '../repo';
 
@@ -63,7 +63,30 @@ describe('initDb', () => {
   it('guarda deviceId y seedVersion', async () => {
     const settings = await getSettings(db);
     expect(settings.deviceId).toMatch(/[0-9a-f-]{8,}/);
-    expect(settings.seedVersion).toBe(1);
+    expect(settings.seedVersion).toBe(SEED_VERSION);
+  });
+
+  it('una base vieja recibe los nombres cortos nuevos sin volver a sembrarse', async () => {
+    // Simula el iPad de Nicolas: sembrado con la v1 y con «Esp. tonic».
+    const tonic = (await db.products.get('espresso_tonic'))!;
+    await db.products.put({ ...tonic, shortName: 'Esp. tonic' });
+    await updateSettings({ seedVersion: 1 }, db);
+
+    await initDb(db);
+
+    expect((await db.products.get('espresso_tonic'))?.shortName).toBe('Espresso tonic');
+    expect((await getSettings(db)).seedVersion).toBe(SEED_VERSION);
+    expect(await db.products.count()).toBe(14);
+  });
+
+  it('un nombre corto que Nicolas haya editado no se pisa', async () => {
+    const tonic = (await db.products.get('espresso_tonic'))!;
+    await db.products.put({ ...tonic, shortName: 'Tonic de la casa' });
+    await updateSettings({ seedVersion: 1 }, db);
+
+    await initDb(db);
+
+    expect((await db.products.get('espresso_tonic'))?.shortName).toBe('Tonic de la casa');
   });
 
   it('arrancar de nuevo no duplica nada', async () => {

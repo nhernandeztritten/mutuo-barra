@@ -159,9 +159,11 @@ export function Cierre() {
     <section class="form">
       <header class="stack">
         <h1 class="display">{event.name}</h1>
-        <Pasos eventId={event.id} status={event.status} />
+        {/* El evento sigue `live` hasta pulsar el botón, pero quien está
+            aquí está en el paso 3 y el indicador tiene que decirlo. */}
+        <Pasos eventId={event.id} status={event.status} paso={3} />
         <p class="meta">
-          Cuenta lo que queda para saber el consumo real. Si no cuentas, se usa el consumo teórico.
+          Cuenta lo que queda para saber el consumo real. Sin recuento se usa el teórico.
         </p>
       </header>
 
@@ -215,7 +217,7 @@ export function Cierre() {
                       class="input"
                       inputMode="decimal"
                       aria-label={`Queda de ${row.name} en ${unidad}`}
-                      placeholder={`0 ${unidad}`}
+                      placeholder="sin contar"
                       value={queda[row.ingredientId] ?? ''}
                       onInput={(e) =>
                         setQueda((prev) => ({

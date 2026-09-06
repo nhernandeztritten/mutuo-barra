@@ -240,23 +240,62 @@ describe('modo venta', () => {
   });
 });
 
-describe('grid único agrupado por categoría', () => {
-  it('pinta un encabezado por categoría, en el orden de la carta', async () => {
-    await setupBar();
-    const titulos = [...document.querySelectorAll('.tile-grid .grupo__title')].map((el) =>
-      el.textContent?.trim(),
-    );
-    expect(titulos).toEqual(['Espresso', 'Con leche', 'Filtro', 'Fríos', 'Especiales', 'Otros']);
-  });
-
-  it('enseña las catorce bebidas de la carta a la vez, sin pestañas', async () => {
+describe('grid continuo con leyenda de categorías', () => {
+  it('enseña las catorce bebidas de la carta a la vez, sin pestañas ni encabezados de fila', async () => {
     await setupBar();
     expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(14);
-    // Con 14 productos las pestañas no aparecen: sobran.
+    // Las filas de encabezado se fueron: no cabían las seis categorías.
+    expect(document.querySelectorAll('.tile-grid .grupo__title')).toHaveLength(0);
     expect(document.querySelectorAll('.tab')).toHaveLength(0);
   });
 
-  it('una bebida desactivada desaparece del grid y su categoría también si se queda vacía', async () => {
+  it('los tiles van ordenados por categoría y llevan su color', async () => {
+    await setupBar();
+    const cats = [...document.querySelectorAll('.tile-grid .tile')].map((el) =>
+      el.getAttribute('data-cat'),
+    );
+    expect(cats).toEqual([
+      'Espresso',
+      'Espresso',
+      'Con leche',
+      'Con leche',
+      'Con leche',
+      'Con leche',
+      'Filtro',
+      'Fríos',
+      'Fríos',
+      'Fríos',
+      'Especiales',
+      'Especiales',
+      'Otros',
+      'Otros',
+    ]);
+    expect(document.querySelectorAll('.tile-grid .tile__dot').length).toBe(14);
+  });
+
+  it('la leyenda nombra las seis categorías, en el orden de la carta', async () => {
+    await setupBar();
+    const nombres = [...document.querySelectorAll('.leyenda-cat__item')].map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(nombres).toEqual(['Espresso', 'Con leche', 'Filtro', 'Fríos', 'Especiales', 'Otros']);
+  });
+
+  it('con el grid entero a la vista, tocar una categoría resalta sus tiles', async () => {
+    await setupBar();
+    const frios = [...document.querySelectorAll<HTMLButtonElement>('.leyenda-cat__item')].find(
+      (el) => el.textContent?.trim() === 'Fríos',
+    )!;
+    fireEvent.click(frios);
+    await waitFor(() => expect(document.querySelectorAll('.tile--flash').length).toBe(3));
+    expect(
+      [...document.querySelectorAll('.tile--flash')].every(
+        (el) => el.getAttribute('data-cat') === 'Fríos',
+      ),
+    ).toBe(true);
+  });
+
+  it('una bebida desactivada desaparece del grid, y su categoría de la leyenda si se queda vacía', async () => {
     await setupBar();
     const te = products.value.find((p) => p.id === 'te')!;
     const agua = products.value.find((p) => p.id === 'agua_botella')!;
@@ -265,11 +304,20 @@ describe('grid único agrupado por categoría', () => {
     await loadCatalog();
 
     await waitFor(() => expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(12));
-    const titulos = [...document.querySelectorAll('.tile-grid .grupo__title')].map((el) =>
+    const nombres = [...document.querySelectorAll('.leyenda-cat__item')].map((el) =>
       el.textContent?.trim(),
     );
-    expect(titulos).not.toContain('Otros');
+    expect(nombres).not.toContain('Otros');
     expect(document.querySelector('.tile-grid')?.textContent).not.toContain('Té');
+  });
+
+  it('los nombres largos del tile ya no se abrevian', async () => {
+    await setupBar();
+    const textos = [...document.querySelectorAll('.tile-grid .tile')].map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(textos).toContain('Espresso tonic');
+    expect(textos.some((t) => t?.startsWith('Esp. '))).toBe(false);
   });
 });
 

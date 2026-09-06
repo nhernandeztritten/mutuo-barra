@@ -6,7 +6,20 @@
 import type { Ingredient, ModifierGroup, ModifierOption, Product } from './types';
 
 /** Bump when the seed content changes so `initDb` can migrate. */
-export const SEED_VERSION = 1;
+export const SEED_VERSION = 2;
+
+/**
+ * Cambios de la semilla que hay que llevar a una base ya sembrada. Solo se
+ * aplican si el texto sigue siendo el que puso la semilla: si Nicolas lo editó
+ * en Ajustes, manda lo suyo.
+ *
+ * v2 (fase 4): «Esp. tonic» y «Té/infusión» eran abreviaturas sin motivo; en el
+ * grid de cuatro columnas los dos nombres completos caben.
+ */
+export const SHORTNAME_MIGRATIONS: { id: string; de: string; a: string }[] = [
+  { id: 'espresso_tonic', de: 'Esp. tonic', a: 'Espresso tonic' },
+  { id: 'te', de: 'Té/infusión', a: 'Té / infusión' },
+];
 
 export const INGREDIENTS: Ingredient[] = [
   // --- Cafés ---
@@ -99,7 +112,7 @@ export const PRODUCTS: Product[] = [
     active: true, sortOrder: 80,
   },
   {
-    id: 'espresso_tonic', name: 'Espresso tonic', shortName: 'Esp. tonic', category: 'Fríos', via: 'grupo',
+    id: 'espresso_tonic', name: 'Espresso tonic', shortName: 'Espresso tonic', category: 'Fríos', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'tonica', qty: 200 }, { ingredientId: 'hielo', qty: 120 }, { ingredientId: 'vaso_frio', qty: 1 }, MENAJE],
     price: 3.8, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_doble'] }],
@@ -127,7 +140,7 @@ export const PRODUCTS: Product[] = [
     active: true, sortOrder: 120,
   },
   {
-    id: 'te', name: 'Té / infusión', shortName: 'Té/infusión', category: 'Otros', via: 'lote_caliente',
+    id: 'te', name: 'Té / infusión', shortName: 'Té / infusión', category: 'Otros', via: 'lote_caliente',
     recipe: [{ ingredientId: 'agua', qty: 200 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.0, priceProvisional: true,
     allowedModifierGroups: [EXTRA_TAPA],

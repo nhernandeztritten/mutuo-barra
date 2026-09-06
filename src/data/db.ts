@@ -3,7 +3,14 @@
  * with the network off, so this is the only source of truth during an event.
  */
 import Dexie, { type Table } from 'dexie';
-import { INGREDIENTS, MODIFIER_GROUPS, MODIFIER_OPTIONS, PRODUCTS, SEED_VERSION } from './seed';
+import {
+  INGREDIENTS,
+  MODIFIER_GROUPS,
+  MODIFIER_OPTIONS,
+  PRODUCTS,
+  SEED_VERSION,
+  SHORTNAME_MIGRATIONS,
+} from './seed';
 import type {
   Event,
   Ingredient,
@@ -122,16 +129,34 @@ export async function initDb(database: BarraDb = db): Promise<InitResult> {
     seeded = true;
   }
 
+  // Una base ya sembrada no se vuelve a sembrar, pero sí se le llevan los
+  // cambios de nombre: si no, el iPad de Nicolas seguiría con «Esp. tonic».
+  if (!seeded && settings.seedVersion < SEED_VERSION) await migrarNombresCortos(database);
+
   const persisted = await requestPersistence();
   const saved = await updateSettings(
     {
-      ...(seeded || settings.seedVersion === 0 ? { seedVersion: SEED_VERSION } : {}),
+      ...(seeded || settings.seedVersion < SEED_VERSION ? { seedVersion: SEED_VERSION } : {}),
       ...(persisted !== null ? { persistentStorage: persisted } : {}),
     },
     database,
   );
 
   return { settings: saved, seeded, persisted };
+}
+
+/**
+ * Aplica los cambios de nombre corto de la semilla a una base ya existente.
+ * Solo toca el producto si su texto es todavía el que puso la semilla: lo que
+ * Nicolas haya escrito en Ajustes no se pisa.
+ */
+async function migrarNombresCortos(database: BarraDb): Promise<void> {
+  for (const cambio of SHORTNAME_MIGRATIONS) {
+    const product = await database.products.get(cambio.id);
+    if (product && product.shortName === cambio.de) {
+      await database.products.put({ ...product, shortName: cambio.a });
+    }
+  }
 }
 
 /** Wipes everything and reseeds. Only for tests and «empezar de cero» in Settings. */

@@ -8,7 +8,6 @@
  * blanda —«‹ Eventos»—, que no cierra nada. «Pausar» no existía para el
  * barista: no se distinguía de cerrar.
  */
-import { Fragment } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useLocation, useRoute } from 'preact-iso';
 import { ChevronLeft, Moon, Sun, Zap } from 'lucide-preact';
@@ -26,6 +25,7 @@ import {
   type PaymentResult,
   type RecentDrink,
 } from '../ui/barra-parts';
+import { categoriasDe, ordenarTiles } from '../ui/orden';
 import { Pasos } from '../ui/pasos';
 import { ResumenContenido } from './resumen';
 import {
@@ -73,12 +73,8 @@ const QUICK_CHIPS = [
  */
 const CHIP_LABEL: Record<string, string> = { cafe_descafeinado: 'Desca' };
 
-/**
- * A partir de aquí el grid agrupado no cabe de un vistazo y las pestañas vuelven,
- * ya no para filtrar sino como atajos de scroll. Con la carta de v1 (14 activos)
- * no aparecen.
- */
-const TABS_DESDE = 16;
+/** Cuánto dura el resalte violeta al tocar una categoría de la leyenda. */
+const FLASH_MS = 400;
 
 const SHAKE_MS = 220;
 const SERVE_FADE_MS = 180;
@@ -99,6 +95,8 @@ export function Barra() {
   const [fading, setFading] = useState<TicketLine[]>([]);
   const [tick, setTick] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  /** Categoría resaltada tras tocar la leyenda, cuando el grid cabe entero. */
+  const [flash, setFlash] = useState<Category | null>(null);
   const [resumenOpen, setResumenOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -141,27 +139,19 @@ export function Barra() {
 
   const products = activeProducts.value;
 
-  /** Grid único agrupado por categoría: un toque menos que las pestañas. */
-  const groups = useMemo(() => {
-    const order: Category[] = [];
-    const byCategory = new Map<Category, Product[]>();
-    for (const p of products) {
-      if (!byCategory.has(p.category)) {
-        byCategory.set(p.category, []);
-        order.push(p.category);
-      }
-      byCategory.get(p.category)!.push(p);
-    }
-    return order.map((category) => ({ category, items: byCategory.get(category) ?? [] }));
-  }, [products]);
-
-  const showTabs = products.length > TABS_DESDE;
+  /**
+   * Grid continuo: un solo flujo de tiles ordenado por categoría y `sortOrder`,
+   * sin filas de encabezado. Las seis categorías con encabezado medían 871 px
+   * en un hueco de 652; así caben las catorce bebidas en cuatro filas.
+   */
+  const tiles = useMemo(() => ordenarTiles(products), [products]);
+  const categorias = useMemo(() => categoriasDe(products), [products]);
 
   if (!event || event.status !== 'live') {
     return (
       <section class="stack" style={{ padding: 'var(--s-6)' }}>
         <h1 class="display">Esta barra no está abierta</h1>
-        <p class="meta">Abre el evento desde la lista para empezar a registrar bebidas.</p>
+        <p class="meta">Ábrela desde la lista de eventos para registrar bebidas.</p>
         <div class="row">
           <Button variant="primary" onClick={() => route('/')}>
             Ir a Eventos
@@ -322,11 +312,20 @@ export function Barra() {
     else void serveTicket(null);
   }
 
-  function scrollToGroup(category: Category): void {
-    const node = gridRef.current?.querySelector<HTMLElement>(
-      `[data-grupo="${CSS.escape(category)}"]`,
-    );
-    node?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  /**
+   * Tocar una categoría de la leyenda. Si el grid tiene scroll, lleva a su
+   * primer tile; si cabe entero —el caso de la carta de v1— desplazarse no
+   * significaría nada, así que resalta sus tiles 400 ms y se acabó.
+   */
+  function irACategoria(category: Category): void {
+    const grid = gridRef.current;
+    const node = grid?.querySelector<HTMLElement>(`[data-cat="${CSS.escape(category)}"]`);
+    if (grid && grid.scrollHeight > grid.clientHeight) {
+      node?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    setFlash(category);
+    later(() => setFlash(null), FLASH_MS);
   }
 
   const ticketProps = {
@@ -430,44 +429,38 @@ export function Barra() {
             ))}
           </div>
 
-          {showTabs ? (
-            <div class="tabs" role="group" aria-label="Ir a una categoría">
-              {groups.map(({ category }) => (
-                <button
-                  type="button"
-                  class="tab"
-                  key={category}
-                  style={{ '--cat': CATEGORY_COLOR[category] }}
-                  onClick={() => scrollToGroup(category)}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          ) : null}
+          {/* La leyenda ocupa la fila donde estaban las pestañas: dice qué
+              significa cada punto de color y sirve de atajo si el grid crece. */}
+          <div class="leyenda-cat" role="group" aria-label="Categorías de la carta">
+            {categorias.map((category) => (
+              <button
+                type="button"
+                class="leyenda-cat__item"
+                key={category}
+                onClick={() => irACategoria(category)}
+              >
+                <span class="leyenda-cat__punto" style={{ '--cat': CATEGORY_COLOR[category] }} />
+                {category}
+              </button>
+            ))}
+          </div>
 
-          {/* Un solo grid: todas las categorías comparten columnas, así los
-              tiles miden lo mismo en toda la pantalla y no hay huecos raros. */}
+          {/* Un solo grid continuo: los tiles miden lo mismo en toda la
+              pantalla, van ordenados por categoría y no hay huecos raros. */}
           <div class="grid-wrap" ref={gridRef}>
-            <div class="tile-grid tile-grid--agrupado">
-              {groups.map(({ category, items }) => (
-                <Fragment key={category}>
-                  <h2 class="grupo__title" data-grupo={category}>
-                    <span class="grupo__dot" style={{ '--cat': CATEGORY_COLOR[category] }} />
-                    {category}
-                  </h2>
-                  {items.map((product) => (
-                    <Tile
-                      key={product.id}
-                      label={product.shortName}
-                      accent={CATEGORY_COLOR[product.category]}
-                      {...(event.mode === 'venta'
-                        ? { price: `${product.price.toFixed(2).replace('.', ',')} €` }
-                        : {})}
-                      onClick={() => onTile(product)}
-                    />
-                  ))}
-                </Fragment>
+            <div class="tile-grid">
+              {tiles.map((product) => (
+                <Tile
+                  key={product.id}
+                  label={product.shortName}
+                  accent={CATEGORY_COLOR[product.category]}
+                  data-cat={product.category}
+                  class={flash === product.category ? 'tile--flash' : ''}
+                  {...(event.mode === 'venta'
+                    ? { price: `${product.price.toFixed(2).replace('.', ',')} €` }
+                    : {})}
+                  onClick={() => onTile(product)}
+                />
               ))}
             </div>
           </div>
