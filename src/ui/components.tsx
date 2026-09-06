@@ -6,7 +6,7 @@ import type { ComponentChildren, JSX } from 'preact';
 import { X } from 'lucide-preact';
 import { dismissToast, toasts } from './toast';
 
-type ButtonProps = JSX.HTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   /** 72 px tall, full width: the single confirmation of the bar. */
   action?: boolean;
@@ -17,7 +17,7 @@ export function Button({ variant = 'secondary', action = false, class: cls, ...r
   return <button type="button" {...rest} class={classes} />;
 }
 
-type ChipProps = JSX.HTMLAttributes<HTMLButtonElement> & {
+type ChipProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   /** Armed chips are violet; they disarm after the drink is added. */
   armed?: boolean;
   /** Shakes once when the chip does not apply to the product. */
@@ -35,7 +35,7 @@ export function Chip({ armed = false, shake = false, class: cls, ...rest }: Chip
   );
 }
 
-type TileProps = JSX.HTMLAttributes<HTMLButtonElement> & {
+type TileProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   label: string;
   /** Category accent, a 10 px dot in the corner. Never a side stripe. */
   accent?: string;
@@ -52,7 +52,7 @@ export function Tile({ label, accent, price, class: cls, ...rest }: TileProps) {
   );
 }
 
-type InputProps = JSX.HTMLAttributes<HTMLInputElement> & {
+type InputProps = JSX.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   /** Numbers get `inputmode="decimal"`; 16 px keeps Safari from zooming. */
   numeric?: boolean;

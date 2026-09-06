@@ -1,0 +1,864 @@
+/* Pantallas de la fase 2: eventos, formulario de evento y barra.
+   Todas las medidas salen de DESIGN.md, no del gusto. */
+
+/* ================= Utilidades compartidas ================= */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.row--tight {
+  gap: var(--s-2);
+}
+
+.spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sheet);
+}
+
+.card__title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.section-title {
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Aviso en línea. Nunca un modal en el flujo caliente. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-tile);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-body);
+}
+
+.notice__text {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  color: var(--ink);
+}
+
+.notice__icon {
+  flex: none;
+  color: var(--warn);
+  margin-block-start: 2px;
+}
+
+/* Interruptor sol/luna y un toque: etiqueta siempre visible. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.switch[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ================= Eventos ================= */
+
+.eventos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+  max-width: 940px;
+}
+
+.eventos__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.card--live {
+  border-color: var(--primary);
+  border-width: 2px;
+  gap: var(--s-5);
+}
+
+.card--live .display {
+  font-size: 44px;
+}
+
+.live-stats {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-8);
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.stat__value {
+  font-size: var(--fs-display);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.stat__label {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding: var(--s-4) var(--s-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+}
+
+.event-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.event-row__name {
+  font-size: var(--fs-row);
+  font-weight: 500;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-10) var(--s-6);
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-sheet);
+}
+
+/* ================= Formulario de evento ================= */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+  max-width: 860px;
+}
+
+.form__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-4);
+}
+
+.select {
+  min-height: var(--h-chip);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  font-size: var(--fs-body);
+}
+
+.textarea {
+  min-height: 96px;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  font-size: var(--fs-body);
+  resize: vertical;
+}
+
+/* Una fila por insumo con seguimiento: cantidad + sugerencia. */
+.load-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.4fr) 130px 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-block-end: 1px solid var(--line);
+}
+
+.load-row__name {
+  font-size: var(--fs-body);
+  font-weight: 500;
+}
+
+.load-row__unit {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+
+.load-row .input {
+  min-height: var(--h-step);
+  text-align: end;
+}
+
+@media (max-width: 719px) {
+  .load-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name input'
+      'hint button';
+    row-gap: var(--s-2);
+  }
+  .load-row__name {
+    grid-area: name;
+  }
+  .load-row .input {
+    grid-area: input;
+  }
+  .load-row__hint {
+    grid-area: hint;
+  }
+  .load-row__use {
+    grid-area: button;
+  }
+}
+
+/* ================= Barra ================= */
+
+/* La barra ocupa la pantalla entera: sin barra de navegación y sin scroll de página. */
+.shell--bar .navbar {
+  display: none;
+}
+
+.shell--bar .shell__main {
+  padding: 0;
+  overflow: hidden;
+}
+
+.barra {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.barra__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: var(--h-header);
+  padding-inline: max(var(--s-4), env(safe-area-inset-left)) max(var(--s-4), env(safe-area-inset-right));
+  padding-block-start: env(safe-area-inset-top);
+  border-block-end: 1px solid var(--line);
+  background: var(--surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.barra__header::-webkit-scrollbar {
+  display: none;
+}
+
+.barra__event {
+  font-size: var(--fs-body);
+  font-weight: 500;
+  white-space: nowrap;
+  /* Se recorta, pero nunca desaparece: hay que saber en qué evento estás. */
+  min-width: 10ch;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barra__count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  white-space: nowrap;
+}
+
+.barra__count-value {
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: inline-block;
+}
+
+/* «Tick» de escala al servir: 1 → 1,08 → 1 en 240 ms. */
+.barra__count-value.is-tick {
+  animation: tick var(--t-tick) var(--ease);
+}
+
+@keyframes tick {
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.barra__count-label,
+.barra__rate {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* Barra de café restante. Ámbar < 25 %, rojo < 10 %. */
+.meter {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+}
+
+.meter__track {
+  /* `display` explícito: un span en línea ignora width, height y el relleno. */
+  display: block;
+  flex: none;
+  width: 96px;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  transition: width var(--t-enter) var(--ease);
+}
+
+.meter--warn .meter__fill {
+  background: var(--warn);
+}
+
+.meter--danger .meter__fill {
+  background: var(--danger);
+}
+
+.meter__value {
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.meter--warn .meter__value {
+  color: var(--warn);
+}
+
+.meter--danger .meter__value {
+  color: var(--danger);
+}
+
+.barra__nostock {
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--warn);
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.barra__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-inline-start: auto;
+}
+
+.barra__actions .btn {
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+}
+
+/* ---- Dos columnas: trabajo + ticket ---- */
+
+.barra__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--w-ticket);
+  flex: 1;
+  min-height: 0;
+}
+
+.barra__work {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: var(--s-4);
+  padding-inline-start: max(var(--s-4), env(safe-area-inset-left));
+  gap: var(--s-3);
+}
+
+.chips {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-block-end: var(--s-1);
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chips .chip {
+  flex: none;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--s-1);
+  overflow-x: auto;
+  border-block-end: 1px solid var(--line);
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  flex: none;
+  min-height: var(--h-tab);
+  padding: 0 var(--s-4);
+  border: 0;
+  border-block-end: 3px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tab[aria-selected='true'] {
+  color: var(--ink);
+  font-weight: 600;
+  border-block-end-color: var(--cat, var(--primary));
+}
+
+.grid-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Con más de 12 productos hace scroll aquí dentro, nunca la página. */
+  padding-block-end: var(--s-2);
+}
+
+/* ---- Ticket ---- */
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-inline-start: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.ticket__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-tab);
+  padding: 0 var(--s-4);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.ticket__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-2) var(--s-3);
+}
+
+/* Al servir, el ticket se desvanece 180 ms. */
+.ticket__list.is-serving {
+  animation: fade-out var(--t-serve) var(--ease);
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.ticket__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--h-row);
+  padding-block: var(--s-1);
+  border-block-end: 1px solid var(--line);
+  animation: line-in var(--t-enter) var(--ease);
+}
+
+@keyframes line-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+}
+
+.ticket__name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-chip);
+  background: transparent;
+  text-align: start;
+}
+
+.ticket__name:active {
+  background: var(--bg);
+}
+
+.ticket__product {
+  font-size: var(--fs-row);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ticket__mods {
+  font-size: var(--fs-meta);
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.ticket__qty {
+  min-width: 2ch;
+  text-align: center;
+  font-size: var(--fs-row);
+  font-weight: 600;
+}
+
+.ticket__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  padding-block-end: max(var(--s-3), env(safe-area-inset-bottom));
+  border-block-start: 1px solid var(--line);
+}
+
+.ticket__empty {
+  padding: var(--s-6) var(--s-4);
+  color: var(--ink-3);
+  font-size: var(--fs-body);
+}
+
+/* Últimos servidos en modo un toque. */
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+}
+
+.recent__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--fs-body);
+}
+
+.recent__time {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Vertical o pantalla estrecha: el ticket baja a una barra de 72 px ---- */
+
+.ticket-bar {
+  display: none;
+}
+
+@media (max-width: 999px), (orientation: portrait) {
+  /* La cabecera de 64 px es la medida del horizontal. En vertical no caben el
+     nombre, los contadores y cinco botones en una línea: los botones bajan a la
+     segunda fila en vez de esconderse tras un scroll que nadie va a descubrir. */
+  .barra__header {
+    flex-wrap: wrap;
+    min-height: auto;
+    padding-block: var(--s-2);
+    row-gap: var(--s-2);
+    overflow-x: visible;
+  }
+
+  .barra__actions {
+    width: 100%;
+    margin-inline-start: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .barra__actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .barra__cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .barra__cols > .ticket {
+    display: none;
+  }
+
+  .barra__work {
+    padding-block-end: calc(var(--h-action) + var(--s-4));
+  }
+
+  .ticket-bar {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--h-action);
+    padding: 0 var(--s-4);
+    padding-block-end: env(safe-area-inset-bottom);
+    border-block-start: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: var(--shadow-sheet);
+  }
+
+  .ticket-bar__label {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-step);
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: var(--fs-row);
+    font-weight: 600;
+    text-align: start;
+  }
+
+  .ticket-bar .btn--action {
+    width: auto;
+    min-height: var(--h-chip);
+    padding-inline: var(--s-5);
+    font-size: var(--fs-row);
+  }
+
+  /* Desplegada: el ticket completo como hoja inferior. */
+  .ticket--sheet {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 42;
+    display: flex;
+    max-height: 78vh;
+    border: 0;
+    border-start-start-radius: var(--r-sheet);
+    border-start-end-radius: var(--r-sheet);
+    box-shadow: var(--shadow-sheet);
+    animation: sheet-up var(--t-enter) var(--ease);
+  }
+
+  @keyframes sheet-up {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+  }
+}
+
+/* ================= Hoja de cobro ================= */
+
+.pay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.pay__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.pay__amount {
+  font-size: 40px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.pay__methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+.pay__methods .btn {
+  min-height: var(--h-chip);
+}
+
+.pay__methods .btn[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-color: var(--primary);
+}
+
+.pay__cash {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+}
+
+.pay__quick {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.pay__quick .btn {
+  min-height: var(--h-step);
+  padding-inline: var(--s-4);
+}
+
+.pay__change {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--fs-row);
+  font-weight: 600;
+}
+
+.pay__change-value {
+  font-size: 28px;
+  font-weight: 300;
+}
+
+/* ================= Detalle de evento cerrado ================= */
+
+.detalle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  max-width: 940px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--s-4);
+}
+
+.stat-grid .stat {
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+}
+
+.stat-grid .stat__value {
+  font-size: 28px;
+}
+
+/* Opción dentro de la hoja lateral de una línea. */
+.opt-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: var(--h-chip);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 500;
+  text-align: start;
+}
+
+.opt[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.opt__delta {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
