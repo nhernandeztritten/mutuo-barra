@@ -76,6 +76,27 @@ export async function setOneTap(next: boolean): Promise<void> {
   settings.value = await updateSettings({ oneTapMode: next });
 }
 
+export async function setDeviceName(next: string): Promise<void> {
+  settings.value = await updateSettings({ deviceName: next });
+}
+
+/**
+ * Pide a Safari que no tire la base de datos. Sin esto, iPadOS puede vaciarla a
+ * los siete días sin usarla, que es justo lo que pasa entre boda y boda.
+ */
+export async function pedirAlmacenamientoPersistente(): Promise<boolean | null> {
+  const storage = globalThis.navigator?.storage;
+  if (!storage || typeof storage.persist !== 'function') return null;
+  let granted: boolean | null = null;
+  try {
+    granted = await storage.persist();
+  } catch {
+    granted = null;
+  }
+  if (granted !== null) settings.value = await updateSettings({ persistentStorage: granted });
+  return granted;
+}
+
 /* ---------------- Eventos ---------------- */
 
 export const events = signal<BarEvent[]>([]);

@@ -3,7 +3,13 @@ import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+import pkg from './package.json';
+
+/** La versión que enseña Ajustes sale de package.json, no de una constante a mano. */
+const version: string = pkg.version;
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     preact(),
     VitePWA({

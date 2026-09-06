@@ -14,7 +14,9 @@ import type {
   Settings,
 } from './types';
 
-export const APP_VERSION = '1.0.0-fase1';
+/** Sale de `package.json` vía `vite.config.ts`; en las pruebas no está definida. */
+export const APP_VERSION =
+  typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0-test';
 
 export class BarraDb extends Dexie {
   ingredients!: Table<Ingredient, string>;
