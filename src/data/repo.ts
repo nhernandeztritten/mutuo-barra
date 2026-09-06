@@ -51,6 +51,85 @@ export async function listModifierOptions(database: BarraDb = db): Promise<Modif
   return (await database.modifierOptions.toArray()).sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+/**
+ * Guarda un producto de la carta. Los pedidos ya servidos no se tocan: cada
+ * línea lleva su receta y su precio congelados (SPEC §2.3).
+ */
+export async function saveProduct(product: Product, database: BarraDb = db): Promise<Product> {
+  await database.products.put(product);
+  return product;
+}
+
+export async function saveIngredient(
+  ingredient: Ingredient,
+  database: BarraDb = db,
+): Promise<Ingredient> {
+  await database.ingredients.put(ingredient);
+  return ingredient;
+}
+
+export async function saveModifierOption(
+  option: ModifierOption,
+  database: BarraDb = db,
+): Promise<ModifierOption> {
+  await database.modifierOptions.put(option);
+  return option;
+}
+
+/** Id legible a partir del nombre, con sufijo si ya existe. */
+export function slugify(name: string): string {
+  const base = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return base === '' ? `id_${Date.now()}` : base;
+}
+
+async function freeId(
+  table: { get: (id: string) => Promise<unknown> },
+  base: string,
+): Promise<string> {
+  let id = base;
+  let n = 2;
+  while ((await table.get(id)) !== undefined) {
+    id = `${base}_${n}`;
+    n += 1;
+  }
+  return id;
+}
+
+export async function createProduct(
+  input: Omit<Product, 'id'>,
+  database: BarraDb = db,
+): Promise<Product> {
+  const id = await freeId(database.products, slugify(input.name));
+  const product: Product = { ...input, id };
+  await database.products.put(product);
+  return product;
+}
+
+export async function createIngredient(
+  input: Omit<Ingredient, 'id'>,
+  database: BarraDb = db,
+): Promise<Ingredient> {
+  const id = await freeId(database.ingredients, slugify(input.name));
+  const ingredient: Ingredient = { ...input, id };
+  await database.ingredients.put(ingredient);
+  return ingredient;
+}
+
+export async function createModifierOption(
+  input: Omit<ModifierOption, 'id'>,
+  database: BarraDb = db,
+): Promise<ModifierOption> {
+  const id = await freeId(database.modifierOptions, `${input.groupId}_${slugify(input.name)}`);
+  const option: ModifierOption = { ...input, id };
+  await database.modifierOptions.put(option);
+  return option;
+}
+
 /* ---------------- Eventos ---------------- */
 
 export interface NewEventInput {
@@ -478,4 +557,75 @@ export async function exportConsumptionCsv(eventId: string, database: BarraDb = 
 /** Theoretical consumption of one event, straight from its orders. */
 export async function eventConsumptionById(eventId: string, database: BarraDb = db): Promise<StockMap> {
   return eventConsumption(await listOrders(eventId, database));
+}
+
+/**
+ * Una fila por línea de pedido de varios eventos — la exportación de
+ * `/resultados`. `eventIds` decide qué entra (por ejemplo, sin los ejemplos).
+ */
+export async function exportAllLinesCsv(
+  eventIds: string[],
+  database: BarraDb = db,
+): Promise<string> {
+  const wanted = new Set(eventIds);
+  const [events, orders] = await Promise.all([database.events.toArray(), database.orders.toArray()]);
+  const nameOf = new Map(events.map((e) => [e.id, e.name]));
+  const rows: (string | number | null)[][] = [
+    [
+      'evento', 'fecha', 'hora', 'producto', 'modificadores', 'cantidad', 'precio_unitario',
+      'coste_unitario', 'metodo', 'anulado', 'motivo',
+    ],
+  ];
+  const ordenados = orders
+    .filter((o) => wanted.has(o.eventId))
+    .sort((a, b) => a.servedAt.localeCompare(b.servedAt));
+  for (const order of ordenados) {
+    for (const line of order.lines) {
+      rows.push([
+        nameOf.get(order.eventId) ?? order.eventId,
+        localDate(order.servedAt),
+        localTime(order.servedAt),
+        line.productName,
+        line.modifiers.map((m) => m.label).join(' + '),
+        line.qty,
+        round(line.unitPrice, 2),
+        round(line.unitCost, 4),
+        order.payment ?? '',
+        order.voidedAt ? 'sí' : 'no',
+        order.voidReason,
+      ]);
+    }
+  }
+  return toCsv(rows);
+}
+
+/** Una fila por evento e insumo: teórico, real y desviación. */
+export async function exportAllConsumptionCsv(
+  eventIds: string[],
+  database: BarraDb = db,
+): Promise<string> {
+  const ingredients = await listIngredients(database);
+  const rows: (string | number | null)[][] = [
+    ['evento', 'fecha', 'insumo', 'unidad', 'cargado', 'consumo_teorico', 'consumo_real', 'desviacion_pct', 'recuento'],
+  ];
+  for (const id of eventIds) {
+    const event = await database.events.get(id);
+    if (!event) continue;
+    const orders = await listOrders(id, database);
+    const stats = closeStats(event, orders, ingredients);
+    for (const row of stats.byIngredient) {
+      rows.push([
+        event.name,
+        event.date,
+        row.name,
+        row.unit,
+        row.loaded,
+        row.theoretical,
+        row.real,
+        row.deviationPct,
+        row.counted ? 'sí' : 'no',
+      ]);
+    }
+  }
+  return toCsv(rows);
 }
