@@ -204,6 +204,8 @@ export interface Settings {
   theme: Theme;
   /** Result of `navigator.storage.persist()`; null = not asked yet. */
   persistentStorage: boolean | null;
+  /** «Ahora no» en el aviso de instalar: no se vuelve a enseñar en Eventos. */
+  installHintDismissed: boolean;
   oneTapMode: boolean;
   createdAt: string;
   updatedAt: string;

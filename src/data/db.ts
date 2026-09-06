@@ -68,7 +68,9 @@ async function requestPersistence(): Promise<boolean | null> {
 
 export async function getSettings(database: BarraDb = db): Promise<Settings> {
   const found = await database.settings.get('app');
-  if (found) return found;
+  // Una base de una versión anterior no trae los campos nuevos; se rellenan
+  // aquí para que ninguna pantalla tenga que preguntarse si existen.
+  if (found) return { ...found, installHintDismissed: found.installHintDismissed ?? false };
   const now = new Date().toISOString();
   const fresh: Settings = {
     id: 'app',
@@ -77,6 +79,7 @@ export async function getSettings(database: BarraDb = db): Promise<Settings> {
     seedVersion: 0,
     theme: 'light',
     persistentStorage: null,
+    installHintDismissed: false,
     oneTapMode: false,
     createdAt: now,
     updatedAt: now,

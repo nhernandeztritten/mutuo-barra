@@ -7,21 +7,24 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
-import { AlertTriangle, CalendarPlus, ChevronRight, Coffee, Play } from 'lucide-preact';
+import { AlertTriangle, CalendarPlus, ChevronRight, Coffee, Play, Smartphone } from 'lucide-preact';
 import { createEvent, listAllOrders, openEvent } from '../data/repo';
 import type { BarEvent, Order } from '../data/types';
 import { closeStats, eventStats, loadSuggestion } from '../domain/stats';
 import { formatDateLong, formatInt, formatMoney, formatRate } from '../domain/format';
 import { Button } from '../ui/components';
+import { estaInstalada } from '../ui/instalacion';
 import { ComoFunciona, Etiqueta } from '../ui/piezas';
 import {
   closedEvents,
+  descartarAvisoInstalacion,
   events,
   ingredients,
   liveEvent,
   plannedEvents,
   products,
   refreshEvents,
+  settings,
 } from '../ui/store';
 
 /** Qué impide abrir la barra ahora mismo. */
@@ -95,6 +98,8 @@ export function Eventos() {
   }
 
   const isEmpty = !live && planned.length === 0 && closed.length === 0;
+  // Solo en Safari y solo si no se ha dicho «Ahora no».
+  const avisarInstalacion = !estaInstalada() && settings.value?.installHintDismissed !== true;
 
   return (
     <section class="eventos">
@@ -118,6 +123,13 @@ export function Eventos() {
             </Button>
           </div>
         </>
+      ) : null}
+
+      {avisarInstalacion ? (
+        <AvisoInstalacion
+          onComo={() => route('/ajustes#instalar')}
+          onDismiss={() => void descartarAvisoInstalacion()}
+        />
       ) : null}
 
       {live ? (
@@ -224,6 +236,28 @@ export function Eventos() {
         </p>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Discreto y una sola vez: no es una alerta, es una recomendación con una
+ * consecuencia real detrás (sin instalar, Safari puede tirar los datos).
+ */
+function AvisoInstalacion({ onComo, onDismiss }: { onComo: () => void; onDismiss: () => void }) {
+  return (
+    <div class="instalar">
+      <span class="instalar__texto">
+        <Smartphone size={20} strokeWidth={1.75} class="instalar__icono" />
+        Instala la app en el iPad para usarla sin internet: en Safari, Compartir → Añadir a
+        pantalla de inicio.
+      </span>
+      <div class="row">
+        <Button onClick={onComo}>Cómo hacerlo</Button>
+        <Button variant="ghost" onClick={onDismiss}>
+          Ahora no
+        </Button>
+      </div>
+    </div>
   );
 }
 

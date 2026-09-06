@@ -976,6 +976,35 @@
   font-weight: 600;
 }
 
+/* ---------- Aviso de instalación ---------- */
+
+/* Recomendación, no alerta: sin borde de color y con la salida a la vista. */
+.instalar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+  background: var(--surface);
+  font-size: var(--fs-body);
+}
+
+.instalar__texto {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1;
+  min-width: 260px;
+  color: var(--ink-2);
+}
+
+.instalar__icono {
+  flex: none;
+  color: var(--ink-3);
+}
+
 /* ---------- Cómo funciona ---------- */
 
 .como__list {

@@ -10,7 +10,11 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Barra" />
-    <meta name="theme-color" content="#f5f4f3" />
+    <!-- Un solo color de cromo, el que manda el tema de la app: «Noche» es un
+         interruptor manual del barista, no el ajuste del sistema. Lo actualiza
+         `applyTheme`, y el script de abajo lo deja puesto antes del primer
+         pintado para que a las 23:00 no dé un fogonazo blanco. -->
+    <meta id="theme-color" name="theme-color" content="#f5f4f3" />
     <meta name="format-detection" content="telephone=no" />
     <meta
       name="description"
@@ -21,6 +25,19 @@
     <title>Mutuo · Barra</title>
   </head>
   <body>
+    <script>
+      // Tema antes del primer pintado. Espejo síncrono del ajuste guardado en
+      // IndexedDB, que es asíncrono y llega tarde para esto.
+      try {
+        if (localStorage.getItem('mutuo-barra:theme') === 'night') {
+          document.documentElement.dataset.theme = 'night';
+          document.documentElement.style.colorScheme = 'dark';
+          document.getElementById('theme-color').setAttribute('content', '#1c1c1b');
+        }
+      } catch (e) {
+        /* Safari en navegación privada puede negar localStorage. */
+      }
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

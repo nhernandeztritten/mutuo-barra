@@ -4,13 +4,14 @@
  * Lo del dispositivo vive aquí; la carta y los insumos tienen su propia
  * pantalla porque se editan de otra manera y con otra cabeza.
  */
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useLocation } from 'preact-iso';
-import { ChevronRight, Download, HardDrive, Moon, Sun } from 'lucide-preact';
+import { ChevronRight, Download, HardDrive, Moon, Smartphone, Sun } from 'lucide-preact';
 import { APP_VERSION } from '../data/db';
 import { exportJson } from '../data/repo';
 import { Button } from '../ui/components';
 import { guardarArchivo, nombreConFecha } from '../ui/archivos';
+import { PASOS_INSTALACION, estaInstalada } from '../ui/instalacion';
 import { ComoFunciona, Etiqueta } from '../ui/piezas';
 import { showToast } from '../ui/toast';
 import {
@@ -18,6 +19,7 @@ import {
   ingredients,
   pedirAlmacenamientoPersistente,
   products,
+  refrescarAlmacenamiento,
   setDeviceName,
   setTheme,
   settings,
@@ -32,6 +34,17 @@ export function Ajustes() {
 
   const sinCostear = ingredients.value.filter((i) => i.costSource === 'sin-costear').length;
   const provisionales = products.value.filter((p) => p.priceProvisional).length;
+  const instalada = estaInstalada();
+
+  useEffect(() => {
+    // Lo que enseña la etiqueta tiene que ser el estado de ahora, no el que se
+    // decidió al arrancar: instalar la app puede cambiarlo.
+    void refrescarAlmacenamiento();
+    // Se llega aquí desde «Cómo hacerlo» del aviso de Eventos.
+    if (window.location.hash === '#instalar') {
+      document.getElementById('instalar')?.scrollIntoView({ block: 'start' });
+    }
+  }, []);
 
   async function copia(): Promise<void> {
     setBusy(true);
@@ -157,6 +170,42 @@ export function Ajustes() {
         </div>
 
         <p class="meta">Versión {APP_VERSION}</p>
+      </div>
+
+      <div class="form__block" id="instalar">
+        <h2 class="section-title">Instalar en el iPad</h2>
+        <div class="card">
+          <div class="row">
+            <Smartphone size={22} strokeWidth={1.75} />
+            <span class="event-row__name">
+              {instalada ? 'Instalada' : 'Abierta en Safari'}
+            </span>
+            <div class="spacer" />
+            {instalada ? (
+              <Etiqueta tone="accent">Desde el icono</Etiqueta>
+            ) : (
+              <Etiqueta tone="warn">Sin instalar</Etiqueta>
+            )}
+          </div>
+          <p class="meta">
+            {instalada
+              ? 'La app arranca a pantalla completa y iPadOS deja de tratar sus datos como desechables.'
+              : 'Sin instalar, Safari puede borrar los datos de la app tras siete días sin abrirla, que es lo que pasa entre un evento y el siguiente.'}
+          </p>
+          <ol class="como__list">
+            {PASOS_INSTALACION.map((paso, i) => (
+              <li class="como__item" key={paso}>
+                <span class="como__num num" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <span class="como__text">{paso}</span>
+              </li>
+            ))}
+          </ol>
+          <p class="meta">
+            La primera vez hace falta internet. Después funciona con el iPad en modo avión.
+          </p>
+        </div>
       </div>
 
       <ComoFunciona />

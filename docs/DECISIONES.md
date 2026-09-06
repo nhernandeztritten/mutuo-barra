@@ -415,3 +415,50 @@ con `getBoundingClientRect`: **32 controles en la barra, ninguno por debajo de
 44 × 44 y ninguna pareja vecina a menos de 8 px**. Lo mismo en la hoja de
 modificadores y en el resumen. También comprueba que ninguna de las diez rutas
 hace scroll horizontal a 1180, 1024, 820 ni 768 px de ancho.
+
+### 51. Instalar se recomienda, no se promete: en iPadOS no hay botón que instale
+Safari en iPadOS no dispara `beforeinstallprompt`, así que ofrecer un botón
+«Instalar» sería mentir. Lo único honesto son los pasos: Compartir → Añadir a
+pantalla de inicio. Salen en tres sitios y con tres tonos distintos:
+
+- **Eventos**: un bloque discreto de una línea con «Cómo hacerlo» y «Ahora no».
+  Se descarta para siempre (`installHintDismissed` en ajustes) y no aparece si
+  `display-mode: standalone` dice que ya está instalada.
+- **Carta y ajustes → Instalar en el iPad** (`/ajustes#instalar`, adonde lleva
+  «Cómo hacerlo»): los cuatro pasos, el estado actual —«Instalada» o «Abierta en
+  Safari»— y el motivo por el que importa.
+- **README**, para quien monte el iPad la primera vez.
+
+La detección usa `display-mode: standalone` y, para iPadOS viejo,
+`navigator.standalone`. Si ninguna de las dos contesta se asume **no instalada**:
+un aviso de más no rompe nada; dejar de avisar sí.
+
+### 52. Ajustes lee el almacenamiento de ahora, no el del arranque
+`persistentStorage` se escribía en `initDb` y se enseñaba desde ahí. Si el
+permiso se concedía después —al instalar la app, por ejemplo—, la etiqueta
+seguía diciendo «Sin proteger» hasta el siguiente arranque. Ajustes llama ahora
+a `navigator.storage.persisted()` al entrar y corrige el ajuste si no coinciden.
+
+Verificado en Chromium: `persisted() = false` y la pantalla dice «Sin proteger».
+Sin engagement previo, Chromium no concede persistencia, así que ese `false` es
+el estado real y la pantalla no lo maquilla.
+
+### 53. El tema se pinta antes de que arranque la app
+El ajuste vive en IndexedDB, que es asíncrono: a las 23:00, un barista con
+«Noche» puesto se comía un fogonazo blanco de un par de décimas en cada
+arranque. `applyTheme` deja un espejo síncrono en `localStorage` y un script de
+seis líneas en `index.html` pone `data-theme` y el `theme-color` antes del
+primer pintado.
+
+Por lo mismo hay **un solo `theme-color`**, no dos con `prefers-color-scheme`:
+«Noche» es un interruptor manual del barista, no el ajuste del sistema, y el
+color del cromo tiene que seguir al interruptor. Medido: `#f5f4f3` en claro y
+`#1c1c1b` en noche.
+
+### 54. La prueba offline es un recorrido completo, no un ping
+`scripts/verifica-pwa.mjs` construye, sirve como en producción, espera a
+`navigator.serviceWorker.ready`, **corta la red** y entonces: recarga, crea un
+evento con carga, abre la barra con sus 14 bebidas, sirve dos, recarga otra vez
+—todavía sin red— y comprueba que las dos siguen ahí. Después devuelve la red y
+vuelve a comprobarlo. 30 comprobaciones, todas en verde, y cinco capturas en
+`docs/capturas/fase-4/`.

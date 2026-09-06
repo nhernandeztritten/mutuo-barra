@@ -80,6 +80,34 @@ export async function setDeviceName(next: string): Promise<void> {
   settings.value = await updateSettings({ deviceName: next });
 }
 
+/** «Ahora no» en el aviso de instalar. No vuelve a salir en Eventos. */
+export async function descartarAvisoInstalacion(): Promise<void> {
+  settings.value = await updateSettings({ installHintDismissed: true });
+}
+
+/**
+ * Lee el estado real del almacenamiento persistente y lo guarda si ha cambiado.
+ * Sin esto, Ajustes enseñaría lo que se decidió al arrancar: si el permiso se
+ * concede después (por ejemplo al instalar la app), la etiqueta se quedaba en
+ * «Sin proteger» hasta el siguiente arranque.
+ *
+ * @returns el estado real, o `null` si el navegador no sabe contestar.
+ */
+export async function refrescarAlmacenamiento(): Promise<boolean | null> {
+  const storage = globalThis.navigator?.storage;
+  if (!storage || typeof storage.persisted !== 'function') return null;
+  let real: boolean;
+  try {
+    real = await storage.persisted();
+  } catch {
+    return null;
+  }
+  if (settings.value?.persistentStorage !== real) {
+    settings.value = await updateSettings({ persistentStorage: real });
+  }
+  return real;
+}
+
 /**
  * Pide a Safari que no tire la base de datos. Sin esto, iPadOS puede vaciarla a
  * los siete días sin usarla, que es justo lo que pasa entre boda y boda.
