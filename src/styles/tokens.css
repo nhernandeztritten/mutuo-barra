@@ -82,6 +82,8 @@
   --t-toast-in: 200ms;
   --t-toast-out: 140ms;
   --t-tick: 240ms;
+  /* Fundido de la fila de «Últimos pedidos» que se acaba de repetir. */
+  --t-repeat: 600ms;
 }
 
 [data-theme='night'] {
@@ -124,5 +126,6 @@
     --t-toast-in: 120ms;
     --t-toast-out: 120ms;
     --t-tick: 0ms;
+    --t-repeat: 120ms;
   }
 }
