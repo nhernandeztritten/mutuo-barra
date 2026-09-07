@@ -518,3 +518,42 @@ la vez que guarda 16 capturas, en horizontal y en vertical. Verificado en esta
 pasada: el grid entero a la vista (420 px de 484), «Paso 2 de 4 · Servir» en la
 barra y «3 Cerrar» en el cierre, tres archivos al exportar, el ticket como
 diálogo en vertical y el modo noche.
+
+---
+
+## 07/09/2026 · Fase 5
+
+### 44. Americano y Flat white llevan doble: 36 g de café
+Decisión de Nicolas. Las dos bebidas se sacan con doble carga; el resto de la
+carta sigue con 18 g. Consecuencia inmediata: **dejan de admitir el modificador
+«Doble»**. Sumarlo daría 54 g, que no es ninguna bebida que Mutuo sirva, y el
+consumo de café del evento saldría inflado justo en la métrica que más importa
+—la barra de café restante de la cabecera.
+
+Coste recalculado con los precios de `SPEC §2.1` (café 0,0297 €/g):
+
+- **Flat white** = 36 g café (1,0692) + 120 ml leche (0,1152) + vaso 6 oz (0,062)
+  + menaje (0,031) = **1,2774 €** (antes 0,7428).
+- **Americano** = 36 g café (1,0692) + 150 ml agua (0,057) + vaso 10 oz (0,097)
+  + menaje (0,031) = **1,2542 €** (antes 0,7196).
+
+**Corrección al encargo**: el encargo de esta fase pedía comprobar el Americano
+contra «0,663 + 0,5346 = 1,198 €». Ese 0,663 se deja fuera los 150 ml de agua
+filtrada (0,057 €), que sí están en la receta de `SPEC §2.2`. El número bueno es
+**1,254 €**. El del Flat white sí cuadraba. Hay un test por cada cifra.
+
+### 45. La migración de la dosis se guarda por la receta, no por la versión sola
+Los iPads tienen la semilla v2 en IndexedDB. `SEED_VERSION` sube a 3 y al
+arrancar se comparan las recetas guardadas del Americano y del Flat white con
+**la receta exacta que dejó la v2**. Si coinciden, se sube el café a 36 g y se
+retira `extra_doble`; si no coinciden en cualquier insumo o cantidad, la editó
+Nicolas en Ajustes y no se toca nada, tampoco los modificadores.
+
+Alternativa descartada: mirar solo si el café sigue a 18 g. Habría pisado el
+caso de una receta ajustada en la leche o en el vaso, que también es una edición
+suya. La regla es simple de contar: *lo que tú tocaste es tuyo*.
+
+Los modificadores se editan **quitando** la opción de la lista que hubiera, no
+reemplazando la lista entera; si el producto las admitía todas (sin `optionIds`)
+la lista se materializa con las opciones del grupo menos la retirada. Así un
+extra que Nicolas añada por su cuenta sobrevive a la migración.

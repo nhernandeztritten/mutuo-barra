@@ -4,6 +4,7 @@
  */
 import Dexie, { type Table } from 'dexie';
 import {
+  DOSE_MIGRATIONS,
   INGREDIENTS,
   MODIFIER_GROUPS,
   MODIFIER_OPTIONS,
@@ -134,8 +135,12 @@ export async function initDb(database: BarraDb = db): Promise<InitResult> {
   }
 
   // Una base ya sembrada no se vuelve a sembrar, pero sí se le llevan los
-  // cambios de nombre: si no, el iPad de Nicolas seguiría con «Esp. tonic».
-  if (!seeded && settings.seedVersion < SEED_VERSION) await migrarNombresCortos(database);
+  // cambios de la semilla: si no, el iPad de Nicolas seguiría con «Esp. tonic»
+  // y con el Flat white a 18 g de café.
+  if (!seeded && settings.seedVersion < SEED_VERSION) {
+    await migrarNombresCortos(database);
+    await migrarDosisDeCafe(database);
+  }
 
   const persisted = await requestPersistence();
   const saved = await updateSettings(
@@ -160,6 +165,65 @@ async function migrarNombresCortos(database: BarraDb): Promise<void> {
     if (product && product.shortName === cambio.de) {
       await database.products.put({ ...product, shortName: cambio.a });
     }
+  }
+}
+
+/** Dos recetas son la misma si llevan los mismos insumos en las mismas cantidades. */
+function mismaReceta(
+  a: { ingredientId: string; qty: number }[],
+  b: { ingredientId: string; qty: number }[],
+): boolean {
+  if (a.length !== b.length) return false;
+  const clave = (r: { ingredientId: string; qty: number }[]): string =>
+    [...r].sort((x, y) => x.ingredientId.localeCompare(y.ingredientId))
+      .map((i) => `${i.ingredientId}:${i.qty}`)
+      .join('|');
+  return clave(a) === clave(b);
+}
+
+/**
+ * Sube el Americano y el Flat white a 36 g de café y les quita el modificador
+ * «Doble» (semilla v3).
+ *
+ * El seguro es la receta: si la guardada no es exactamente la que dejó la
+ * semilla anterior, Nicolas la editó en Ajustes y no se toca nada. Los
+ * modificadores se editan quitando la opción de la lista que haya —no
+ * reemplazándola— para no pisar un extra que él haya añadido; si la lista no
+ * declaraba opciones (las admitía todas), se materializa con las del grupo
+ * menos la que se retira.
+ */
+async function migrarDosisDeCafe(database: BarraDb): Promise<void> {
+  for (const cambio of DOSE_MIGRATIONS) {
+    const product = await database.products.get(cambio.id);
+    if (!product) continue;
+    if (!mismaReceta(product.recipe, cambio.recetaAnterior)) continue;
+
+    const recipe = product.recipe.map((item) =>
+      item.ingredientId === 'cafe' ? { ...item, qty: cambio.cafeNuevo } : item,
+    );
+
+    const quitar = new Set(cambio.quitarOpciones);
+    // De qué grupo es cada opción que se retira, según la base (no por el
+    // prefijo del id, que es una convención de la semilla y no una regla).
+    const gruposAfectados = new Set<string>();
+    for (const optionId of cambio.quitarOpciones) {
+      const option = await database.modifierOptions.get(optionId);
+      if (option) gruposAfectados.add(option.groupId);
+    }
+
+    const allowedModifierGroups = await Promise.all(
+      product.allowedModifierGroups.map(async (allowance) => {
+        if (!gruposAfectados.has(allowance.groupId)) return allowance;
+        const actuales =
+          allowance.optionIds ??
+          (await database.modifierOptions.where('groupId').equals(allowance.groupId).toArray())
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((o) => o.id);
+        return { ...allowance, optionIds: actuales.filter((id) => !quitar.has(id)) };
+      }),
+    );
+
+    await database.products.put({ ...product, recipe, allowedModifierGroups });
   }
 }
 

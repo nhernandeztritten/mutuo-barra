@@ -52,12 +52,14 @@ Vías (del modelo de Mutuo): `grupo` (espresso, consume máquina y barista) · `
 
 Carta inicial (v1, editable en Ajustes). Todas las recetas incluyen 1 `menaje`. Café 18 g salvo indicación.
 
+**Doble dosis (decisión de Nicolas, 07/09/2026)**: el **Americano** y el **Flat white** se sacan con 36 g de café. Como ya son dobles, no admiten el modificador «Doble».
+
 | Categoría | Producto | Vía | Receta | Precio provisional* |
 |---|---|---|---|---|
 | Espresso | Espresso | grupo | cafe 18 · vaso_6 | 2,00 |
-| Espresso | Americano | grupo | cafe 18 · agua 150 · vaso_10 | 2,50 |
+| Espresso | Americano | grupo | **cafe 36** · agua 150 · vaso_10 | 2,50 |
 | Con leche | Cortado | grupo | cafe 18 · leche 120 · vaso_6 | 2,20 |
-| Con leche | Flat white | grupo | cafe 18 · leche 120 · vaso_6 | 3,00 |
+| Con leche | Flat white | grupo | **cafe 36** · leche 120 · vaso_6 | 3,00 |
 | Con leche | Cappuccino | grupo | cafe 18 · leche 130 · vaso_6 | 3,00 |
 | Con leche | Latte | grupo | cafe 18 · leche 220 · vaso_10 | 3,20 |
 | Filtro | Filtro | lote_caliente | cafe 12 · vaso_10 | 2,80 |
@@ -88,7 +90,7 @@ Cambian la receta y opcionalmente el precio. Se agrupan; un grupo `single` admit
 | extra | multi | Sirope | + sirope 10 ml | +0,40 |
 | extra | multi | Tapa | + tapa del tamaño del vaso (tapa_6 / tapa_10 / tapa_fria) | — |
 
-`allowedModifierGroups`: bebidas con leche → leche, cafe, extra · Espresso/Americano → cafe, extra (Doble, Iced, Tapa) · Filtro → extra (Tapa) · Cold brew → extra (Tapa) · Espresso tonic → cafe, extra (Doble) · Matcha → leche, extra (Iced, Tapa) · Cremaet/Carajillo → cafe · Té/Agua → extra (Tapa).
+`allowedModifierGroups`: bebidas con leche → leche, cafe, extra · **Flat white → leche, cafe, extra (Iced, Sirope, Tapa): ya es doble** · Espresso → cafe, extra (Doble, Iced, Tapa) · **Americano → cafe, extra (Iced, Tapa): ya es doble** · Filtro → extra (Tapa) · Cold brew → extra (Tapa) · Espresso tonic → cafe, extra (Doble) · Matcha → leche, extra (Iced, Tapa) · Cremaet/Carajillo → cafe · Té/Agua → extra (Tapa).
 
 Regla de aplicación: los modificadores se aplican sobre la receta base en orden `leche → cafe → extra`, y el resultado (receta final + precio final) **se congela en la línea del pedido**. Editar la carta después no reescribe la historia.
 

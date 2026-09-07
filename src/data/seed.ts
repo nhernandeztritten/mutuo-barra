@@ -6,7 +6,7 @@
 import type { Ingredient, ModifierGroup, ModifierOption, Product } from './types';
 
 /** Bump when the seed content changes so `initDb` can migrate. */
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
 
 /**
  * Cambios de la semilla que hay que llevar a una base ya sembrada. Solo se
@@ -19,6 +19,49 @@ export const SEED_VERSION = 2;
 export const SHORTNAME_MIGRATIONS: { id: string; de: string; a: string }[] = [
   { id: 'espresso_tonic', de: 'Esp. tonic', a: 'Espresso tonic' },
   { id: 'te', de: 'Té/infusión', a: 'Té / infusión' },
+];
+
+/**
+ * v3 (07/09/2026, decisión de Nicolas): el Americano y el Flat white se sacan
+ * con doble carga, 36 g. Como ya son dobles, dejan de admitir el modificador
+ * «Doble»: sumarlo otra vez daría 54 g, que no es ninguna bebida de la carta.
+ *
+ * `recetaAnterior` es la receta exacta que dejó la semilla v2. La migración
+ * solo actúa si la receta guardada sigue siendo esa: si Nicolas la editó a mano
+ * en Ajustes, manda lo suyo y no se toca nada (tampoco los modificadores).
+ */
+export interface DoseMigration {
+  id: string;
+  recetaAnterior: { ingredientId: string; qty: number }[];
+  /** Cuánto café pasa a llevar la receta. */
+  cafeNuevo: number;
+  /** Opciones que el producto deja de admitir. */
+  quitarOpciones: string[];
+}
+
+export const DOSE_MIGRATIONS: DoseMigration[] = [
+  {
+    id: 'americano',
+    recetaAnterior: [
+      { ingredientId: 'cafe', qty: 18 },
+      { ingredientId: 'agua', qty: 150 },
+      { ingredientId: 'vaso_10', qty: 1 },
+      { ingredientId: 'menaje', qty: 1 },
+    ],
+    cafeNuevo: 36,
+    quitarOpciones: ['extra_doble'],
+  },
+  {
+    id: 'flat_white',
+    recetaAnterior: [
+      { ingredientId: 'cafe', qty: 18 },
+      { ingredientId: 'leche', qty: 120 },
+      { ingredientId: 'vaso_6', qty: 1 },
+      { ingredientId: 'menaje', qty: 1 },
+    ],
+    cafeNuevo: 36,
+    quitarOpciones: ['extra_doble'],
+  },
 ];
 
 export const INGREDIENTS: Ingredient[] = [
@@ -63,10 +106,12 @@ export const PRODUCTS: Product[] = [
     active: true, sortOrder: 10,
   },
   {
+    // Doble de café por decisión de Nicolas (07/09/2026): ya sale doble, así
+    // que no admite el modificador «Doble».
     id: 'americano', name: 'Americano', shortName: 'Americano', category: 'Espresso', via: 'grupo',
-    recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'agua', qty: 150 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
+    recipe: [{ ingredientId: 'cafe', qty: 36 }, { ingredientId: 'agua', qty: 150 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.5, priceProvisional: true,
-    allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_doble', 'extra_iced', 'extra_tapa'] }],
+    allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_iced', 'extra_tapa'] }],
     active: true, sortOrder: 20,
   },
   {
@@ -77,10 +122,15 @@ export const PRODUCTS: Product[] = [
     active: true, sortOrder: 30,
   },
   {
+    // Doble de café, como el Americano: sin el modificador «Doble».
     id: 'flat_white', name: 'Flat white', shortName: 'Flat white', category: 'Con leche', via: 'grupo',
-    recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'leche', qty: 120 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
+    recipe: [{ ingredientId: 'cafe', qty: 36 }, { ingredientId: 'leche', qty: 120 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
     price: 3.0, priceProvisional: true,
-    allowedModifierGroups: [{ groupId: 'leche' }, { groupId: 'cafe' }, { groupId: 'extra' }],
+    allowedModifierGroups: [
+      { groupId: 'leche' },
+      { groupId: 'cafe' },
+      { groupId: 'extra', optionIds: ['extra_iced', 'extra_sirope', 'extra_tapa'] },
+    ],
     active: true, sortOrder: 40,
   },
   {

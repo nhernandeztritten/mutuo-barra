@@ -23,6 +23,52 @@ describe('escandallo: los costes cuadran con SPEC §2.1-2.2', () => {
   });
 });
 
+describe('doble dosis del Americano y el Flat white (07/09/2026)', () => {
+  it('los dos llevan 36 g de café; el resto de la carta sigue con 18', () => {
+    expect(apply('americano').usage['cafe']).toBe(36);
+    expect(apply('flat_white').usage['cafe']).toBe(36);
+    for (const id of ['espresso', 'cortado', 'cappuccino', 'latte', 'espresso_tonic', 'cremaet', 'carajillo']) {
+      expect(apply(id).usage['cafe']).toBe(18);
+    }
+  });
+
+  it('un Flat white cuesta 1,277 €: los 0,743 de antes más 18 g de café', () => {
+    // 36 g café 1,0692 + 120 ml leche 0,1152 + vaso 6 oz 0,062 + menaje 0,031
+    expect(apply('flat_white').unitCost).toBeCloseTo(1.2774, 4);
+    expect(Math.abs(apply('flat_white').unitCost - (0.7428 + 0.5346))).toBeLessThanOrEqual(CENT);
+  });
+
+  it('un Americano cuesta 1,254 €: los 0,720 de antes más 18 g de café', () => {
+    // 36 g café 1,0692 + 150 ml agua 0,057 + vaso 10 oz 0,097 + menaje 0,031
+    expect(apply('americano').unitCost).toBeCloseTo(1.2542, 4);
+    expect(Math.abs(apply('americano').unitCost - (0.7196 + 0.5346))).toBeLessThanOrEqual(CENT);
+  });
+
+  it('ninguno de los dos admite ya «Doble»: sumarlo daría 54 g', () => {
+    for (const id of ['americano', 'flat_white']) {
+      const r = apply(id, 'extra_doble');
+      expect(r.ignored[0]).toMatchObject({ optionId: 'extra_doble', reason: 'opcion-no-admitida' });
+      expect(r.usage['cafe']).toBe(36);
+      expect(r.labels).toEqual([]);
+    }
+  });
+
+  it('el Flat white conserva sus otros extras y su leche', () => {
+    const r = apply('flat_white', 'leche_avena', 'extra_sirope', 'extra_tapa');
+    expect(r.ignored).toHaveLength(0);
+    expect(r.usage['avena']).toBe(120);
+    expect(r.usage['sirope']).toBe(10);
+    expect(r.usage['tapa_6']).toBe(1);
+  });
+
+  it('el Americano conserva Iced y Tapa, y el descafeinado dobla también', () => {
+    const iced = apply('americano', 'extra_iced', 'extra_tapa');
+    expect(iced.ignored).toHaveLength(0);
+    expect(iced.usage['tapa_fria']).toBe(1);
+    expect(apply('americano', 'cafe_descafeinado').usage['cafe_desca']).toBe(36);
+  });
+});
+
 describe('grupo leche', () => {
   it('Avena sustituye la leche por la misma cantidad', () => {
     const r = apply('latte', 'leche_avena');
