@@ -174,19 +174,24 @@ linea(
 // La cabecera entera a la vista: «Cerrar barra» es la única acción terminal y
 // no puede quedarse fuera del borde derecho. Un subtítulo largo en el
 // interruptor Rápido ya la cortó una vez.
+// Se mide el borde derecho de los hijos contra el ancho de la ventana, no el
+// `scrollWidth` de la cabecera: ahí el relleno derecho cuenta como
+// desbordamiento y daría un rojo que no se ve en pantalla.
 const cabecera = await page.evaluate(() => {
   const h = document.querySelector('.barra__header');
-  const cerrar = document.querySelector('.barra__cerrar');
-  const r = cerrar.getBoundingClientRect();
+  const fuera = [...h.children]
+    .map((c) => ({ cls: c.className.split(' ')[0], der: Math.round(c.getBoundingClientRect().right) }))
+    .filter((c) => c.der > window.innerWidth);
   return {
-    recorte: Math.round(h.scrollWidth - h.clientWidth),
-    derechaBoton: Math.round(r.right),
+    fuera,
+    derechaBoton: Math.round(document.querySelector('.barra__cerrar').getBoundingClientRect().right),
     ancho: Math.round(window.innerWidth),
   };
 });
 linea(
-  cabecera.recorte <= 0 && cabecera.derechaBoton <= cabecera.ancho,
-  `la cabecera cabe entera: «Cerrar barra» acaba en ${cabecera.derechaBoton} px de ${cabecera.ancho}`,
+  cabecera.fuera.length === 0,
+  `la cabecera cabe entera: «Cerrar barra» acaba en ${cabecera.derechaBoton} px de ${cabecera.ancho}` +
+    (cabecera.fuera.length ? `\n       se salen: ${cabecera.fuera.map((c) => `${c.cls} (${c.der})`).join(', ')}` : ''),
 );
 
 // Las hojas: la del ticket y la de una línea. Desde la fase 5 la de una línea
