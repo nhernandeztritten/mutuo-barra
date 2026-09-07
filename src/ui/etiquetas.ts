@@ -9,3 +9,15 @@
  * pocos caracteres: la fila de extras y la frase de «Últimos pedidos».
  */
 export const CHIP_LABEL: Record<string, string> = { cafe_descafeinado: 'Desca' };
+
+/**
+ * Cómo se escribe cada método de pago. Aquí y no en una pantalla concreta
+ * porque lo dicen dos: la lista de pedidos del Resumen y la fila desplegada de
+ * «Últimos pedidos».
+ */
+export const PAGO_LABEL: Record<string, string> = {
+  efectivo: 'Efectivo',
+  tarjeta: 'Tarjeta',
+  bizum: 'Bizum',
+  invitacion: 'Invitación',
+};

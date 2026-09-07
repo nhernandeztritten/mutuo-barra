@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
 import { listOrders, voidOrder } from '../data/repo';
-import type { BarEvent, Ingredient, Order } from '../data/types';
+import { VOID_EDITADO, type BarEvent, type Ingredient, type Order } from '../data/types';
 import { DRINKS_PER_BARISTA_HOUR, eventConsumption, eventStats } from '../domain/stats';
 import {
   formatInt,
@@ -21,6 +21,8 @@ import { Button } from '../ui/components';
 import { useIr } from '../ui/navegar';
 import { BarraApilada, BarrasHorizontales, Columnas, Grafico, Medidor } from '../ui/graficos';
 import { Pasos } from '../ui/pasos';
+import { PAGO_LABEL } from '../ui/etiquetas';
+import { ChipsMotivo, etiquetaDeAnulacion } from '../ui/motivos';
 import { Cifra, Fila } from '../ui/piezas';
 import { eventById, ingredients, products } from '../ui/store';
 import { showToast } from '../ui/toast';
@@ -34,19 +36,6 @@ const COLOR_LECHE = {
   avena: 'var(--cat-con-leche)',
   sin_lactosa: 'var(--cat-especiales)',
 } as const;
-
-const MOTIVOS: { id: string; label: string }[] = [
-  { id: 'error', label: 'Error' },
-  { id: 'devuelto', label: 'Devuelto' },
-  { id: 'otro', label: 'Otro' },
-];
-
-const PAGO_LABEL: Record<string, string> = {
-  efectivo: 'Efectivo',
-  tarjeta: 'Tarjeta',
-  bizum: 'Bizum',
-  invitacion: 'Invitación',
-};
 
 /** Modificadores que interesa seguir, en el orden del informe. */
 const MODS_SEGUIDOS = ['cafe_descafeinado', 'extra_iced', 'extra_doble', 'extra_tapa'];
@@ -203,9 +192,14 @@ export function ResumenContenido({
           <ul class="pedidos">
             {pedidos.map((order) => {
               const anulado = order.voidedAt !== null;
-              const motivo = MOTIVOS.find((m) => m.id === order.voidReason);
+              const corregido = anulado && order.voidReason === VOID_EDITADO;
               return (
-                <li class={['pedido', anulado ? 'is-anulado' : ''].filter(Boolean).join(' ')} key={order.id}>
+                <li
+                  class={['pedido', anulado ? 'is-anulado' : '', corregido ? 'is-corregido' : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  key={order.id}
+                >
                   <span class="pedido__hora num">{formatTime(order.servedAt)}</span>
                   <span class="pedido__lineas">
                     {order.lines.map((line) => (
@@ -220,10 +214,11 @@ export function ResumenContenido({
                         ) : null}
                       </span>
                     ))}
+                    {/* «Corregido», no «Anulado»: el barista no anuló ese
+                        pedido, lo cambió, y en su sitio hay otro con la misma
+                        hora. */}
                     {anulado ? (
-                      <span class="pedido__motivo">
-                        Anulado{motivo ? ` · ${motivo.label}` : order.voidReason ? ` · ${order.voidReason}` : ''}
-                      </span>
+                      <span class="pedido__motivo">{etiquetaDeAnulacion(order.voidReason)}</span>
                     ) : null}
                   </span>
                   {order.mode === 'venta' ? (
@@ -234,21 +229,10 @@ export function ResumenContenido({
                     </span>
                   ) : null}
                   {anulado ? null : anulando === order.id ? (
-                    <span class="pedido__motivos">
-                      {MOTIVOS.map((m) => (
-                        <button
-                          type="button"
-                          class="chip chip--mini"
-                          key={m.id}
-                          onClick={() => void anular(order.id, m.id)}
-                        >
-                          {m.label}
-                        </button>
-                      ))}
-                      <button type="button" class="chip chip--mini" onClick={() => setAnulando(null)}>
-                        Cancelar
-                      </button>
-                    </span>
+                    <ChipsMotivo
+                      onElegir={(motivoId) => void anular(order.id, motivoId)}
+                      onCancelar={() => setAnulando(null)}
+                    />
                   ) : (
                     <Button variant="ghost" onClick={() => setAnulando(order.id)}>
                       Anular
