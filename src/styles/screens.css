@@ -1999,3 +1999,144 @@
   gap: var(--s-2) var(--s-5);
   padding-inline-start: var(--s-8);
 }
+
+/* ================= Preparación, ratios y lotes (fase 8) ================= */
+
+/* La marca de «revisar» en la lista de la carta. Ámbar y legible: es un aviso,
+   no un error, así que no hay rojo ni número dentro de un círculo. Va a 15 px
+   —el mínimo de DESIGN.md—, no a los 13 px de `.etiqueta`. */
+.marca-revisar {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: var(--s-2);
+  padding: 2px var(--s-2);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-pill);
+  color: var(--warn);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+/* La lectura del ratio, encima de la receta: lo que la app compara. */
+.prep__lectura {
+  margin: 0;
+  padding: var(--s-3) 0 0;
+  color: var(--ink-2);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+}
+
+.avisos {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Punto ámbar + texto, el mismo idioma que el punto de categoría del tile.
+   Nunca una franja lateral: la prohíbe DESIGN.md. */
+.aviso {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--h-step);
+  padding: var(--s-2) 0;
+  border-block-start: 1px solid var(--line);
+  font-size: var(--fs-body);
+}
+
+.aviso::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+.aviso__texto {
+  flex: 1 1 auto;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.aviso__accion {
+  flex: none;
+}
+
+/* Un método por fila, con su ratio editable y su lectura en cristiano. */
+.ratio-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) auto minmax(120px, 0.7fr);
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-block-end: 1px solid var(--line);
+}
+
+.ratio-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.ratio-row__campo {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+
+.ratio-row__campo .input {
+  width: 84px;
+  min-height: var(--h-step);
+  text-align: end;
+}
+
+.ratio-row__etiqueta,
+.ratio-row__unidad {
+  white-space: nowrap;
+}
+
+.ratio-row__clasico {
+  text-align: end;
+}
+
+/* Litros de lote: lo que se prepara antes de abrir la barra. */
+.lote-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) 110px 32px minmax(0, 2fr);
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-block-end: 1px solid var(--line);
+}
+
+.lote-row .input {
+  min-height: var(--h-step);
+  text-align: end;
+}
+
+.lote-row__cuenta {
+  color: var(--ink-2);
+}
+
+@media (max-width: 719px) {
+  .ratio-row,
+  .lote-row {
+    grid-template-columns: 1fr auto;
+  }
+  .ratio-row__main,
+  .lote-row__cuenta {
+    grid-column: 1 / -1;
+  }
+  .ratio-row__clasico {
+    text-align: start;
+  }
+}

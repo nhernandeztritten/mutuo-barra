@@ -4,24 +4,43 @@
  * Editar la carta nunca reescribe la historia: cada línea servida lleva su
  * receta y su precio congelados. Lo que se cambia aquí vale para lo que venga.
  */
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Plus, Trash2 } from 'lucide-preact';
 import { createModifierOption, createProduct, saveProduct } from '../data/repo';
 import type {
   AllowedModifierGroup,
   Category,
+  Metodo,
   ModifierEffect,
   Product,
   RecipeItem,
   Via,
 } from '../data/types';
-import { formatMoney } from '../domain/format';
+import { formatDecimal, formatMoney } from '../domain/format';
 import { costOfUsage } from '../domain/modifiers';
+import {
+  METODOS,
+  aguaDeExtraccion,
+  dosisPara,
+  metodoInfo,
+  ratioDe,
+  recetaPropuesta,
+  revisarReceta,
+  volumenExtraidoObjetivo,
+  type Aviso,
+} from '../domain/recetas';
 import { Button, Sheet } from '../ui/components';
 import { useIr } from '../ui/navegar';
 import { Etiqueta } from '../ui/piezas';
 import { showToast } from '../ui/toast';
-import { ingredients, loadCatalog, modifierGroups, modifierOptions, products } from '../ui/store';
+import {
+  ingredients,
+  loadCatalog,
+  modifierGroups,
+  modifierOptions,
+  products,
+  ratios,
+} from '../ui/store';
 
 const CATEGORIAS: Category[] = ['Espresso', 'Con leche', 'Filtro', 'Fríos', 'Especiales', 'Otros'];
 
@@ -41,6 +60,23 @@ function numText(value: number): string {
   return String(value).replace('.', ',');
 }
 
+/**
+ * Qué recurso ocupa cada método, para proponer la vía al crear una bebida. Solo
+ * es un punto de partida: la vía se puede cambiar a mano y manda la de Nicolas.
+ */
+const VIA_DEL_METODO: Record<Metodo, Via> = {
+  espresso: 'grupo',
+  filtro: 'lote_caliente',
+  cold_brew: 'lote_frio',
+  infusion: 'lote_caliente',
+  batido: 'lote_frio',
+  sin_extraccion: 'envasado',
+};
+
+function numEs(value: number): string {
+  return formatDecimal(value, 2);
+}
+
 function productoVacio(sortOrder: number): Product {
   return {
     id: '',
@@ -54,6 +90,8 @@ function productoVacio(sortOrder: number): Product {
     allowedModifierGroups: [],
     active: true,
     sortOrder,
+    method: 'espresso',
+    servingMl: 36,
   };
 }
 
@@ -87,12 +125,30 @@ export function AjustesCarta() {
   const siguienteOrden =
     products.value.reduce((max, p) => Math.max(max, p.sortOrder), 0) + 10;
 
+  /**
+   * Bebidas con algo que mirar. Son avisos, no errores: la carta funciona igual
+   * y nada cambia hasta que Nicolas entre a tocarlo (SPEC §2.6).
+   */
+  const porRevisar = useMemo(() => {
+    const map = new Map<string, Aviso[]>();
+    for (const p of products.value) {
+      const encontrados = revisarReceta(p, ingredients.value, ratios.value);
+      if (encontrados.length > 0) map.set(p.id, encontrados);
+    }
+    return map;
+  }, [products.value, ingredients.value, ratios.value]);
+
   return (
     <section class="ajustes">
       <header class="row">
         <div class="stack">
           <h1 class="display">Carta</h1>
-          <p class="meta">Los cambios afectan solo a pedidos futuros.</p>
+          <p class="meta">
+            Los cambios afectan solo a pedidos futuros.
+            {porRevisar.size > 0
+              ? ` ${porRevisar.size === 1 ? '1 bebida' : `${porRevisar.size} bebidas`} por revisar.`
+              : ''}
+          </p>
         </div>
         <div class="spacer" />
         <Button variant="primary" onClick={() => setEditando(productoVacio(siguienteOrden))}>
@@ -108,6 +164,11 @@ export function AjustesCarta() {
               <div class="event-row__main">
                 <span class="event-row__name">
                   {product.name}
+                  {porRevisar.has(product.id) ? (
+                    <span class="marca-revisar" title={porRevisar.get(product.id)?.[0]?.texto}>
+                      revisar
+                    </span>
+                  ) : null}
                   {product.priceProvisional ? <Etiqueta tone="warn">precio provisional</Etiqueta> : null}
                   {product.active ? null : <Etiqueta>desactivada</Etiqueta>}
                 </span>
@@ -194,7 +255,61 @@ function ProductoSheet({
   const [sortOrder, setSortOrder] = useState(String(product.sortOrder));
   const [recipe, setRecipe] = useState<RecipeItem[]>(product.recipe);
   const [allowed, setAllowed] = useState<AllowedModifierGroup[]>(product.allowedModifierGroups);
+  const [method, setMethod] = useState<Metodo>(product.method ?? 'espresso');
+  const [servingText, setServingText] = useState(numText(product.servingMl ?? 0));
   const [busy, setBusy] = useState(false);
+  /**
+   * Mientras la receta de una bebida nueva no se toque, la propone el ratio.
+   * En cuanto Nicolas la edita, manda la suya: la propuesta ahorra teclear a
+   * ciegas, no le quita el timón.
+   */
+  const recetaTocada = useRef(!esNuevo);
+  /** Lo mismo con la vía: un cold brew no sale de la máquina de espresso. */
+  const viaTocada = useRef(!esNuevo);
+
+  const servingMl = parseNumber(servingText);
+  /** El borrador de ahora mismo: los avisos se leen sobre lo que se está editando. */
+  const borrador: Product = { ...product, recipe, method, servingMl };
+  const info = metodoInfo(method);
+  const ratio = ratioDe(method, ratios.value);
+  const objetivo = volumenExtraidoObjetivo(borrador, ingredients.value);
+  const dosisIdeal = dosisPara(method, objetivo, ratios.value);
+  const agua = aguaDeExtraccion(borrador, ratios.value);
+  const materia =
+    ingredients.value.find((i) => i.id === info?.ingredienteBase)?.name.toLocaleLowerCase('es-ES') ??
+    'materia';
+  const avisos = revisarReceta(borrador, ingredients.value, ratios.value);
+
+  useEffect(() => {
+    // Solo al crear, y solo mientras la receta siga siendo la propuesta.
+    if (!esNuevo || recetaTocada.current) return;
+    setRecipe(recetaPropuesta(method, servingMl, ingredients.value, ratios.value));
+  }, [esNuevo, method, servingMl]);
+
+  useEffect(() => {
+    // Al crear, la vía sigue al método mientras nadie la toque: si no, la hoja
+    // enseñaba «Cold brew» y «Máquina de espresso» a la vez, contradiciéndose.
+    if (!esNuevo || viaTocada.current) return;
+    setVia(VIA_DEL_METODO[method]);
+  }, [esNuevo, method]);
+
+  function editarReceta(next: RecipeItem[] | ((prev: RecipeItem[]) => RecipeItem[])): void {
+    recetaTocada.current = true;
+    setRecipe(next);
+  }
+
+  /** «Usar el ratio»: ajusta la dosis del insumo base y nada más. */
+  function usarElRatio(arreglo: { ingredientId: string; qty: number }): void {
+    recetaTocada.current = true;
+    setRecipe((prev) =>
+      prev.some((r) => r.ingredientId === arreglo.ingredientId)
+        ? prev.map((r) =>
+            r.ingredientId === arreglo.ingredientId ? { ...r, qty: arreglo.qty } : r,
+          )
+        : [{ ingredientId: arreglo.ingredientId, qty: arreglo.qty }, ...prev],
+    );
+    showToast(`Dosis ajustada a ${numEs(arreglo.qty)} g. Nada más ha cambiado.`);
+  }
 
   const price = parseNumber(priceText);
   // Editar el precio es exactamente lo que deja de hacerlo provisional.
@@ -204,17 +319,17 @@ function ProductoSheet({
   const coste = costOfUsage(usage, ingredients.value);
 
   function setRecipeQty(index: number, text: string): void {
-    setRecipe((prev) => prev.map((r, i) => (i === index ? { ...r, qty: parseNumber(text) } : r)));
+    editarReceta((prev) => prev.map((r, i) => (i === index ? { ...r, qty: parseNumber(text) } : r)));
   }
 
   function setRecipeIngredient(index: number, ingredientId: string): void {
-    setRecipe((prev) => prev.map((r, i) => (i === index ? { ...r, ingredientId } : r)));
+    editarReceta((prev) => prev.map((r, i) => (i === index ? { ...r, ingredientId } : r)));
   }
 
   function addRecipeItem(): void {
     const libre = ingredients.value.find((i) => !recipe.some((r) => r.ingredientId === i.id));
     if (!libre) return;
-    setRecipe((prev) => [...prev, { ingredientId: libre.id, qty: 0 }]);
+    editarReceta((prev) => [...prev, { ingredientId: libre.id, qty: 0 }]);
   }
 
   function toggleGroup(groupId: string): void {
@@ -257,6 +372,8 @@ function ProductoSheet({
       allowedModifierGroups: allowed,
       active: product.active,
       sortOrder: Math.round(parseNumber(sortOrder)) || 999,
+      method,
+      servingMl: Math.round(servingMl * 100) / 100,
     };
     if (esNuevo) await createProduct(payload);
     else await saveProduct({ ...payload, id: product.id });
@@ -304,12 +421,17 @@ function ProductoSheet({
           </select>
         </label>
         <label class="field" for="pr-via">
-          <span class="field__label">Cómo se prepara</span>
+          {/* No es «cómo se prepara»: eso es el método, que está abajo. Esto es
+              qué recurso ocupa, que es lo que decide el ritmo por hora. */}
+          <span class="field__label">Qué ocupa al servirla</span>
           <select
             id="pr-via"
             class="select"
             value={via}
-            onChange={(e) => setVia((e.currentTarget as HTMLSelectElement).value as Via)}
+            onChange={(e) => {
+              viaTocada.current = true;
+              setVia((e.currentTarget as HTMLSelectElement).value as Via);
+            }}
           >
             {VIAS.map((v) => (
               <option key={v.value} value={v.value}>
@@ -317,6 +439,7 @@ function ProductoSheet({
               </option>
             ))}
           </select>
+          <span class="meta">Solo la máquina de espresso cuenta para el ritmo por hora.</span>
         </label>
         <label class="field" for="pr-precio">
           <span class="field__label">
@@ -341,6 +464,73 @@ function ProductoSheet({
             onInput={(e) => setSortOrder((e.currentTarget as HTMLInputElement).value)}
           />
         </label>
+      </div>
+
+      <div class="form__block prep">
+        <h3 class="section-title">Preparación</h3>
+        <div class="form__grid">
+          <label class="field" for="pr-metodo">
+            <span class="field__label">Método</span>
+            <select
+              id="pr-metodo"
+              class="select"
+              value={method}
+              onChange={(e) => setMethod((e.currentTarget as HTMLSelectElement).value as Metodo)}
+            >
+              {METODOS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label class="field" for="pr-volumen">
+            <span class="field__label">Volumen servido (ml)</span>
+            <input
+              id="pr-volumen"
+              class="input"
+              inputMode="decimal"
+              value={servingText}
+              onInput={(e) => setServingText((e.currentTarget as HTMLInputElement).value)}
+            />
+            <span class="meta">Lo que llega al vaso, sin contar el hielo.</span>
+          </label>
+        </div>
+
+        <p class="prep__lectura num">
+          {ratio > 0 && objetivo > 0 ? (
+            <>
+              Ratio 1:{numEs(ratio)} · {numEs(objetivo)} ml piden {numEs(dosisIdeal)} g de {materia}
+              {agua > 0 ? ` · agua de extracción ${numEs(agua)} ml` : ''}
+            </>
+          ) : ratio > 0 ? (
+            <>Escribe el volumen servido y te digo cuántos gramos pide.</>
+          ) : (
+            <>{info?.nota ?? 'Elige un método arriba.'}</>
+          )}
+        </p>
+
+        {esNuevo && !recetaTocada.current ? (
+          <p class="meta">
+            La receta de abajo se propone sola mientras no la toques: dosis por ratio, vaso y
+            menaje.
+          </p>
+        ) : null}
+
+        {avisos.length > 0 ? (
+          <ul class="avisos">
+            {avisos.map((aviso) => (
+              <li class="aviso" key={`${aviso.tipo}-${aviso.texto}`}>
+                <span class="aviso__texto">{aviso.texto}</span>
+                {aviso.arreglo ? (
+                  <Button class="aviso__accion" onClick={() => usarElRatio(aviso.arreglo!)}>
+                    Usar el ratio
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <div class="form__block">
@@ -379,7 +569,7 @@ function ProductoSheet({
                 type="button"
                 class="btn btn--step"
                 aria-label={`Quitar ${ing?.name ?? 'insumo'} de la receta`}
-                onClick={() => setRecipe((prev) => prev.filter((_, i) => i !== index))}
+                onClick={() => editarReceta((prev) => prev.filter((_, i) => i !== index))}
               >
                 <Trash2 size={20} strokeWidth={1.75} />
               </button>

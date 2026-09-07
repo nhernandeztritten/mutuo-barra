@@ -24,6 +24,7 @@ import type {
   Settings,
   Theme,
 } from '../data/types';
+import type { RatiosMap } from '../domain/recetas';
 import { applyTheme } from './theme';
 
 /* ---------------- Catálogo ---------------- */
@@ -74,6 +75,16 @@ export async function setTheme(next: Theme): Promise<void> {
 
 export async function setOneTap(next: boolean): Promise<void> {
   settings.value = await updateSettings({ oneTapMode: next });
+}
+
+/**
+ * Ratios de extracción en vigor. Cambiar uno **no reescribe ninguna receta**:
+ * cambia lo que la app compara y lo que propone (SPEC §2.6).
+ */
+export const ratios = computed<RatiosMap>(() => settings.value?.ratios ?? {});
+
+export async function setRatios(next: RatiosMap): Promise<void> {
+  settings.value = await updateSettings({ ratios: next });
 }
 
 export async function setDeviceName(next: string): Promise<void> {

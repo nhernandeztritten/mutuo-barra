@@ -21,6 +21,13 @@ if (typeof globalThis.matchMedia !== 'function') {
   });
 }
 
+// Tampoco `window.scrollTo`, que preact-iso llama al cambiar de ruta.
+if (typeof globalThis.scrollTo !== 'function' || !('__stub' in globalThis.scrollTo)) {
+  const stub = (): void => undefined;
+  (stub as unknown as { __stub: boolean }).__stub = true;
+  Object.defineProperty(globalThis, 'scrollTo', { configurable: true, writable: true, value: stub });
+}
+
 // jsdom no implementa `scrollIntoView`. No es un hueco del producto —existe en
 // todos los navegadores— pero sin él, «Ver todos» reventaría en las pruebas.
 if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
