@@ -753,3 +753,140 @@ preferencia por defecto es la animación completa.
 Vale la pena anotarlo: hasta esta fase esas ramas nunca se ejecutaban en las
 pruebas y el hueco no se veía. El aviso de método de la decisión 46 vuelve a
 aplicar —lo que no se ejecuta, no se comprueba.
+
+---
+
+## 07/09/2026 · Fase 7
+
+> Sigue la numeración desde la 66, la última usada en la fase 6.
+
+### 67. La fila se despliega en el sitio, y solo hay una abierta
+El encargo prohíbe las ventanas emergentes centradas en el flujo de servir
+(`DESIGN.md`), así que ver un pedido entero no puede abrir una hoja. La fila se
+despliega **debajo de sí misma**, en la misma columna, y el objetivo táctil es
+la fila entera: 56 px de alto y todo el ancho, no un botón en una esquina. Con
+las manos mojadas se toca donde se está mirando.
+
+Solo una abierta a la vez. Con 360 px de columna, dos pedidos desplegados dejan
+la lista sin sitio y al barista sin saber cuál está mirando. Abrir otra cierra
+la anterior; tocar la abierta la cierra. `aria-expanded` en la cabecera de cada
+fila.
+
+Consecuencia: **«Repetir» se muda dentro de la desplegada**, junto a «Editar» y
+«Anular». Antes vivía en la fila cerrada, pero un botón dentro del objetivo
+táctil de 56 px se lo come. Cuesta un toque más; a cambio, tocar la fila ya no
+es una apuesta entre «ver» y «repetir».
+
+### 68. Abierta, la frase de arriba desaparece
+La primera versión dejaba la frase resumida («Latte · avena, Cortado · desca,
+Americano · desca, Cappuccino · sin…») encima de las mismas cinco bebidas
+escritas enteras justo debajo. Se veía en la captura: el mismo pedido dos
+veces, una de ellas cortada.
+
+Abierta, la frase deja su sitio al **«hace 3 min»**, que es lo que la hora sola
+no contesta —«¿este es el de hace un momento o el de hace media hora?»— y lo
+que nadie resta de cabeza a las tres de la mañana. Lo que se pidió lo dice la
+lista de abajo, a 18 px y con los extras apagados.
+
+### 69. Se anima al abrir, no al cerrar
+`grid-template-rows: 0fr → 1fr` es lo único que anima un alto automático sin
+medirlo en JavaScript, y es lo que pedía el encargo. Pero para animar también
+el cierre hay que dejar el panel montado siempre, y entonces sus tres botones
+siguen en el DOM con la fila cerrada: entran en el orden de tabulación, los
+lee un lector de pantalla y los miden con 0 px de alto los guiones de
+verificación (`verifica-ui.mjs` mide todo control de la barra).
+
+Se elige **montar el panel solo cuando está abierto** y animar la apertura con
+esos mismos fotogramas (180 ms, `--t-desplegar`; 0 ms con
+`prefers-reduced-motion`). Cerrar es instantáneo. Lo que se pierde es 180 ms de
+salida que nadie mira; lo que se gana es que la fila cerrada no tenga botones
+fantasma. Alternativa descartada: dejarlo montado con `visibility: hidden`, que
+arregla el foco y la medida pero obliga a colar la excepción en todos los
+guiones y a acordarse de ella la próxima vez.
+
+### 70. Corregir es un pedido nuevo con la hora del viejo
+Editar **no reescribe** el pedido servido. Se crea otro con las líneas nuevas y
+el original se anula con motivo `editado`. El nuevo lleva dos cosas prestadas:
+
+- `servedAt` **del original**: la bebida se sirvió cuando se sirvió. Moverla al
+  presente falsearía las franjas de media hora del Resumen y el ritmo de la
+  última hora, que es el número con el que Nicolas decide si hace falta un
+  segundo barista.
+- `replacesOrderId`, para saber a quién sustituye. `createdAt` sí es ahora: es
+  cuando se escribió la fila.
+
+Se descartó `replaceOrderLines` —lo que ya hace la fila de extras en modo
+Rápido— porque ahí el pedido es de hace dos segundos y aún vive su «Deshacer»;
+aquí puede ser de hace media hora y reescribirlo en el sitio borraría lo que
+de verdad se sirvió. El modelo es append-only: las dos filas se quedan, y la
+sincronización de v2 sigue siendo una unión de conjuntos.
+
+El orden importa: primero se escribe el nuevo y **después** se anula el viejo.
+Si algo fallara en medio, lo que queda es el pedido de siempre, no un hueco.
+
+### 71. «Corregido», no «Anulado»
+En Resumen → Pedidos el original sale tachado —lo que cuenta es el que lo
+sustituye— pero su etiqueta dice **«Corregido»** y va en `--ink-3`, no en rojo.
+Nadie se equivocó: se cambió. Poner «Anulado · editado» en rojo contaría mal lo
+que pasó y llenaría la lista de una boda de falsas alarmas.
+
+### 72. «Editar» solo con el pedido actual vacío, y se dice por qué
+Mezclar una corrección con un pedido a medias serviría las dos cosas juntas y
+anularía el original por el camino. Con líneas en el ticket, «Editar» sale
+apagado.
+
+El motivo se escribe **en la fila**, debajo de los botones: «Sirve o vacía el
+pedido actual para editar». El `title` está puesto también, pero un `title`
+solo lo ve quien tiene ratón, y en la barra no hay ratón. La guarda está además
+en el estado, no solo en el botón: `onEditarPedido` no hace nada con el ticket
+lleno.
+
+### 73. Corrigiendo, el modo Rápido queda en pausa
+En Rápido cada toque sirve. Corrigiendo hay que poder tocar tres bebidas y
+**luego** confirmar, así que mientras dura la corrección vuelve el ticket con
+su botón «Servir», aunque el interruptor siga encendido. Al servir la
+corrección se vuelve solo a Rápido. Sin esto, tocar una bebida en medio de una
+corrección serviría un pedido nuevo y dejaría la corrección a medias.
+
+### 74. El estado de la corrección se guarda con el ticket
+`editingOrderId` va a `localStorage` por evento, al lado de las líneas y por el
+mismo motivo (`SPEC §3.2` reglas 9 y 11): recargar en medio de una boda no
+puede convertir las líneas de un pedido viejo en un pedido nuevo sin que nadie
+se entere.
+
+Dos invariantes que evitan el estado imposible: un ticket vacío **cancela** la
+corrección (quitar la última línea vuelve a «Pedido actual»), y al cargar, un id
+guardado sin líneas se descarta. Los dos tienen prueba.
+
+### 75. En venta, si el total no cambia no se vuelve a cobrar
+Corregir un Espresso a descafeinado no cambia el importe, y volver a abrir la
+hoja de cobro sería hacerle repetir al barista una decisión que ya tomó: se
+conservan `payment`, `tip` y `cashGiven` del original. Si el total **sí** cambia
+(avena, +0,50 €) se abre la hoja con el importe nuevo y el método de antes ya
+marcado.
+
+### 76. Servir un pedido nuevo cierra la fila abierta
+La lista se reordena por debajo: si no se cerrara, el barista se quedaría
+mirando desplegado un pedido distinto del que abrió. Va en `serve()` y no en
+`serveTicket()`, para que valga también en modo Rápido, donde no se pasa por el
+ticket.
+
+### 77. `--danger` de noche se aclara: 3,91:1 no pasa
+«Anular» es texto en rojo sobre `--surface-2` (el fondo de la fila abierta).
+Medido con `npm run contraste`, el `--danger` de noche (#e2695c) daba **3,91:1**
+sobre ese fondo: por debajo del mínimo de 4,5. Se aclara a **#ec8a7e** (5,19:1).
+Los otros tres sitios donde aparece de noche suben con él (medidor en rojo,
+desviación, motivo de anulación).
+
+Vale la pena anotar el método: el par no existía hasta esta fase y el guion no
+lo medía. Los cuatro pares nuevos de la fila desplegada están ahora en
+`scripts/contraste.mjs`, que lee los tokens de `tokens.css` y no una copia a
+mano. Lo que no se mide, no se sabe.
+
+### 78. Lo que queda por decidir (para Nicolas)
+Corrigiendo, el botón grande sigue diciendo **«Servir 1 bebida»** / «Cobrar
+2,00 €», que es lo que pedía el encargo. La cabecera violeta de encima dice
+«Editando el pedido de 09:54», así que el estado se ve; pero el botón promete
+una bebida más y el contador **no se mueve** al pulsarlo, porque el pedido
+sustituye a otro. Si en la boda confunde, decirlo: cambiarlo a «Guardar la
+corrección» es una línea.

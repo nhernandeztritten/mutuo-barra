@@ -59,6 +59,8 @@ npm run dev        # http://localhost:5173 (ya escucha en toda la red local)
 | `npm run verifica:ui` | Mide el grid, los objetivos táctiles y el scroll (necesita `preview`) |
 | `npm run verifica:pwa` | Prueba la instalación y el modo sin red (necesita `preview`) |
 | `npm run capturas` | Recorre la app entera y guarda las capturas (necesita `preview`) |
+| `npm run capturas:ultimos` | «Últimos pedidos»: orden, límite, repetir y «Ver todos» (necesita `preview`) |
+| `npm run capturas:editar` | Desplegar, anular y corregir un pedido servido (necesita `preview`) |
 
 Las tres últimas hablan con la app construida:
 
@@ -187,6 +189,8 @@ scripts/
   verifica-ui.mjs   grid, objetivos táctiles, foco y scroll, con Playwright
   verifica-pwa.mjs  service worker, iconos y el recorrido completo sin red
   capturas.mjs      el recorrido de la app en capturas
+  capturas-fase-6.mjs  «Últimos pedidos»: orden, límite, repetir, «Ver todos»
+  capturas-fase-7.mjs  desplegar, anular y corregir un pedido ya servido
 ```
 
 Todo es **append-only con uuid y deviceId**: anular un pedido escribe `voidedAt`,
