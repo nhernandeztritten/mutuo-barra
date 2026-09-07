@@ -125,6 +125,15 @@ function editarDe(index = 0): HTMLButtonElement {
   return accionDe('.ultimos__editar', index);
 }
 
+/** Una pestaña de categoría del grid, por su texto. */
+function pestana(texto: string): HTMLButtonElement {
+  const found = [...document.querySelectorAll<HTMLButtonElement>('.cat-tabs__item')].find(
+    (el) => el.textContent?.trim() === texto,
+  );
+  if (!found) throw new Error(`No hay pestaña «${texto}»`);
+  return found;
+}
+
 function anularDe(index = 0): HTMLButtonElement {
   return accionDe('.ultimos__anular', index);
 }
@@ -863,7 +872,8 @@ describe('anular un pedido desde su fila', () => {
 
     fireEvent.click(anularDe());
     await waitFor(() => expect(ultimosFilas()).toHaveLength(0));
-    await waitFor(() => expect(ultimoToast()).toContain('Pedido anulado'));
+    // El aviso dice qué se anuló, no solo que algo se anuló.
+    await waitFor(() => expect(ultimoToast()).toContain('Anulado · Latte'));
     expect(ultimoToast()).toContain('Deshacer');
 
     fireEvent.click([...document.querySelectorAll<HTMLButtonElement>('.toast__action')].pop()!);
@@ -1212,29 +1222,56 @@ describe('grid continuo con leyenda de categorías', () => {
     expect(document.querySelectorAll('.tile-grid .tile__dot').length).toBe(14);
   });
 
-  it('la leyenda nombra las seis categorías, en el orden de la carta', async () => {
+  it('las pestañas son «Todas» y las seis categorías, en el orden de la carta', async () => {
     await setupBar();
-    const nombres = [...document.querySelectorAll('.leyenda-cat__item')].map((el) =>
+    const nombres = [...document.querySelectorAll('.cat-tabs__item')].map((el) =>
       el.textContent?.trim(),
     );
-    expect(nombres).toEqual(['Espresso', 'Con leche', 'Filtro', 'Fríos', 'Especiales', 'Otros']);
+    expect(nombres).toEqual([
+      'Todas',
+      'Espresso',
+      'Con leche',
+      'Filtro',
+      'Fríos',
+      'Especiales',
+      'Otros',
+    ]);
+    // Al abrir la barra están todas las bebidas y «Todas» es la pestaña activa.
+    expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(14);
+    expect(pestana('Todas').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('con el grid entero a la vista, tocar una categoría resalta sus tiles', async () => {
+  it('tocar una pestaña deja solo las bebidas de esa categoría, y «Todas» las devuelve', async () => {
     await setupBar();
-    const frios = [...document.querySelectorAll<HTMLButtonElement>('.leyenda-cat__item')].find(
-      (el) => el.textContent?.trim() === 'Fríos',
-    )!;
-    fireEvent.click(frios);
-    await waitFor(() => expect(document.querySelectorAll('.tile--flash').length).toBe(3));
+    fireEvent.click(pestana('Fríos'));
+
+    await waitFor(() => expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(3));
     expect(
-      [...document.querySelectorAll('.tile--flash')].every(
+      [...document.querySelectorAll('.tile-grid .tile')].every(
         (el) => el.getAttribute('data-cat') === 'Fríos',
       ),
     ).toBe(true);
+    expect(pestana('Fríos').getAttribute('aria-selected')).toBe('true');
+    expect(pestana('Todas').getAttribute('aria-selected')).toBe('false');
+
+    fireEvent.click(pestana('Todas'));
+    await waitFor(() => expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(14));
   });
 
-  it('una bebida desactivada desaparece del grid, y su categoría de la leyenda si se queda vacía', async () => {
+  it('con una pestaña filtrando, tocar una bebida sigue añadiéndola al pedido', async () => {
+    await setupBar();
+    fireEvent.click(pestana('Con leche'));
+    await waitFor(() => expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(4));
+
+    fireEvent.click(tile('Cortado'));
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(rows()[0]?.textContent).toContain('Cortado');
+    // La pestaña no se mueve al servir: el barista sigue donde estaba.
+    expect(pestana('Con leche').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('una bebida desactivada desaparece del grid, y su pestaña si se queda vacía', async () => {
     await setupBar();
     const te = products.value.find((p) => p.id === 'te')!;
     const agua = products.value.find((p) => p.id === 'agua_botella')!;
@@ -1243,7 +1280,7 @@ describe('grid continuo con leyenda de categorías', () => {
     await loadCatalog();
 
     await waitFor(() => expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(12));
-    const nombres = [...document.querySelectorAll('.leyenda-cat__item')].map((el) =>
+    const nombres = [...document.querySelectorAll('.cat-tabs__item')].map((el) =>
       el.textContent?.trim(),
     );
     expect(nombres).not.toContain('Otros');

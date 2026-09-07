@@ -528,10 +528,9 @@
   color: var(--accent-ink);
 }
 
-/* Leyenda de categorías: ocupa la fila donde estaban las pestañas. Dice qué
-   significa cada punto de color y, si el grid crece hasta tener scroll, lleva
-   al primer tile de esa categoría. */
-.leyenda-cat {
+/* Pestañas de la carta: filtran el grid en el sitio. «Todas» va primero y es
+   lo que se ve al abrir la barra. */
+.cat-tabs {
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -539,27 +538,40 @@
   scrollbar-width: none;
 }
 
-.leyenda-cat::-webkit-scrollbar {
+.cat-tabs::-webkit-scrollbar {
   display: none;
 }
 
-.leyenda-cat__item {
+.cat-tabs__item {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
   min-height: var(--h-step);
-  padding: 0 var(--s-3);
-  border: 0;
+  padding: 0 var(--s-4);
+  border: 1px solid transparent;
   border-radius: var(--r-pill);
   background: transparent;
   color: var(--ink-2);
-  font-size: var(--fs-meta);
+  font-size: var(--fs-body);
   font-weight: 500;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.leyenda-cat__punto {
+.cat-tabs__item[aria-selected='true'] {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.cat-tabs__item:focus-visible {
+  outline: var(--focus);
+  outline-offset: 2px;
+}
+
+.cat-tabs__punto {
   width: 10px;
   height: 10px;
   border-radius: var(--r-pill);

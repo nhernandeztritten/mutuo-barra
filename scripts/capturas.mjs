@@ -98,15 +98,18 @@ linea(
   (await page.locator('.pasos-linea').textContent())?.includes('Paso 2 de 4'),
   'la cabecera dice «Paso 2 de 4 · Servir»',
 );
-await captura(page, 'barra-grid-continuo-con-leyenda');
+await captura(page, 'barra-grid-con-pestanas');
 
-// La leyenda: con el grid entero a la vista, resalta en vez de desplazar.
-await page.locator('.leyenda-cat__item', { hasText: 'Especiales' }).click();
+// Las pestañas filtran el grid; «Todas» lo devuelve entero.
+await page.locator('.cat-tabs__item', { hasText: 'Especiales' }).click();
 await page.waitForTimeout(120);
-const resaltados = await page.locator('.tile--flash').count();
-linea(resaltados === 2, `tocar «Especiales» resalta sus ${resaltados} bebidas`);
-await captura(page, 'leyenda-resalta-una-categoria');
-await page.waitForTimeout(500);
+const filtrados = await page.locator('.tile-grid .tile').count();
+linea(filtrados === 2, `la pestaña «Especiales» deja ${filtrados} bebidas`);
+await captura(page, 'pestana-filtra-una-categoria');
+await page.locator('.cat-tabs__item', { hasText: 'Todas' }).click();
+await page.waitForTimeout(120);
+const todas = await page.locator('.tile-grid .tile').count();
+linea(todas === 14, `«Todas» devuelve las ${todas} bebidas`);
 
 /* ---------- 3 bis. La fila de extras, después de la bebida ---------- */
 

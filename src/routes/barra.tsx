@@ -34,7 +34,7 @@ import {
   TicketPanel,
   type PaymentResult,
 } from '../ui/barra-parts';
-import { ultimosPedidos, type UltimoPedido } from '../ui/ultimos';
+import { fraseDePartes, ultimosPedidos, type UltimoPedido } from '../ui/ultimos';
 import { categoriasDe, ordenarTiles } from '../ui/orden';
 import { Pasos } from '../ui/pasos';
 import { ResumenContenido } from './resumen';
@@ -73,9 +73,6 @@ import {
 } from '../ui/ticket';
 import { barMode } from '../ui/layout';
 
-/** Cuánto dura el resalte violeta al tocar una categoría de la leyenda. */
-const FLASH_MS = 400;
-
 const SERVE_FADE_MS = 180;
 
 /** El fundido de la fila que se acaba de repetir. Sin ventanas emergentes. */
@@ -112,8 +109,6 @@ export function Barra() {
   const [fading, setFading] = useState<TicketLine[]>([]);
   const [tick, setTick] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  /** Categoría resaltada tras tocar la leyenda, cuando el grid cabe entero. */
-  const [flash, setFlash] = useState<Category | null>(null);
   /** La hoja de Resumen. `'pedidos'` la abre directamente en su lista de pedidos. */
   const [resumenOpen, setResumenOpen] = useState<'todo' | 'pedidos' | null>(null);
   /** El pedido que se acaba de repetir, para el fundido de su fila. */
@@ -168,6 +163,16 @@ export function Barra() {
    */
   const tiles = useMemo(() => ordenarTiles(products), [products]);
   const categorias = useMemo(() => categoriasDe(products), [products]);
+  /**
+   * Pestaña activa del grid. `null` es «Todas», que es lo que ve el barista al
+   * abrir: con catorce bebidas caben todas, y filtrar es para cuando la carta
+   * crezca o para buscar rápido dentro de un grupo.
+   */
+  const [categoriaActiva, setCategoriaActiva] = useState<Category | null>(null);
+  const tilesVisibles = useMemo(
+    () => (categoriaActiva === null ? tiles : tiles.filter((p) => p.category === categoriaActiva)),
+    [tiles, categoriaActiva],
+  );
 
   if (!event || event.status !== 'live') {
     return (
@@ -543,7 +548,7 @@ export function Barra() {
       if (editingOrderId.value === pedido.id) clearTicket();
       await reloadOrders();
       setAbierto(null);
-      showToast('Pedido anulado', {
+      showToast(`Anulado · ${fraseDePartes(pedido.partes)}`, {
         label: 'Deshacer',
         onAction: () => {
           void (async () => {
@@ -580,23 +585,6 @@ export function Barra() {
       return;
     }
     setPaying(true);
-  }
-
-  /**
-   * Tocar una categoría de la leyenda. Si el grid tiene scroll, lleva a su
-   * primer tile; si cabe entero —el caso de la carta de v1— desplazarse no
-   * significaría nada, así que resalta sus tiles 400 ms y se acabó.
-   */
-  function irACategoria(category: Category): void {
-    const grid = gridRef.current;
-    const node = grid?.querySelector<HTMLElement>(`[data-cat="${CSS.escape(category)}"]`);
-    if (grid && grid.scrollHeight > grid.clientHeight) {
-      const suave = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-      node?.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
-      return;
-    }
-    setFlash(category);
-    later(() => setFlash(null), FLASH_MS);
   }
 
   const ticketProps = {
@@ -728,17 +716,29 @@ export function Barra() {
             onToggle={onExtra}
           />
 
-          {/* La leyenda ocupa la fila donde estaban las pestañas: dice qué
-              significa cada punto de color y sirve de atajo si el grid crece. */}
-          <div class="leyenda-cat" role="group" aria-label="Categorías de la carta">
+          {/* Pestañas de la carta: «Todas» primero y por defecto. Filtran el
+              grid en el sitio; el punto de color dice de qué categoría es cada
+              tile cuando están todas juntas. */}
+          <div class="cat-tabs" role="tablist" aria-label="Categorías de la carta">
+            <button
+              type="button"
+              role="tab"
+              class="cat-tabs__item"
+              aria-selected={categoriaActiva === null}
+              onClick={() => setCategoriaActiva(null)}
+            >
+              Todas
+            </button>
             {categorias.map((category) => (
               <button
                 type="button"
-                class="leyenda-cat__item"
+                role="tab"
+                class="cat-tabs__item"
                 key={category}
-                onClick={() => irACategoria(category)}
+                aria-selected={categoriaActiva === category}
+                onClick={() => setCategoriaActiva(category)}
               >
-                <span class="leyenda-cat__punto" style={{ '--cat': CATEGORY_COLOR[category] }} />
+                <span class="cat-tabs__punto" style={{ '--cat': CATEGORY_COLOR[category] }} />
                 {category}
               </button>
             ))}
@@ -748,13 +748,12 @@ export function Barra() {
               pantalla, van ordenados por categoría y no hay huecos raros. */}
           <div class="grid-wrap" ref={gridRef}>
             <div class="tile-grid">
-              {tiles.map((product) => (
+              {tilesVisibles.map((product) => (
                 <Tile
                   key={product.id}
                   label={product.shortName}
                   accent={CATEGORY_COLOR[product.category]}
                   data-cat={product.category}
-                  class={flash === product.category ? 'tile--flash' : ''}
                   {...(event.mode === 'venta'
                     ? { price: `${product.price.toFixed(2).replace('.', ',')} €` }
                     : {})}

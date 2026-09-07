@@ -909,3 +909,28 @@ porque los pone la app y sirven para no llamar «Anulado» a un pedido corregido
 Descartado: dejar los motivos solo en el Resumen (dos comportamientos distintos
 para el mismo botón) y un «¿Seguro?» (lo prohíbe `DESIGN.md`: deshacer, no
 confirmar).
+
+### 80. Vuelven las pestañas de categoría, con «Todas» delante (07/09/2026)
+
+Decisión de Nicolas al usar la barra. La fila de encima del grid era una
+leyenda: decía qué significaba cada punto de color y, con el grid entero a la
+vista, tocarla solo resaltaba unos tiles 400 ms. Un control que no hace nada
+útil ocupa sitio y enseña a no tocarlo.
+
+Ahora son **pestañas que filtran el grid**: `Todas · Espresso · Con leche ·
+Filtro · Fríos · Especiales · Otros`. «Todas» va primera, es la activa al abrir
+la barra y es el estado normal —con catorce bebidas caben todas, que es lo más
+rápido—; las demás dejan solo su categoría, para cuando la carta crezca o para
+buscar dentro de un grupo sin leer las catorce.
+
+La pestaña **no se mueve al servir**: el barista sigue donde estaba. El punto
+de color se queda en el tile y en la pestaña, así que la leyenda no se pierde.
+Se retira el resalte de 400 ms (`tile--flash`) y el `scrollIntoView`, que
+existían solo para dar algún efecto a un control que no filtraba.
+
+### 81. El aviso de anular dice qué se anuló (07/09/2026)
+
+«Pedido anulado» no distingue entre el pedido que querías anular y el de al
+lado. Ahora el aviso dice **«Anulado · Latte · avena, 2 × Cortado»**, la misma
+frase que se lee en la fila, y mantiene «Deshacer» ocho segundos (decisión 79).
+En el Resumen el pedido sigue tachado con su etiqueta.
