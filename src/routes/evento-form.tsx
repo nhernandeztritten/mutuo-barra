@@ -8,12 +8,20 @@ import { Play, Wand2 } from 'lucide-preact';
 import { createEvent, openEvent, updateEvent } from '../data/repo';
 import type { BarEvent, EventMode, EventType, StockMap } from '../data/types';
 import { loadSuggestion } from '../domain/stats';
+import { METODOS_DE_LOTE, cafeDeLotes, lotePara, ratioDe } from '../domain/recetas';
 import { formatDecimal, formatQty } from '../domain/format';
 import { Button } from '../ui/components';
 import { useIr } from '../ui/navegar';
 import { Pasos } from '../ui/pasos';
 import { showToast } from '../ui/toast';
-import { eventById, liveEvent, refreshEvents, trackedIngredients } from '../ui/store';
+import {
+  activeProducts,
+  eventById,
+  liveEvent,
+  ratios,
+  refreshEvents,
+  trackedIngredients,
+} from '../ui/store';
 
 const TYPES: { value: EventType; label: string }[] = [
   { value: 'boda', label: 'Boda' },
@@ -80,6 +88,8 @@ export function EventoForm() {
   const [form, setForm] = useState<FormState>(() => initialState(existing));
   /** Carga en unidad de stock (kg, L, ud), como texto para respetar la coma. */
   const [load, setLoad] = useState<Record<string, string>>({});
+  /** Litros de lote por método, como texto. Lo que se mira la mañana del evento. */
+  const [lotes, setLotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -91,11 +101,45 @@ export function EventoForm() {
       if (recipeQty !== undefined) next[ing.id] = numberToText(recipeQty / ing.stockFactor);
     }
     setLoad(next);
+    const lotesGuardados: Record<string, string> = {};
+    for (const { metodo } of METODOS_DE_LOTE) {
+      // Se cargan todos, aunque su fila no se enseñe hoy.
+      const litros = existing.lotes?.[metodo as 'filtro' | 'cold_brew'];
+      if (typeof litros === 'number' && litros > 0) lotesGuardados[metodo] = numberToText(litros);
+    }
+    setLotes(lotesGuardados);
   }, [existing?.id]);
 
   const guests = parseNumber(form.guestsExpected);
   const perGuest = parseNumber(form.drinksPerGuest);
-  const suggestion = useMemo(() => loadSuggestion(guests, perGuest), [guests, perGuest]);
+
+  /** Solo se ofrecen los lotes de las vías que la carta activa usa de verdad. */
+  const filasDeLote = useMemo(
+    () => METODOS_DE_LOTE.filter((l) => activeProducts.value.some((p) => p.via === l.via)),
+    [activeProducts.value],
+  );
+
+  function collectLotes(): { filtro?: number; cold_brew?: number } {
+    const out: { filtro?: number; cold_brew?: number } = {};
+    // Todos los métodos, no solo las filas visibles: si se desactiva el cold
+    // brew de la carta, su fila desaparece pero los litros ya escritos no se
+    // borran al guardar.
+    for (const { metodo } of METODOS_DE_LOTE) {
+      const litros = parseNumber(lotes[metodo] ?? '');
+      if (litros > 0) out[metodo as 'filtro' | 'cold_brew'] = Math.round(litros * 100) / 100;
+    }
+    return out;
+  }
+
+  const lotesActuales = collectLotes();
+  const cafeExtra = cafeDeLotes(lotesActuales, ratios.value);
+
+  // El café de los lotes suma a la sugerencia: la carga de hoy solo contaba la
+  // vía del grupo, y un batch de 4 L son 250 g que había que recordar a mano.
+  const suggestion = useMemo(
+    () => loadSuggestion(guests, perGuest, cafeExtra),
+    [guests, perGuest, cafeExtra],
+  );
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]): void {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -147,6 +191,7 @@ export function EventoForm() {
       baristas: Math.max(1, Math.round(parseNumber(form.baristas)) || 2),
       mode: form.mode,
       stockStart: collectStock(),
+      lotes: collectLotes(),
       notes: form.notes,
     };
     const saved = existing ? await updateEvent(existing.id, payload) : await createEvent(payload);
@@ -310,6 +355,43 @@ export function EventoForm() {
           />
         </label>
       </div>
+
+      {filasDeLote.length > 0 ? (
+        <div class="form__block">
+          <h2 class="section-title">Lotes</h2>
+          <p class="meta">
+            Lo que vas a preparar por lotes. El café que piden se suma a la sugerencia de carga.
+          </p>
+          {filasDeLote.map(({ metodo, label }) => {
+            const litros = parseNumber(lotes[metodo] ?? '');
+            const { cafeG, aguaL } = lotePara(metodo, litros, ratios.value);
+            return (
+              <div class="lote-row" key={metodo}>
+                <span class="load-row__name">{label}</span>
+                <input
+                  class="input"
+                  inputMode="decimal"
+                  aria-label={`Litros de ${label} que vas a preparar`}
+                  value={lotes[metodo] ?? ''}
+                  placeholder="0"
+                  onInput={(e) =>
+                    setLotes((prev) => ({
+                      ...prev,
+                      [metodo]: (e.currentTarget as HTMLInputElement).value,
+                    }))
+                  }
+                />
+                <span class="load-row__unit">L</span>
+                <span class="meta lote-row__cuenta num">
+                  {litros > 0
+                    ? `${formatDecimal(litros, 2)} L → ${formatDecimal(cafeG, 2)} g de café + ${formatDecimal(aguaL, 2)} L de agua (1:${formatDecimal(ratioDe(metodo, ratios.value), 2)})`
+                    : `Escribe los litros: a 1:${formatDecimal(ratioDe(metodo, ratios.value), 2)}, cada litro pide ${formatDecimal(lotePara(metodo, 1, ratios.value).cafeG, 2)} g de café.`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       <div class="form__block">
         <div class="row">

@@ -353,14 +353,24 @@ export function closeStats(event: Event, orders: Order[], ingredients: Ingredien
  * Suggested load — SPEC §2.4. Only a suggestion: Nicolas writes what he really
  * loads. Percentages come from the wedding mix of the escandallo.
  */
-export function loadSuggestion(guests: number, drinksPerGuest: number): StockMap {
+/**
+ * @param cafeDeLotesG gramos de café que piden los lotes declarados del evento
+ *   (batch y cold brew). Se suman al café sugerido: la cuenta de arriba solo
+ *   contaba las bebidas de la vía del grupo.
+ */
+export function loadSuggestion(
+  guests: number,
+  drinksPerGuest: number,
+  cafeDeLotesG = 0,
+): StockMap {
   const drinks = Math.max(0, guests) * Math.max(0, drinksPerGuest);
-  if (drinks === 0) return {};
+  const lotes = Math.max(0, cafeDeLotesG);
+  if (drinks === 0) return lotes > 0 ? { cafe: Math.round(lotes) } : {};
   // Cups round up — you cannot load half a cup — but only after clearing the
   // float dust: 200 × 0.55 × 1.1 is 121.00000000000003 in binary, not 122 cups.
   const cups = (fraction: number): number => Math.ceil(round(drinks * fraction * 1.1, 6));
   return {
-    cafe: Math.round(drinks * 18 * 1.15),
+    cafe: Math.round(drinks * 18 * 1.15 + lotes),
     leche: Math.round(drinks * 120),
     avena: Math.round(drinks * 0.1 * 200),
     vaso_6: cups(0.55),
