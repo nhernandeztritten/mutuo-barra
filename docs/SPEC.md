@@ -128,9 +128,12 @@ Layout horizontal (1180 × 820 referencia iPad 10.ª gen; también 1024 × 768 y
 │ Extras de la última bebida 56 px:             │ Pedido actual (3)            │
 │   Latte · [Vaca|Avena|Sin lactosa] Desca      │ ─ Cortado · avena     1 [−+] │
 │   Doble Iced Sirope Tapa                      │ ─ Latte               2 [−+] │
-│ Leyenda de categorías 48 px                   │                              │
-│ Grid de tiles (auto-fit, min 150 px, alto 96) │  Deshacer último             │
-│   [Cortado] [Flat white] [Cappuccino] [Latte] │ ┌──────────────────────────┐ │
+│ Leyenda de categorías 48 px                   ├──────────────────────────────┤
+│ Grid de tiles (auto-fit, min 150 px, alto 96) │ Últimos pedidos   Ver todos  │ 48 px
+│   [Cortado] [Flat white] [Cappuccino] [Latte] │ 09:11 Latte · avena [Repetir]│
+│                                               │ 09:10 2 × Cortado   [Repetir]│
+│                                               │  Deshacer último             │
+│                                               │ ┌──────────────────────────┐ │
 │                                               │ │   Servir 3 bebidas       │ │ 72 px
 │                                               │ └──────────────────────────┘ │
 └───────────────────────────────────────────────┴──────────────────────────────┘
@@ -143,6 +146,10 @@ Reglas:
 4. Tocar el nombre de una línea **la convierte en la bebida actual** (se marca con fondo `--surface-2` y el nombre en 600). Su botón **«Más»** (44 px, al final de la fila) abre la hoja lateral (no modal centrado) con los grupos de modificadores del producto y una nota; cambiar y cerrar. La hoja no se abre con una pulsación larga: con las manos mojadas es una apuesta (decisión 47).
 5. **Servir**: guarda el pedido con `servedAt = now`, vacía el pedido y **la fila de extras vuelve al estado vacío**; muestra toast «3 bebidas servidas · Deshacer» durante 8 s. Deshacer anula el pedido (voidedAt) y lo devuelve al ticket. «Deshacer último» quita la última línea y la fila pasa a la anterior.
 6. **Modo Rápido** (interruptor en cabecera, off por defecto): cada tile registra y sirve una bebida al instante, sin ticket. Para picos. La fila de extras edita **la última bebida servida** durante los 8 s que vive su «Deshacer»: tocar un extra reescribe las líneas de ese pedido ya guardado —mismo `id`, `usage` y `unitCost` recalculados— sin crear otro ni anular ninguno. Pasados los 8 s, o si se deshace el pedido, la fila vuelve al estado vacío.
+6 bis. **«Últimos pedidos»**, al pie de la columna derecha y **en los dos modos** (decisión 65): los **5 pedidos no anulados más recientes** del evento, el más nuevo arriba. Cada fila lleva la hora en tabular (`--ink-3`) y las líneas en una frase —«Latte · avena, 2 × Cortado, Americano · desca», modificadores en `--ink-3` y abreviados como en la fila de chips (decisión 63)—, cortada a dos líneas con elipsis. Cabecera «Últimos pedidos» + enlace **«Ver todos»**, que abre la hoja de Resumen **directamente en su lista de pedidos**, donde está «Anular» (decisión 64). Vacía dice «Todavía no hay pedidos servidos». La lista es una región `aria-live` polite.
+   - **«Repetir»** (≥ 44 px, secundario) en cada fila: recalcula las líneas con la carta de ahora, conservando opciones, cantidad y nota. En modo normal caen en el pedido actual y **se agrupan** con lo que ya hubiera; en Rápido se sirven al momento con su toast «N bebidas servidas · Deshacer». Si la bebida ya no está activa, se avisa y no se repite nada. Feedback: la fila hace un fundido breve; sin ventanas emergentes (decisión 61).
+   - El pedido recién servido entra arriba mientras se vacía el pedido actual; el «Deshacer» del toast lo saca de la lista y lo devuelve al pedido. Lo anulado no aparece (decisión 62).
+   - La sección va **encima** del botón de servir, que no se mueve nunca (decisión 59). Si el pedido actual crece, la sección cede espacio la primera hasta un mínimo de **dos filas enteras**; a partir de ahí hace scroll el pedido dentro de su caja, nunca la página (decisión 60). En vertical va dentro de la hoja del pedido, debajo de las líneas.
 7. Modo `venta`: los tiles muestran el precio, el botón dice «Cobrar 6,20 €» y abre la hoja de cobro: Efectivo (importes rápidos: exacto, 5, 10, 20 → cambio) · Tarjeta · Bizum · Invitación; propina opcional. Confirmar = servir.
 8. Cabecera: bebidas servidas del evento, ritmo de la última hora (bebidas de la vía `grupo` en los últimos 60 min), barra de café restante (`stockStart.cafe − consumo teórico`) que pasa a ámbar < 25 % y a rojo < 10 %. Si no hay `stockStart.cafe`, la barra no se muestra y aparece «Sin carga registrada» tocable.
 9. **Pausar** lleva a Eventos sin cerrar. Nada se pierde: el pedido en curso se conserva en memoria del evento.

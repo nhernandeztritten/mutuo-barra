@@ -635,3 +635,121 @@ y cualquier cosa detrás del último extra se sale de la vista.
 
 `scripts/verifica-ui.mjs` mide ahora que la cabecera cabe entera y que «Cerrar
 barra» no se sale, para que un texto largo no vuelva a comérsela en silencio.
+
+---
+
+## 07/09/2026 · Fase 6
+
+> Nota de numeración: la fase 5 reinició la cuenta en 44 y chocó con las
+> decisiones 44-50 de la fase 4. Esta fase sigue desde el número más alto usado
+> (58) para no ampliar el solape. Las de la fase 5 se citan como «fase 5 · 44».
+
+### 59. «Últimos pedidos» va encima del botón de servir, no debajo
+El encargo pide la sección «al pie de la columna, con el pedido actual arriba».
+Tomado al pie de la letra —la sección **debajo** del pie del ticket— el botón
+«Servir N bebidas» cambiaba de sitio cada vez que entraba un pedido: la única
+acción terminal de una pantalla de cinco segundos por interacción, moviéndose
+sola media boda.
+
+El orden que queda es: cabecera · líneas del pedido · **Últimos pedidos** ·
+Deshacer último + Servir. El botón no se mueve nunca y la sección sigue estando
+al pie de la columna. Lo que cuesta: «Deshacer último» queda separado de las
+líneas a las que se refiere. Es un botón fantasma que se usa poco; el de servir
+se usa en cada pedido.
+
+Alternativas descartadas: **la sección debajo del pie** (el botón bailando, ya
+dicho) y **la sección en la columna izquierda**, bajo el grid, que no compite
+con el pedido pero deja el hueco justo —el grid mide 420 px de los 488
+disponibles (decisión 41)— y además el encargo pedía la derecha.
+
+### 60. La sección cede espacio la primera, y nunca baja de dos filas
+Medido con Playwright a 1180 × 820, y **la primera versión estaba al revés**:
+con un pedido de 10 líneas, la lista del pedido se quedaba en 198 px haciendo
+scroll interno mientras «Últimos pedidos» conservaba sus 349 px enteros. Lo que
+el barista está montando **ahora** perdía contra una lista de consulta.
+
+La causa: `.ticket__list` tenía `flex: 1` —base `0%`—, así que no contaba como
+espacio pedido y todo el recorte se lo comía… nadie. Ahora:
+
+- `.ticket__list { flex: 1 1 auto }` (base = su contenido, así reclama sitio);
+- `.ultimos { flex: 0 100 auto }` — factor de encogido alto: absorbe el 98 % del
+  recorte antes de que lo note el pedido;
+- el suelo de la sección es `calc(var(--h-tab) + 2 * var(--h-row) + var(--s-2))`
+  = 168 px, con la cabecera fijada a 48 px para que la cuenta cierre.
+
+Medido después: con el pedido vacío la sección ocupa 337 px (cinco filas); con
+10 líneas cede a 168 px con **dos filas enteras a la vista** y el que hace
+scroll dentro de su caja pasa a ser el pedido. La página no hace scroll en
+ninguno de los dos casos.
+
+Dos intentos fallidos por el camino, por si vuelven a hacer falta:
+`min-height: 0` dejaba la caja en **1 px** con su lista saliéndose por debajo, y
+`min-height: min-content` resuelve al contenido entero (349 px), con lo que no
+cedía nada. El suelo tiene que ser un número.
+
+### 61. «Repetir» recalcula con la carta de ahora
+Repetir es volver a pedir lo mismo, no clonar un cobro antiguo: se reconstruyen
+las líneas con `buildLine` sobre el producto **actual**, así que la receta, el
+coste y el precio salen de la carta de hoy. Lo que se conserva del pedido viejo
+son las opciones, la cantidad y la nota.
+
+- **Modo normal**: las líneas caen en el pedido actual y se agrupan con lo que
+  ya hubiera (un Cortado suelto + repetir un Cortado = una línea, cantidad 2).
+- **Modo Rápido**: no hay pedido donde dejarlas, así que se sirven al momento
+  con su toast «N bebidas servidas · Deshacer», como cualquier otro toque.
+
+Si una bebida del pedido ya no está activa en la carta, esa línea se cae. Si no
+queda ninguna, no se repite nada y se avisa: «Esa bebida ya no está en la
+carta». Alternativa descartada: repetir con lo que quede sin decirlo, que es
+servir en silencio algo distinto de lo que pone en la fila.
+
+Feedback: la fila hace un fundido de 600 ms (`--t-repeat`, 120 ms con
+`prefers-reduced-motion`). Sin ventana emergente, como manda `DESIGN.md`.
+
+### 62. Un pedido anulado no sale en la lista
+Lo que se anuló no se sirvió, y repetirlo sería repetir un error. Sale de la
+lista y sube el que quedaba fuera, así que se siguen viendo cinco. Donde sí
+está —tachado y con su motivo— es en la lista completa del Resumen, que es
+donde se audita y adonde lleva «Ver todos».
+
+El desempate del orden es por `id` cuando dos pedidos comparten `servedAt`: en
+modo Rápido una ráfaga puede caer en el mismo milisegundo, y sin desempate la
+lista bailaba entre repintados.
+
+### 63. «Desca» también aquí, por el mismo motivo que en la fila de extras
+La frase se corta a dos líneas en una columna de 360 px, así que el ancho manda
+igual que en la fila de chips (decisión 21). «Americano · desca», no «Americano
+· descafeinado». La palabra completa sigue en el ticket, en la hoja de la línea
+y en la exportación. `CHIP_LABEL` se muda de `barra-parts.tsx` a `etiquetas.ts`
+para que la lógica pura de `ultimos.ts` la use sin arrastrar componentes.
+
+### 64. «Ver todos» abre la hoja por su ancla, con el foco puesto ahí
+La lista de pedidos es el último bloque del Resumen. Un `scrollIntoView` desde
+el contenido **no bastaba**: se desplazaba bien y, un instante después,
+`useHoja` enfocaba el primer elemento de la hoja —el botón «Cerrar» de la
+cabecera— y ese foco devolvía el scroll arriba. Medido: el bloque quedaba a
+1618 px del borde de la hoja.
+
+No se arregla con un temporizador que gane la carrera. `useHoja` acepta ahora un
+`anclaId`: si viene, enfoca ese bloque (`tabIndex` −1, `preventScroll`) y lo
+desplaza él. Foco y scroll van juntos, que además es lo correcto para un lector
+de pantalla: no tiene sentido leer la cabecera y enseñar el final. Medido
+después: 0 px del borde.
+
+### 65. «Últimas servidas» del modo Rápido desaparece: es la misma lista
+La lista de solo lectura que vivía en el ticket en modo Rápido queda absorbida
+por «Últimos pedidos», que hace lo mismo y además repite. Un componente para los
+dos modos, no dos que se parecen. Lo que queda del texto viejo es una línea de
+pista en el ticket («Cada bebida se sirve al tocarla; sus extras salen en la
+fila de arriba»), porque la cabecera sigue diciendo solo «Modo rápido activo».
+
+### 66. Dos huecos de jsdom, tapados en el arranque de las pruebas
+`matchMedia` y `Element.prototype.scrollIntoView` no existen en jsdom. No son
+huecos del producto —los tiene cualquier navegador— pero sin ellos revienta
+cualquier rama que consulte `prefers-reduced-motion` o desplace un bloque. Se
+rellenan en `vitest.setup.ts`, con `matchMedia` contestando que **no**: la
+preferencia por defecto es la animación completa.
+
+Vale la pena anotarlo: hasta esta fase esas ramas nunca se ejecutaban en las
+pruebas y el hueco no se veía. El aviso de método de la decisión 46 vuelve a
+aplicar —lo que no se ejecuta, no se comprueba.
