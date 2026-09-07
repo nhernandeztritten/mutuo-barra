@@ -16,6 +16,8 @@ import type {
   Product,
 } from '../data/types';
 import { Button, Chip, Sheet, useHoja } from './components';
+import { CHIP_LABEL } from './etiquetas';
+import { fraseDePartes, type UltimoPedido } from './ultimos';
 import {
   isOptionActive,
   lineContent,
@@ -41,7 +43,7 @@ export const CATEGORY_COLOR: Record<Category, string> = {
  * «Descafeinado» sigue siendo la palabra completa en la hoja, en el ticket y en
  * la exportación (decisión 21).
  */
-export const CHIP_LABEL: Record<string, string> = { cafe_descafeinado: 'Desca' };
+export { CHIP_LABEL };
 
 /* ================= Fila de extras de la bebida actual ================= */
 
@@ -173,13 +175,85 @@ export function ExtrasRow({
   );
 }
 
-/* ================= Ticket ================= */
+/* ================= Últimos pedidos ================= */
 
-export interface RecentDrink {
-  id: string;
-  label: string;
-  servedAt: string;
+export interface UltimosPedidosProps {
+  pedidos: UltimoPedido[];
+  /** El pedido que acaba de repetirse: hace un fundido breve y se apaga solo. */
+  repetido?: string | null;
+  /** Repite ese pedido: en modo normal lo devuelve al pedido actual; en Rápido lo sirve. */
+  onRepetir: (pedido: UltimoPedido) => void;
+  /** «Ver todos»: abre la hoja de Resumen en su lista de pedidos, donde está «Anular». */
+  onVerTodos: () => void;
 }
+
+/**
+ * Los últimos pedidos servidos, siempre a la vista en los dos modos.
+ *
+ * Contesta la pregunta que se hace el barista cuando levanta la cabeza: «¿qué
+ * me acaban de pedir?». Antes solo existía en modo Rápido («Últimas servidas»)
+ * y era de lectura; ahora es un solo componente para los dos modos y cada fila
+ * se puede **repetir**, que es el otro caso real —dos cafés iguales seguidos—.
+ *
+ * `aria-live="polite"` en la lista: el pedido nuevo se anuncia sin interrumpir.
+ */
+export function UltimosPedidos({
+  pedidos,
+  repetido = null,
+  onRepetir,
+  onVerTodos,
+}: UltimosPedidosProps) {
+  return (
+    <section class="ultimos" aria-labelledby="ultimos-titulo">
+      <header class="ultimos__head">
+        <h2 class="ultimos__titulo" id="ultimos-titulo">
+          Últimos pedidos
+        </h2>
+        <Button variant="ghost" class="ultimos__vertodos" onClick={onVerTodos}>
+          Ver todos
+        </Button>
+      </header>
+
+      <div class="ultimos__lista" role="log" aria-live="polite" aria-relevant="additions text">
+        {pedidos.length === 0 ? (
+          <p class="ultimos__vacio">Todavía no hay pedidos servidos</p>
+        ) : (
+          pedidos.map((pedido) => (
+            <div
+              class={['ultimos__fila', pedido.id === repetido ? 'is-repetida' : '']
+                .filter(Boolean)
+                .join(' ')}
+              key={pedido.id}
+              data-pedido={pedido.id}
+            >
+              <span class="ultimos__hora num">{formatTime(pedido.servedAt)}</span>
+              {/* Se corta a dos líneas con elipsis: la frase entera está en el
+                  título y en la lista completa de «Ver todos». */}
+              <span class="ultimos__frase" title={fraseDePartes(pedido.partes)}>
+                {pedido.partes.map((parte, i) => (
+                  <span class="ultimos__parte" key={`${pedido.id}-${String(i)}`}>
+                    {i > 0 ? ', ' : ''}
+                    {parte.texto}
+                    {parte.mods ? <span class="ultimos__mods"> · {parte.mods}</span> : null}
+                  </span>
+                ))}
+              </span>
+              <Button
+                class="ultimos__repetir"
+                aria-label={`Repetir ${fraseDePartes(pedido.partes)}`}
+                onClick={() => onRepetir(pedido)}
+              >
+                Repetir
+              </Button>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ================= Ticket ================= */
 
 export interface TicketPanelProps {
   lines: TicketLine[];
@@ -187,7 +261,11 @@ export interface TicketPanelProps {
   displayLines?: TicketLine[];
   mode: 'incluido' | 'venta';
   oneTap: boolean;
-  recent: RecentDrink[];
+  /** Los cinco últimos pedidos no anulados; la sección vive al pie de la columna. */
+  ultimos: UltimoPedido[];
+  repetido?: string | null;
+  onRepetir: (pedido: UltimoPedido) => void;
+  onVerTodos: () => void;
   serving: boolean;
   sheet?: boolean;
   /** Solo la versión desplegada: la ref que atrapa el foco dentro de la hoja. */
@@ -218,7 +296,10 @@ export function TicketPanel({
   displayLines,
   mode,
   oneTap,
-  recent,
+  ultimos,
+  repetido = null,
+  onRepetir,
+  onVerTodos,
   serving,
   sheet = false,
   hojaRef,
@@ -256,22 +337,9 @@ export function TicketPanel({
       </header>
 
       {oneTap ? (
-        <div class="recent">
-          <p class="meta">Cada bebida se sirve al tocarla. Últimas servidas:</p>
-          {recent.length === 0 ? (
-            <p class="meta">Todavía no has servido nada.</p>
-          ) : (
-            recent.map((r) => (
-              <div class="recent__row" key={r.id}>
-                <span>{r.label}</span>
-                <span class="recent__time">{formatTime(r.servedAt)}</span>
-              </div>
-            ))
-          )}
-        </div>
+        <p class="ticket__pista">Cada bebida se sirve al tocarla; sus extras salen en la fila de arriba.</p>
       ) : (
-        <>
-          <div class={['ticket__list', serving ? 'is-serving' : ''].filter(Boolean).join(' ')}>
+        <div class={['ticket__list', serving ? 'is-serving' : ''].filter(Boolean).join(' ')}>
             {shown.length === 0 ? (
               <p class="ticket__empty">El pedido está vacío.</p>
             ) : (
@@ -330,17 +398,28 @@ export function TicketPanel({
                 </div>
               ))
             )}
-          </div>
+        </div>
+      )}
 
-          <div class="ticket__foot">
-            <Button variant="ghost" disabled={lines.length === 0} onClick={onUndoLast}>
-              <Undo2 size={20} strokeWidth={1.75} /> Deshacer último
-            </Button>
-            <Button variant="primary" action disabled={lines.length === 0} onClick={onServe}>
-              {lines.length === 0 ? 'Toca una bebida' : label}
-            </Button>
-          </div>
-        </>
+      {/* La sección va al pie de la columna pero **por encima** del botón de
+          servir, no debajo: si fuera debajo, el botón —la única acción de la
+          pantalla caliente— cambiaría de sitio cada vez que entra un pedido. */}
+      <UltimosPedidos
+        pedidos={ultimos}
+        repetido={repetido}
+        onRepetir={onRepetir}
+        onVerTodos={onVerTodos}
+      />
+
+      {oneTap ? null : (
+        <div class="ticket__foot">
+          <Button variant="ghost" disabled={lines.length === 0} onClick={onUndoLast}>
+            <Undo2 size={20} strokeWidth={1.75} /> Deshacer último
+          </Button>
+          <Button variant="primary" action disabled={lines.length === 0} onClick={onServe}>
+            {lines.length === 0 ? 'Toca una bebida' : label}
+          </Button>
+        </div>
       )}
     </aside>
   );
