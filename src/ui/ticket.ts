@@ -9,6 +9,7 @@
  */
 import { signal } from '@preact/signals';
 import { applyModifiers, type IgnoredModifier } from '../domain/modifiers';
+import { uuid } from '../data/uuid';
 import type {
   AppliedModifier,
   Ingredient,
@@ -47,7 +48,7 @@ function storageKey(eventId: string): string {
 }
 
 function newId(): string {
-  return crypto.randomUUID();
+  return uuid();
 }
 
 /** Dos líneas se agrupan si son el mismo producto, los mismos modificadores y la misma nota. */

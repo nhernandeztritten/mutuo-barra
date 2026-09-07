@@ -11,6 +11,7 @@ import {
   SEED_VERSION,
   SHORTNAME_MIGRATIONS,
 } from './seed';
+import { uuid } from './uuid';
 import type {
   Event,
   Ingredient,
@@ -51,7 +52,7 @@ export class BarraDb extends Dexie {
 export const db = new BarraDb();
 
 function newId(): string {
-  return crypto.randomUUID();
+  return uuid();
 }
 
 /** Asks Safari to keep IndexedDB around; without it iPadOS may evict it after 7 days. */

@@ -5,6 +5,7 @@
  */
 import { APP_VERSION, db, getSettings, type BarraDb } from './db';
 import { closeStats, eventConsumption } from '../domain/stats';
+import { uuid } from './uuid';
 import type {
   Event,
   EventMode,
@@ -25,7 +26,7 @@ function nowIso(): string {
 }
 
 function newId(): string {
-  return crypto.randomUUID();
+  return uuid();
 }
 
 function round(value: number, decimals: number): number {

@@ -94,11 +94,18 @@ function UpdateBanner() {
   );
 }
 
+const bootError = signal<string | null>(null);
+
 export function App() {
   useEffect(() => {
     void (async () => {
-      await initDb();
-      await bootstrap();
+      try {
+        await initDb();
+        await bootstrap();
+      } catch (err) {
+        console.error(err);
+        bootError.value = err instanceof Error ? err.message : String(err);
+      }
     })();
   }, []);
 
@@ -124,6 +131,13 @@ export function App() {
               <Route path={conBase('/ajustes/insumos')} component={AjustesInsumos} />
               <Route default component={NoEncontrado} />
             </Router>
+          ) : bootError.value ? (
+            <div class="empty">
+              <h2>No se pudo abrir el cuaderno</h2>
+              <p class="meta">{bootError.value}</p>
+              <p class="meta">Recarga la página. Si sigue igual, abre la app desde el icono de la pantalla de inicio o desde la dirección publicada.</p>
+              <button type="button" class="btn btn--primary" onClick={() => location.reload()}>Recargar</button>
+            </div>
           ) : (
             <p class="meta">Abriendo el cuaderno…</p>
           )}
