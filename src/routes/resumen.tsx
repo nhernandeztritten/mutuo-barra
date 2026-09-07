@@ -61,6 +61,7 @@ export function ResumenContenido({
   onOrdersChange: (orders: Order[]) => void;
 }) {
   const [anulando, setAnulando] = useState<string | null>(null);
+
   const stats = eventStats(event, orders, products.value);
   const consumo = eventConsumption(orders);
   const insumos: Ingredient[] = ingredients.value;
@@ -192,7 +193,9 @@ export function ResumenContenido({
         </div>
       ) : null}
 
-      <div class="card">
+      {/* `tabIndex` −1 para que «Ver todos» pueda abrir la hoja aquí: el foco y
+          el scroll van juntos, y este bloque no entra en el orden de tabulación. */}
+      <div class="card" id="resumen-pedidos" tabIndex={-1}>
         <h2 class="card__title">Pedidos ({formatInt(pedidos.length)})</h2>
         {pedidos.length === 0 ? (
           <p class="meta">Todavía no se ha servido nada.</p>

@@ -89,7 +89,16 @@ const ENFOCABLES =
  *
  * @returns la ref que hay que poner en el elemento de la hoja.
  */
-export function useHoja<T extends HTMLElement>(onClose: () => void): RefObject<T> {
+export function useHoja<T extends HTMLElement>(
+  onClose: () => void,
+  /**
+   * Id de un bloque de dentro por el que abrir la hoja, en vez de por arriba.
+   * Sin esto no basta con un `scrollIntoView` desde el contenido: la hoja se
+   * lleva el foco al botón «Cerrar» de su cabecera justo después, y ese foco
+   * devuelve el scroll al principio.
+   */
+  anclaId?: string | undefined,
+): RefObject<T> {
   const ref = useRef<T>(null);
   // El cierre cambia en cada render; el efecto se monta una sola vez.
   const cerrar = useRef(onClose);
@@ -103,7 +112,17 @@ export function useHoja<T extends HTMLElement>(onClose: () => void): RefObject<T
       ...(ref.current?.querySelectorAll<HTMLElement>(ENFOCABLES) ?? []),
     ];
 
-    enfocables()[0]?.focus();
+    const ancla = anclaId ? ref.current?.querySelector<HTMLElement>(`#${anclaId}`) : null;
+    if (ancla) {
+      // El foco y el scroll tienen que ir al mismo sitio: si se enfocara la
+      // cabecera y se desplazara el ancla, un lector de pantalla leería una
+      // cosa y la pantalla enseñaría otra.
+      ancla.focus({ preventScroll: true });
+      const suave = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+      ancla.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
+    } else {
+      enfocables()[0]?.focus();
+    }
 
     function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') {
@@ -143,15 +162,18 @@ export function Sheet({
   title,
   onClose,
   wide = false,
+  anclaId,
   children,
 }: {
   title: string;
   onClose: () => void;
   /** Ancha para el resumen: los gráficos necesitan más de 440 px. */
   wide?: boolean;
+  /** Abrir la hoja por este bloque, no por arriba («Ver todos» → los pedidos). */
+  anclaId?: string | undefined;
   children: ComponentChildren;
 }) {
-  const ref = useHoja<HTMLElement>(onClose);
+  const ref = useHoja<HTMLElement>(onClose, anclaId);
   return (
     <>
       <div class="sheet-backdrop" onClick={onClose} />
