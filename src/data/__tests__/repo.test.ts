@@ -13,6 +13,7 @@ import {
   listOrders,
   openEvent,
   pauseEvent,
+  replaceOrderLines,
   reopenEvent,
   voidOrder,
 } from '../repo';
@@ -174,6 +175,52 @@ describe('pedidos', () => {
     expect(voided.voidedAt).not.toBeNull();
     expect(voided.voidReason).toBe('devuelto');
     expect(await db.orders.count()).toBe(1);
+  });
+
+  it('reemplazar las líneas conserva el id, la hora y la propina', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    const order = await addOrder(
+      { eventId: e.id, lines: [latteConAvena()], tip: 0.6, servedAt: '2026-09-12T19:00:00.000Z' },
+      db,
+    );
+
+    // Lo que hace la fila de extras en modo Rápido: la misma bebida, con avena
+    // y en cantidad 1 (aquí, un solo Latte sin avena).
+    const latte = PRODUCTS.find((p) => p.id === 'latte')!;
+    const plano = applyModifiers(latte, [], INGREDIENTS, MODIFIER_GROUPS);
+    const updated = await replaceOrderLines(
+      order.id,
+      [
+        {
+          productId: latte.id,
+          productName: latte.name,
+          modifiers: [],
+          qty: 1,
+          unitPrice: plano.unitPrice,
+          unitCost: plano.unitCost,
+          usage: plano.usage,
+        },
+      ],
+      db,
+    );
+
+    expect(updated.id).toBe(order.id);
+    expect(updated.servedAt).toBe('2026-09-12T19:00:00.000Z');
+    expect(updated.lines).toHaveLength(1);
+    expect(updated.subtotal).toBe(3.2);
+    expect(updated.tip).toBe(0.6);
+    expect(updated.total).toBe(3.8);
+    // No se crea otro pedido ni se borra el anterior.
+    expect(await db.orders.count()).toBe(1);
+  });
+
+  it('un pedido anulado no se puede reescribir', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    const order = await addOrder({ eventId: e.id, lines: [latteConAvena()] }, db);
+    await voidOrder(order.id, 'deshacer', db);
+    const after = await replaceOrderLines(order.id, [], db);
+    expect(after.lines).toHaveLength(1);
+    expect(after.voidedAt).not.toBeNull();
   });
 
   it('lista los pedidos de un evento en orden de servicio', async () => {

@@ -171,9 +171,28 @@ linea(
     (toques.juntos.length ? `\n       ${toques.juntos.join('\n       ')}` : ''),
 );
 
-// Las hojas: la del ticket y la de una línea, que es donde están los chips.
+// La cabecera entera a la vista: «Cerrar barra» es la única acción terminal y
+// no puede quedarse fuera del borde derecho. Un subtítulo largo en el
+// interruptor Rápido ya la cortó una vez.
+const cabecera = await page.evaluate(() => {
+  const h = document.querySelector('.barra__header');
+  const cerrar = document.querySelector('.barra__cerrar');
+  const r = cerrar.getBoundingClientRect();
+  return {
+    recorte: Math.round(h.scrollWidth - h.clientWidth),
+    derechaBoton: Math.round(r.right),
+    ancho: Math.round(window.innerWidth),
+  };
+});
+linea(
+  cabecera.recorte <= 0 && cabecera.derechaBoton <= cabecera.ancho,
+  `la cabecera cabe entera: «Cerrar barra» acaba en ${cabecera.derechaBoton} px de ${cabecera.ancho}`,
+);
+
+// Las hojas: la del ticket y la de una línea. Desde la fase 5 la de una línea
+// se abre con su botón «Más»: tocar el nombre solo la hace la bebida actual.
 await page.locator('.tile-grid .tile').first().click();
-await page.locator('.ticket__name').first().click();
+await page.locator('.ticket__row .btn--mas').first().click();
 await page.waitForSelector('.sheet');
 const hoja = await mideToques(page, '.sheet');
 linea(

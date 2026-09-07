@@ -35,13 +35,37 @@ function tile(name: string): HTMLButtonElement {
   return found;
 }
 
-/** Chip rápido de la fila superior, por su nombre exacto. */
-function chip(name: string): HTMLButtonElement {
-  const found = [...document.querySelectorAll<HTMLButtonElement>('.chips .chip')].find(
+/** Un extra de la fila contextual, por su nombre exacto. */
+function extra(name: string): HTMLButtonElement {
+  const found = [...document.querySelectorAll<HTMLButtonElement>('.extras button')].find(
     (el) => el.textContent?.trim() === name,
   );
-  if (!found) throw new Error(`No hay chip «${name}»`);
+  if (!found) throw new Error(`No hay extra «${name}» en la fila`);
   return found;
+}
+
+/** Todos los extras que ofrece la fila ahora mismo, en orden. */
+function extrasVisibles(): string[] {
+  return [...document.querySelectorAll<HTMLButtonElement>('.extras button')].map(
+    (el) => el.textContent?.trim() ?? '',
+  );
+}
+
+/** La bebida cuyos extras enseña la fila, o null si está en reposo. */
+function bebidaDeLaFila(): string | null {
+  return document.querySelector('.extras__bebida')?.textContent?.trim() ?? null;
+}
+
+/** El botón «Más» de una línea del ticket: abre su hoja lateral. */
+function masDe(index = 0): HTMLButtonElement {
+  const found = document.querySelectorAll<HTMLButtonElement>('.ticket__row .btn--mas')[index];
+  if (!found) throw new Error(`No hay botón «Más» en la línea ${index}`);
+  return found;
+}
+
+/** La línea marcada como actual. */
+function lineaActual(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('.ticket__row.is-current');
 }
 
 function rows(): HTMLElement[] {
@@ -95,48 +119,165 @@ describe('tocar un producto', () => {
     expect(serveButton().textContent).toContain('Servir 2 bebidas');
   });
 
-  it('un chip armado se aplica y se desarma tras añadir', async () => {
+  it('la bebida entra limpia y pasa a ser la actual', async () => {
     await setupBar();
-    fireEvent.click(chip('Avena'));
-    expect(chip('Avena').getAttribute('aria-pressed')).toBe('true');
-
-    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Latte'));
     await waitFor(() => expect(rows()).toHaveLength(1));
-
-    expect(rows()[0]?.textContent).toContain('Cortado');
-    expect(rows()[0]?.textContent).toContain('avena');
-    expect(chip('Avena').getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('el chip es un interruptor: el segundo toque lo desarma', async () => {
-    await setupBar();
-    fireEvent.click(chip('Avena'));
-    fireEvent.click(chip('Avena'));
-    expect(chip('Avena').getAttribute('aria-pressed')).toBe('false');
-  });
-
-  it('dentro de un grupo single, armar una opción desarma la otra', async () => {
-    await setupBar();
-    fireEvent.click(chip('Avena'));
-    fireEvent.click(chip('Sin lactosa'));
-    expect(chip('Avena').getAttribute('aria-pressed')).toBe('false');
-    expect(chip('Sin lactosa').getAttribute('aria-pressed')).toBe('true');
+    expect(bebidaDeLaFila()).toBe('Latte');
+    expect(lineaActual()?.textContent).toContain('Latte');
   });
 });
 
-describe('chip que no aplica al producto', () => {
-  it('sacude ese chip y la línea sale sin el modificador', async () => {
+describe('la fila de extras es de la última bebida tocada', () => {
+  it('en reposo dice dónde van a salir los extras', async () => {
     await setupBar();
-    fireEvent.click(chip('Avena'));
+    expect(document.querySelector('.extras__pista')?.textContent).toBe(
+      'Toca una bebida; sus extras salen aquí',
+    );
+    expect(bebidaDeLaFila()).toBeNull();
+  });
+
+  it('tras tocar «Latte» enseña su nombre y todos sus extras', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Latte'));
+    expect(extrasVisibles()).toEqual([
+      'Vaca',
+      'Avena',
+      'Sin lactosa',
+      'Desca',
+      'Doble',
+      'Iced',
+      'Sirope',
+      'Tapa',
+    ]);
+    // La leche es un segmento de opción única con «Vaca» marcada de salida.
+    expect(document.querySelectorAll('.seg .seg__opt')).toHaveLength(3);
+    expect(extra('Vaca').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('tocar «Avena» lo aplica a esa línea y marca el chip en violeta', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(rows()).toHaveLength(1));
+
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+    expect(rows()[0]?.textContent).toContain('Latte');
+    expect(extra('Avena').getAttribute('aria-pressed')).toBe('true');
+    expect(extra('Vaca').getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('tocar «Sin lactosa» sustituye a la avena: la leche es de opción única', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+
+    fireEvent.click(extra('Sin lactosa'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('sin lactosa'));
+    expect(rows()[0]?.textContent).not.toContain('avena');
+    expect(extra('Avena').getAttribute('aria-pressed')).toBe('false');
+    expect(extra('Sin lactosa').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('volver a tocar el extra lo quita', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Tapa'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('tapa'));
+    fireEvent.click(extra('Tapa'));
+    await waitFor(() => expect(rows()[0]?.textContent).not.toContain('tapa'));
+  });
+
+  it('«Vaca» devuelve la línea a la leche normal sin dejar etiqueta', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+
+    fireEvent.click(extra('Vaca'));
+    await waitFor(() => expect(rows()[0]?.querySelector('.ticket__mods')).toBeNull());
+    // Y sigue siendo una sola línea: «Vaca» no es un modificador que guardar.
+    expect(rows()).toHaveLength(1);
+  });
+});
+
+describe('un extra que no aplica ya no se enseña', () => {
+  it('el Espresso solo ofrece Desca, Doble, Iced y Tapa', async () => {
+    await setupBar();
     fireEvent.click(tile('Espresso'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Espresso'));
+    expect(extrasVisibles()).toEqual(['Desca', 'Doble', 'Iced', 'Tapa']);
+    expect(document.querySelector('.seg')).toBeNull();
+  });
+
+  it('el Americano y el Flat white no ofrecen «Doble»: ya salen dobles', async () => {
+    await setupBar();
+    fireEvent.click(tile('Americano'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Americano'));
+    expect(extrasVisibles()).toEqual(['Desca', 'Iced', 'Tapa']);
+
+    fireEvent.click(tile('Flat white'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Flat white'));
+    expect(extrasVisibles()).not.toContain('Doble');
+    expect(extrasVisibles()).toEqual(['Vaca', 'Avena', 'Sin lactosa', 'Desca', 'Iced', 'Sirope', 'Tapa']);
+  });
+
+  it('ya no hay nada que sacudir: la fila no ofrece extras imposibles', async () => {
+    await setupBar();
+    fireEvent.click(tile('Espresso'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Espresso'));
+    expect(extrasVisibles()).not.toContain('Avena');
+    expect(document.querySelector('.chip--shake')).toBeNull();
+  });
+});
+
+describe('dos bebidas iguales que acaban igual se agrupan', () => {
+  it('dos Lattes con avena tocados por separado quedan en una línea con cantidad 2', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    fireEvent.click(extra('Avena'));
 
     await waitFor(() => expect(rows()).toHaveLength(1));
-    expect(rows()[0]?.textContent).toContain('Espresso');
-    expect(rows()[0]?.textContent).not.toContain('avena');
+    expect(rows()[0]?.querySelector('.ticket__qty')?.textContent).toBe('2');
+    expect(rows()[0]?.textContent).toContain('avena');
+    // La línea superviviente es la actual: la fila sigue editando lo tocado.
+    expect(lineaActual()).not.toBeNull();
+    expect(extra('Avena').getAttribute('aria-pressed')).toBe('true');
+  });
+});
 
-    const shaken = [...document.querySelectorAll('.chip--shake')];
-    expect(shaken).toHaveLength(1);
-    expect(shaken[0]?.textContent?.trim()).toBe('Avena');
+describe('elegir qué línea edita la fila', () => {
+  it('tocar el nombre de una línea la convierte en la actual', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Latte'));
+
+    fireEvent.click(rows()[0]!.querySelector<HTMLButtonElement>('.ticket__name')!);
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Cortado'));
+    expect(lineaActual()?.textContent).toContain('Cortado');
+  });
+
+  it('«Deshacer último» quita la línea y la fila pasa a la anterior', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Latte'));
+
+    fireEvent.click(
+      [...document.querySelectorAll<HTMLButtonElement>('.ticket__foot .btn')].find((b) =>
+        b.textContent?.includes('Deshacer'),
+      )!,
+    );
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(bebidaDeLaFila()).toBe('Cortado');
   });
 });
 
@@ -161,13 +302,30 @@ describe('servir y deshacer', () => {
     const toast = document.querySelector('.toast');
     expect(toast?.textContent).toContain('1 bebida servida');
     expect(toast?.textContent).toContain('Deshacer');
+
+    // Servido el pedido, la fila de extras vuelve al estado vacío.
+    expect(bebidaDeLaFila()).toBeNull();
+    expect(document.querySelector('.extras__pista')).not.toBeNull();
+  });
+
+  it('un Americano servido descuenta 36 g de café, no 18', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Americano'));
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(serveButton());
+    await waitFor(() => expect(servedCount()).toBe('1'));
+
+    const orders = await listOrders(eventId);
+    expect(orders[0]?.lines[0]?.usage['cafe']).toBe(36);
+    expect(orders[0]?.lines[0]?.unitCost).toBeCloseTo(1.2542, 4);
   });
 
   it('deshacer anula el pedido y devuelve la línea al ticket', async () => {
     const eventId = await setupBar();
-    fireEvent.click(chip('Avena'));
     fireEvent.click(tile('Cortado'));
     await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
 
     fireEvent.click(serveButton());
     await waitFor(() => expect(servedCount()).toBe('1'));
@@ -194,15 +352,13 @@ describe('servir y deshacer', () => {
 });
 
 describe('recargar la página en medio del evento', () => {
-  it('el ticket en curso sigue ahí y los chips vuelven desarmados', async () => {
+  it('el ticket sigue ahí y la fila enseña la última línea como actual', async () => {
     await setupBar();
-    fireEvent.click(chip('Avena'));
     fireEvent.click(tile('Cortado'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
     fireEvent.click(tile('Latte'));
     await waitFor(() => expect(rows()).toHaveLength(2));
-
-    fireEvent.click(chip('Desca'));
-    expect(chip('Desca').getAttribute('aria-pressed')).toBe('true');
 
     // Recargar = desmontar y volver a montar leyendo lo persistido.
     cleanup();
@@ -212,7 +368,68 @@ describe('recargar la página en medio del evento', () => {
 
     await waitFor(() => expect(rows()).toHaveLength(2));
     expect(rows()[0]?.textContent).toContain('avena');
-    expect(document.querySelectorAll('.chip[aria-pressed="true"]')).toHaveLength(0);
+    // La fila no arranca vacía: la última línea del pedido es la actual.
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Latte'));
+    expect(lineaActual()?.textContent).toContain('Latte');
+  });
+});
+
+describe('modo Rápido: los extras llegan justo después de servir', () => {
+  /** El interruptor «Rápido» de la cabecera. */
+  function rapido(): HTMLButtonElement {
+    const found = document.querySelector<HTMLButtonElement>('.switch--stacked');
+    if (!found) throw new Error('No hay interruptor Rápido');
+    return found;
+  }
+
+  it('tocar «Cortado» sirve al instante y la fila sigue editando ese pedido', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(rapido());
+    await waitFor(() => expect(rapido().getAttribute('aria-pressed')).toBe('true'));
+    // La fila explica el modo, porque en la cabecera no cabe.
+    expect(document.querySelector('.extras__pista')?.textContent).toBe(
+      'Toca una bebida: se sirve al momento y sus extras salen aquí',
+    );
+
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    // Se sirvió sin pasar por el ticket, y la fila enseña la bebida servida.
+    expect(rows()).toHaveLength(0);
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Cortado'));
+    // Y dice que ya está servida, junto al nombre para que no se salga.
+    expect(document.querySelector('.extras__ayuda')?.textContent).toBe('· servida');
+
+    fireEvent.click(extra('Avena'));
+    await waitFor(async () => {
+      const orders = await listOrders(eventId);
+      expect(orders[0]?.lines[0]?.modifiers[0]?.label).toBe('Avena');
+    });
+
+    // El pedido es el mismo: no se crea otro ni se anula ninguno.
+    const orders = await listOrders(eventId);
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.voidedAt).toBeNull();
+    expect(orders[0]?.lines).toHaveLength(1);
+    // Y la receta y el coste se recalculan con la avena dentro.
+    expect(orders[0]?.lines[0]?.usage['avena']).toBe(120);
+    expect(orders[0]?.lines[0]?.usage['leche']).toBeUndefined();
+    expect(orders[0]?.lines[0]?.unitPrice).toBe(2.7);
+    expect(orders[0]?.subtotal).toBe(2.7);
+    expect(servedCount()).toBe('1');
+  });
+
+  it('deshacer el pedido cierra la ventana de edición', async () => {
+    await setupBar();
+    fireEvent.click(rapido());
+    await waitFor(() => expect(rapido().getAttribute('aria-pressed')).toBe('true'));
+
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Cortado'));
+
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.toast__action')!);
+    await waitFor(() => expect(servedCount()).toBe('0'));
+    // Un pedido anulado ya no se edita desde la fila.
+    await waitFor(() => expect(bebidaDeLaFila()).toBeNull());
   });
 });
 
@@ -350,7 +567,7 @@ describe('las hojas se comportan como diálogos', () => {
   it('la hoja de una línea se anuncia como diálogo modal', async () => {
     await setupBar();
     fireEvent.click(tile('Cortado'));
-    fireEvent.click(document.querySelector('.ticket__name')!);
+    fireEvent.click(masDe());
     const hoja = await screen.findByRole('dialog');
     expect(hoja.getAttribute('aria-modal')).toBe('true');
     expect(hoja.getAttribute('aria-label')).toBe('Cortado');
@@ -359,22 +576,22 @@ describe('las hojas se comportan como diálogos', () => {
   it('al abrirla el foco entra dentro, y al cerrarla vuelve a donde estaba', async () => {
     await setupBar();
     fireEvent.click(tile('Cortado'));
-    const nombre = document.querySelector<HTMLButtonElement>('.ticket__name')!;
-    nombre.focus();
-    fireEvent.click(nombre);
+    const mas = masDe();
+    mas.focus();
+    fireEvent.click(mas);
 
     const hoja = await screen.findByRole('dialog');
     await waitFor(() => expect(hoja.contains(document.activeElement)).toBe(true));
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(document.activeElement).toBe(nombre);
+    expect(document.activeElement).toBe(mas);
   });
 
   it('Escape cierra la hoja sin guardar cambios', async () => {
     await setupBar();
     fireEvent.click(tile('Cortado'));
-    fireEvent.click(document.querySelector('.ticket__name')!);
+    fireEvent.click(masDe());
     await screen.findByRole('dialog');
 
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -386,7 +603,7 @@ describe('las hojas se comportan como diálogos', () => {
   it('Tab da la vuelta dentro de la hoja en vez de salirse a la barra', async () => {
     await setupBar();
     fireEvent.click(tile('Cortado'));
-    fireEvent.click(document.querySelector('.ticket__name')!);
+    fireEvent.click(masDe());
     const hoja = await screen.findByRole('dialog');
 
     const enfocables = [...hoja.querySelectorAll<HTMLElement>('button, input, textarea, [href]')];

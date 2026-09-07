@@ -5,10 +5,11 @@
  *   node scripts/capturas.mjs
  *
  * Primer uso → Cómo funciona → nuevo evento con carga → abrir barra → grid
- * entero a la vista → servir → resumen → cerrar con recuento → resultados del
- * evento → Resultados globales → exportar. Después, lo mismo en vertical.
+ * entero a la vista → **fila de extras contextual** → servir → resumen →
+ * cerrar con recuento → resultados del evento → Resultados globales →
+ * exportar. Después, lo mismo en vertical, y la migración de la semilla.
  *
- * Las capturas van a `docs/capturas/fase-4/`.
+ * Las capturas van a `docs/capturas/fase-5/`.
  */
 import { mkdirSync } from 'node:fs';
 import {
@@ -19,7 +20,7 @@ import {
   irA,
 } from './lib/recorrido.mjs';
 
-const CAPTURAS = 'docs/capturas/fase-4';
+const CAPTURAS = 'docs/capturas/fase-5';
 mkdirSync(CAPTURAS, { recursive: true });
 
 const fallos = [];
@@ -107,25 +108,221 @@ linea(resaltados === 2, `tocar «Especiales» resalta sus ${resaltados} bebidas`
 await captura(page, 'leyenda-resalta-una-categoria');
 await page.waitForTimeout(500);
 
-// Cortado con avena en dos toques.
-await page.locator('.chips .chip', { hasText: 'Avena' }).click();
-await page.locator('.tile-grid .tile', { hasText: /^Cortado/ }).click();
+/* ---------- 3 bis. La fila de extras, después de la bebida ---------- */
+
+const extras = () =>
+  page.$$eval('.extras button', (bs) => bs.map((b) => b.textContent.trim()));
+const bebidaDeLaFila = () =>
+  page.$eval('.extras', (e) => e.querySelector('.extras__bebida')?.textContent?.trim() ?? null);
+/** El café que gastó de verdad el último pedido, leído de IndexedDB. */
+const cafeDelUltimoPedido = () =>
+  page.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const req = indexedDB.open('mutuo-barra');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const all = req.result.transaction('orders', 'readonly').objectStore('orders').getAll();
+          all.onsuccess = () => {
+            const vivos = all.result.filter((o) => o.voidedAt === null);
+            const ultimo = vivos.sort((a, b) => a.servedAt.localeCompare(b.servedAt)).pop();
+            resolve(ultimo?.lines?.[0]?.usage?.cafe ?? null);
+          };
+        };
+      }),
+  );
+
+linea(
+  (await page.locator('.extras__pista').textContent())?.trim() ===
+    'Toca una bebida; sus extras salen aquí',
+  'la fila arranca vacía y dice dónde van a salir los extras',
+);
+await captura(page, 'fila-de-extras-vacia');
+
+/* ---------- 3 ter. Un Americano gasta 36 g de café ---------- */
+
+const cafeAntes = await page.locator('.meter__value').textContent();
+await page.locator('.tile-grid .tile', { hasText: /^Americano/ }).click();
+await page.locator('.ticket .btn--action').click();
+await page.waitForTimeout(500);
+const cafeDespues = await page.locator('.meter__value').textContent();
+const gramos = await cafeDelUltimoPedido();
+linea(
+  gramos === 36,
+  `el Americano servido descuenta ${gramos} g de café (los 18 de antes eran media dosis)`,
+);
+linea(
+  cafeAntes?.startsWith('2,98') && cafeDespues?.startsWith('2,94'),
+  `el medidor pasa de ${cafeAntes?.trim()} a ${cafeDespues?.trim()} (2 980 − 36 = 2 944 g)`,
+);
+linea(
+  (await page.locator('.extras__pista').count()) === 1 &&
+    (await page.locator('.barra__count-value').textContent())?.trim() === '1',
+  'al servir, la fila vuelve al estado vacío y el contador sube',
+);
+await captura(page, 'un-americano-gasta-36-g-y-la-fila-vuelve-a-vacia');
+
+/* ---------- 3 quater. Los extras de cada bebida ---------- */
+
 await page.locator('.tile-grid .tile', { hasText: /^Latte/ }).click();
-await page.locator('.tile-grid .tile', { hasText: /^Espresso tonic/ }).click();
-const mods = await page.locator('.ticket__mods').first().textContent();
-linea(mods?.trim() === 'avena', `el chip se aplica al tile: la línea dice «${mods?.trim()}»`);
-await captura(page, 'ticket-tres-bebidas-cortado-con-avena');
+await page.waitForTimeout(150);
+linea(
+  (await bebidaDeLaFila()) === 'Latte' &&
+    (await extras()).join(' · ') === 'Vaca · Avena · Sin lactosa · Desca · Doble · Iced · Sirope · Tapa',
+  `tocar «Latte» llena la fila con sus extras: ${(await extras()).join(' · ')}`,
+);
+const fila = await page.evaluate(() => {
+  const e = document.querySelector('.extras');
+  const botones = [...e.querySelectorAll('button')].map((b) => b.getBoundingClientRect());
+  return {
+    alto: Math.round(e.getBoundingClientRect().height),
+    minAlto: Math.round(Math.min(...botones.map((r) => r.height))),
+    minAncho: Math.round(Math.min(...botones.map((r) => r.width))),
+    cabe: e.scrollWidth <= e.clientWidth,
+    ancho: e.scrollWidth,
+    letra: Math.min(
+      ...[...e.querySelectorAll('button, .extras__bebida')].map((el) =>
+        Number.parseFloat(getComputedStyle(el).fontSize),
+      ),
+    ),
+  };
+});
+linea(
+  fila.alto === 56 && fila.minAlto >= 44 && fila.minAncho >= 44,
+  `la fila mide ${fila.alto} px y ningún objetivo baja de 44 (mínimo ${fila.minAlto} × ${fila.minAncho})`,
+);
+linea(fila.letra >= 15, `y ningún texto baja de 15 px (mínimo ${fila.letra})`);
+linea(fila.cabe, `los ocho extras del Latte caben sin desplazar (${fila.ancho} px)`);
+await captura(page, 'fila-extras-del-latte');
+
+await page.locator('.extras button', { hasText: /^Avena$/ }).click();
+await page.waitForTimeout(150);
+const conAvena = await page.locator('.ticket__row').first().textContent();
+linea(
+  conAvena?.includes('Latte') && conAvena?.includes('avena'),
+  'tocar «Avena» cambia esa línea: el ticket dice «Latte · avena»',
+);
+linea(
+  (await page.getAttribute('.extras button:has-text("Avena")', 'aria-pressed')) === 'true',
+  'y el extra queda marcado en violeta',
+);
+await captura(page, 'latte-con-avena-desde-la-fila');
+
+await page.locator('.extras button', { hasText: /^Sin lactosa$/ }).click();
+await page.waitForTimeout(150);
+const sinLactosa = await page.locator('.ticket__row').first().textContent();
+linea(
+  sinLactosa?.includes('sin lactosa') && !sinLactosa?.includes('avena'),
+  'la leche es de opción única: «Sin lactosa» apaga «Avena»',
+);
+await captura(page, 'la-leche-cambia-a-sin-lactosa');
+
+// Qué ofrece cada bebida. El Americano y el Flat white ya salen dobles.
+await page.locator('.tile-grid .tile', { hasText: /^Espresso$/ }).click();
+await page.waitForTimeout(120);
+linea(
+  (await extras()).join(' · ') === 'Desca · Doble · Iced · Tapa',
+  `el Espresso solo ofrece: ${(await extras()).join(' · ')}`,
+);
+await captura(page, 'extras-del-espresso');
+
+await page.locator('.tile-grid .tile', { hasText: /^Americano/ }).click();
+await page.waitForTimeout(120);
+const exAmericano = await extras();
+linea(!exAmericano.includes('Doble'), `el Americano ya no ofrece «Doble»: ${exAmericano.join(' · ')}`);
+await captura(page, 'el-americano-no-ofrece-doble');
+
+await page.locator('.tile-grid .tile', { hasText: /^Flat white/ }).click();
+await page.waitForTimeout(120);
+const exFlat = await extras();
+linea(!exFlat.includes('Doble'), `el Flat white tampoco: ${exFlat.join(' · ')}`);
+await captura(page, 'el-flat-white-no-ofrece-doble');
+
+/* ---------- 3 quinquies. Dos Lattes con avena acaban en una línea ---------- */
+
+// El pedido se vacía sin servir: «Deshacer último» hasta que no quede nada.
+while ((await page.locator('.ticket__row').count()) > 0) {
+  await page.locator('.ticket__foot .btn', { hasText: 'Deshacer' }).click();
+  await page.waitForTimeout(80);
+}
+await page.locator('.tile-grid .tile', { hasText: /^Latte/ }).click();
+await page.waitForTimeout(120);
+await page.locator('.extras button', { hasText: /^Avena$/ }).click();
+await page.waitForTimeout(150);
+const antes = await page.locator('.ticket__row').count();
+await page.locator('.tile-grid .tile', { hasText: /^Latte/ }).click();
+await page.waitForTimeout(150);
+const entre = await page.locator('.ticket__row').count();
+await page.locator('.extras button', { hasText: /^Avena$/ }).click();
+await page.waitForTimeout(250);
+const agrupadas = await page.evaluate(() => {
+  const filas = [...document.querySelectorAll('.ticket__row')];
+  return {
+    filas: filas.length,
+    qty: filas[0]?.querySelector('.ticket__qty')?.textContent?.trim(),
+    actual: document.querySelectorAll('.ticket__row.is-current').length,
+  };
+});
+linea(
+  antes === 1 && entre === 2 && agrupadas.filas === 1 && agrupadas.qty === '2',
+  `dos Lattes tocados por separado (1 → 2 líneas) se funden en ${agrupadas.filas} con cantidad ${agrupadas.qty} al poner la avena a la segunda`,
+);
+linea(agrupadas.actual === 1, 'y la línea superviviente queda marcada como la actual');
+await captura(page, 'dos-lattes-con-avena-agrupados');
 
 await page.locator('.ticket .btn--action').click();
 await page.waitForTimeout(400);
+
+/* ---------- 3 quater. Modo Rápido: el extra, justo después ---------- */
+
+await page.locator('.switch--stacked').click();
+await page.waitForTimeout(200);
+// La explicación del modo vive en la fila, no en el subtítulo: en la cabecera
+// no cabe sin cortar «Cerrar barra».
 linea(
-  (await page.locator('.barra__count-value').textContent())?.trim() === '3',
-  'servidas 3 bebidas, con «Deshacer» a mano',
+  (await page.locator('.extras__pista').textContent())?.trim() ===
+    'Toca una bebida: se sirve al momento y sus extras salen aquí',
+  'con Rápido encendido, la fila explica que el toque ya sirve',
 );
-await captura(page, 'servido-con-deshacer');
+await page.locator('.tile-grid .tile', { hasText: /^Cortado/ }).click();
+await page.waitForTimeout(400);
+linea(
+  (await bebidaDeLaFila()) === 'Cortado',
+  'en Rápido la bebida se sirve al tocarla y la fila sigue editándola',
+);
+await captura(page, 'rapido-cortado-servido-y-editable');
+
+await page.locator('.extras button', { hasText: /^Avena$/ }).click();
+await page.waitForTimeout(400);
+await page.getByRole('button', { name: 'Resumen' }).click();
+await page.waitForSelector('.sheet--wide');
+const guardado = await page.locator('.sheet--wide').textContent();
+linea(
+  guardado?.includes('Cortado') && guardado?.includes('Avena'),
+  'y el pedido ya guardado pasa a «Cortado · Avena» en el resumen',
+);
+await captura(page, 'rapido-el-pedido-guardado-lleva-la-avena');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+await page.locator('.switch--stacked').click();
+await page.waitForTimeout(200);
+
+/* ---------- 3 quinquies. Recargar con el pedido a medias ---------- */
+
+await page.locator('.tile-grid .tile', { hasText: /^Cappuccino/ }).click();
+await page.waitForTimeout(150);
+await page.reload({ waitUntil: 'load' });
+await page.waitForSelector('.tile-grid .tile');
+await page.waitForTimeout(300);
+linea(
+  (await bebidaDeLaFila()) === 'Cappuccino' &&
+    (await page.locator('.ticket__row.is-current').count()) === 1,
+  'tras recargar, la línea que quedaba en el pedido vuelve a ser la actual',
+);
+await captura(page, 'tras-recargar-la-fila-recupera-su-linea');
 
 // Unas cuantas más, para que el resumen tenga algo que enseñar.
-for (const bebida of [/^Cortado/, /^Flat white/, /^Cappuccino/, /^Cold brew/, /^Filtro/]) {
+for (const bebida of [/^Cortado/, /^Flat white/, /^Cold brew/, /^Filtro/]) {
   await page.locator('.tile-grid .tile', { hasText: bebida }).click();
 }
 await page.locator('.ticket .btn--action').click();
@@ -225,6 +422,35 @@ linea(
   'en vertical el ticket baja a la barra inferior y la columna desaparece',
 );
 await page.locator('.tile-grid .tile', { hasText: /^Latte/ }).click();
+await page.waitForTimeout(150);
+const filaVertical = await page.evaluate(() => {
+  const e = document.querySelector('.extras');
+  const botones = [...e.querySelectorAll('button')].map((b) => b.getBoundingClientRect());
+  return {
+    bebida: e.querySelector('.extras__bebida')?.textContent?.trim() ?? null,
+    alto: Math.round(e.getBoundingClientRect().height),
+    minAlto: Math.round(Math.min(...botones.map((r) => r.height))),
+    minAncho: Math.round(Math.min(...botones.map((r) => r.width))),
+    desplaza: e.scrollWidth > e.clientWidth,
+    ancho: e.scrollWidth,
+    hueco: e.clientWidth,
+  };
+});
+linea(
+  filaVertical.bebida === 'Latte' && filaVertical.alto === 56,
+  `en vertical la fila sigue midiendo ${filaVertical.alto} px y enseña los extras del ${filaVertical.bebida}`,
+);
+linea(
+  filaVertical.minAlto >= 44 && filaVertical.minAncho >= 44,
+  `y ningún objetivo baja de 44 px (mínimo ${filaVertical.minAlto} × ${filaVertical.minAncho})`,
+);
+linea(
+  true,
+  filaVertical.desplaza
+    ? `los ocho extras no caben en ${filaVertical.hueco} px y la fila se desplaza a lo ancho (${filaVertical.ancho} px), sin scroll de página`
+    : `los ocho extras caben en los ${filaVertical.hueco} px de ancho`,
+);
+await captura(page, 'vertical-fila-de-extras-del-latte');
 await captura(page, 'vertical-barra-y-ticket-inferior');
 
 await page.locator('.ticket-bar__label').click();
@@ -257,6 +483,117 @@ linea(
   'el interruptor «Noche» cambia el tema desde la propia barra',
 );
 await captura(page, 'barra-en-modo-noche');
+
+/* ---------- 9. La migración de la semilla, sobre una base de verdad ---------- */
+
+console.log('\n=== Migración de la semilla v2 → v3 ===\n');
+
+/** Lee la receta y los extras de un producto directamente de IndexedDB. */
+const leerProducto = (id) =>
+  page.evaluate(
+    (pid) =>
+      new Promise((resolve, reject) => {
+        const req = indexedDB.open('mutuo-barra');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const get = req.result.transaction('products', 'readonly').objectStore('products').get(pid);
+          get.onsuccess = () => {
+            const p = get.result;
+            resolve({
+              cafe: p.recipe.find((r) => r.ingredientId === 'cafe')?.qty ?? null,
+              extras: p.allowedModifierGroups.find((a) => a.groupId === 'extra')?.optionIds ?? null,
+            });
+          };
+        };
+      }),
+    id,
+  );
+
+/** Deja la base como estaba en la fase 4: semilla v2 y las dos bebidas a 18 g. */
+const volverALaV2 = (cafeFlatWhite) =>
+  page.evaluate(
+    (qty) =>
+      new Promise((resolve, reject) => {
+        const req = indexedDB.open('mutuo-barra');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction(['products', 'settings'], 'readwrite');
+          const productos = tx.objectStore('products');
+          const v2 = {
+            americano: [
+              { ingredientId: 'cafe', qty: 18 },
+              { ingredientId: 'agua', qty: 150 },
+              { ingredientId: 'vaso_10', qty: 1 },
+              { ingredientId: 'menaje', qty: 1 },
+            ],
+            flat_white: [
+              { ingredientId: 'cafe', qty: qty },
+              { ingredientId: 'leche', qty: 120 },
+              { ingredientId: 'vaso_6', qty: 1 },
+              { ingredientId: 'menaje', qty: 1 },
+            ],
+          };
+          for (const [id, recipe] of Object.entries(v2)) {
+            const get = productos.get(id);
+            get.onsuccess = () => {
+              const p = get.result;
+              productos.put({
+                ...p,
+                recipe,
+                allowedModifierGroups: p.allowedModifierGroups.map((a) =>
+                  a.groupId === 'extra'
+                    ? { ...a, optionIds: [...(a.optionIds ?? []), 'extra_doble'] }
+                    : a,
+                ),
+              });
+            };
+          }
+          const ajustes = tx.objectStore('settings');
+          const gs = ajustes.get('app');
+          gs.onsuccess = () => ajustes.put({ ...gs.result, seedVersion: 2 });
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    cafeFlatWhite,
+  );
+
+// Caso 1: la receta sigue siendo la de la semilla → se migra.
+await volverALaV2(18);
+const antesDeMigrar = await leerProducto('flat_white');
+linea(
+  antesDeMigrar.cafe === 18 && antesDeMigrar.extras.includes('extra_doble'),
+  `la base vuelve a la v2: Flat white con ${antesDeMigrar.cafe} g y con «Doble»`,
+);
+await irA(page, '/');
+await page.waitForTimeout(400);
+const migrado = await leerProducto('flat_white');
+const migradoAmericano = await leerProducto('americano');
+linea(
+  migrado.cafe === 36 && !migrado.extras.includes('extra_doble'),
+  `al arrancar, el Flat white pasa a ${migrado.cafe} g y pierde «Doble» (le quedan ${migrado.extras.join(', ')})`,
+);
+linea(
+  migradoAmericano.cafe === 36 && !migradoAmericano.extras.includes('extra_doble'),
+  `y el Americano igual: ${migradoAmericano.cafe} g, extras ${migradoAmericano.extras.join(', ')}`,
+);
+await irA(page, '/ajustes/carta');
+await page.waitForTimeout(300);
+await captura(page, 'carta-tras-migrar-flat-white-36-g');
+
+// Caso 2: Nicolas la editó a mano → no se toca.
+await volverALaV2(20);
+await irA(page, '/');
+await page.waitForTimeout(400);
+const editado = await leerProducto('flat_white');
+linea(
+  editado.cafe === 20 && editado.extras.includes('extra_doble'),
+  `una receta editada a mano (${editado.cafe} g) no se pisa, y conserva sus modificadores`,
+);
+await irA(page, '/ajustes/carta');
+await page.waitForTimeout(300);
+await captura(page, 'carta-con-la-receta-editada-a-mano-intacta');
 
 const errores = page.errores.filter((e) => !e.includes('favicon'));
 linea(errores.length === 0, `sin errores de consola${errores.length ? `: ${errores.join(' · ')}` : ''}`);

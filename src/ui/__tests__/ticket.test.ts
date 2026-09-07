@@ -9,12 +9,17 @@ import {
   buildLine,
   clearTicket,
   detachTicket,
+  isOptionActive,
+  lastLine,
+  lineContent,
   loadTicket,
+  replaceLine,
   restoreTicket,
   setQty,
   ticket,
   ticketDrinks,
   ticketTotal,
+  toggleOption,
   undoLast,
 } from '../ticket';
 
@@ -178,5 +183,100 @@ describe('importe del pedido', () => {
   it('el suplemento de la avena entra en el importe', () => {
     add('latte', 'leche_avena'); // 3,20 + 0,50
     expect(ticketTotal()).toBe(3.7);
+  });
+});
+
+describe('la opción por defecto no se guarda', () => {
+  it('«Vaca» no entra en la línea ni impide agrupar', () => {
+    const a = add('cortado');
+    const b = add('cortado', 'leche_vaca');
+    expect(b.line.optionIds).toEqual([]);
+    expect(b.line.modifiers).toEqual([]);
+    // Y por eso las dos son la misma línea.
+    expect(ticket.value).toHaveLength(1);
+    expect(ticket.value[0]?.qty).toBe(2);
+    expect(a.line.productId).toBe('cortado');
+  });
+
+  it('está marcada mientras no haya otra opción de su grupo', () => {
+    const vaca = MODIFIER_OPTIONS.find((o) => o.id === 'leche_vaca')!;
+    const avena = MODIFIER_OPTIONS.find((o) => o.id === 'leche_avena')!;
+    expect(isOptionActive([], vaca, MODIFIER_OPTIONS)).toBe(true);
+    expect(isOptionActive(['leche_avena'], vaca, MODIFIER_OPTIONS)).toBe(false);
+    expect(isOptionActive(['leche_avena'], avena, MODIFIER_OPTIONS)).toBe(true);
+  });
+});
+
+describe('encender y apagar un extra', () => {
+  const opt = (id: string) => MODIFIER_OPTIONS.find((o) => o.id === id)!;
+
+  it('un grupo de opción única solo admite una: la nueva desplaza a la anterior', () => {
+    const uno = toggleOption([], opt('leche_avena'), MODIFIER_GROUPS, MODIFIER_OPTIONS);
+    expect(uno).toEqual(['leche_avena']);
+    const dos = toggleOption(uno, opt('leche_sin_lactosa'), MODIFIER_GROUPS, MODIFIER_OPTIONS);
+    expect(dos).toEqual(['leche_sin_lactosa']);
+  });
+
+  it('elegir la opción por defecto deja el grupo sin nada marcado', () => {
+    const conAvena = ['leche_avena', 'extra_tapa'];
+    expect(toggleOption(conAvena, opt('leche_vaca'), MODIFIER_GROUPS, MODIFIER_OPTIONS)).toEqual([
+      'extra_tapa',
+    ]);
+  });
+
+  it('un grupo múltiple acumula, y el segundo toque quita', () => {
+    const uno = toggleOption([], opt('extra_iced'), MODIFIER_GROUPS, MODIFIER_OPTIONS);
+    const dos = toggleOption(uno, opt('extra_tapa'), MODIFIER_GROUPS, MODIFIER_OPTIONS);
+    expect(dos).toEqual(['extra_iced', 'extra_tapa']);
+    expect(toggleOption(dos, opt('extra_iced'), MODIFIER_GROUPS, MODIFIER_OPTIONS)).toEqual([
+      'extra_tapa',
+    ]);
+  });
+});
+
+describe('cambiar los extras de una línea', () => {
+  it('devuelve el id de la línea resultante y fusiona con la gemela', () => {
+    const conAvena = add('latte', 'leche_avena');
+    const sola = add('latte');
+    expect(ticket.value).toHaveLength(2);
+
+    const built = buildLine(
+      PRODUCTS.find((p) => p.id === 'latte')!,
+      MODIFIER_OPTIONS.filter((o) => o.id === 'leche_avena'),
+      INGREDIENTS,
+      MODIFIER_GROUPS,
+    );
+    const id = replaceLine(sola.line.id, {
+      ...lineContent(sola.line),
+      optionIds: built.line.optionIds,
+      modifiers: built.line.modifiers,
+      unitPrice: built.line.unitPrice,
+      unitCost: built.line.unitCost,
+      usage: built.line.usage,
+    });
+
+    expect(ticket.value).toHaveLength(1);
+    expect(id).toBe(conAvena.line.id);
+    expect(ticket.value[0]?.qty).toBe(2);
+  });
+
+  it('devuelve null si la línea ya no está', () => {
+    const { line } = add('cortado');
+    clearTicket();
+    expect(replaceLine(line.id, lineContent(line))).toBeNull();
+  });
+});
+
+describe('cuál es la bebida actual', () => {
+  it('es la última que llegó, y tras deshacer la anterior', () => {
+    add('cortado');
+    const latte = add('latte');
+    expect(lastLine()?.id).toBe(latte.line.id);
+    undoLast();
+    expect(lastLine()?.productId).toBe('cortado');
+  });
+
+  it('con el pedido vacío no hay ninguna', () => {
+    expect(lastLine()).toBeNull();
   });
 });
