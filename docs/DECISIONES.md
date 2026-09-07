@@ -934,3 +934,170 @@ existían solo para dar algún efecto a un control que no filtraba.
 lado. Ahora el aviso dice **«Anulado · Latte · avena, 2 × Cortado»**, la misma
 frase que se lee en la fila, y mantiene «Deshacer» ocho segundos (decisión 79).
 En el Resumen el pedido sigue tachado con su etiqueta.
+
+## 07/09/2026 · Fase 8 — recetas clásicas por método
+
+### 82. El ratio avisa; no reescribe
+
+Es la decisión que ordena toda la fase, y va primero porque todas las demás
+salen de ella. La plataforma ya sabe que un espresso es 1:2 y un batch 1:16,
+pero **ningún ratio toca una receta por su cuenta**.
+
+El motivo no es prudencia genérica: los costes del escandallo están **medidos**
+(Cortado 0,7428 €, Latte con avena 1,1444 €, Flat white 1,277 €, Americano
+1,254 €) y una relación teórica no tiene autoridad para pisarlos. El Filtro
+lleva 12 g donde el ratio pide 12,5 y eso no es un error: es lo que Mutuo saca
+de verdad.
+
+Así que el ratio calcula, compara y **avisa**, y aplicar el cambio es un toque
+de Nicolas en «Usar el ratio», que ajusta la dosis del insumo base **y nada
+más**. La prueba de que la línea se respeta es que los cuatro tests del
+escandallo pasan sin tocarse, y que hay un test de migración que los vuelve a
+medir sobre una base v3 migrada.
+
+Descartado: aplicar el ratio automáticamente al abrir la carta (rompería el
+escandallo en silencio) y bloquear el guardado hasta cuadrar (convierte un aviso
+en un muro, y el muro estaría equivocado en el Filtro).
+
+### 83. El ratio se aplica a la extracción, no al vaso
+
+El error más fácil de esta función, y el que más cara habría costado: comparar
+la dosis contra el volumen servido entero. Un Latte de 256 ml a 1:2 pediría
+128 g de café. Toda la carta con leche habría salido «por revisar» el primer
+día, y a la tercera vez que un aviso miente nadie los lee.
+
+La cuenta correcta descuenta los líquidos de la receta: el Latte sirve 256 ml
+pero **extrae 36**, que a 1:2 son los 18 g que ya tiene. Con esta regla las
+catorce bebidas de la carta caen **exactamente** en su dosis actual, salvo el
+Filtro, que se queda a un 4 % —dentro de la tolerancia—. Cero avisos de dosis
+sobre la carta real: la señal de que la cuenta es la buena.
+
+El caso que obliga a distinguir es el **Americano**: lleva `agua 150` en la
+receta, pero esa agua es añadida, no la de la extracción. Por eso cada método
+declara `extraccionEnLaReceta`: en un té los 200 ml de agua **son** la
+infusión y se escriben; en un espresso los 36 ml de salida no se escriben
+nunca. Sin esa distinción el Americano daba 150 ml servidos en vez de 222.
+
+### 84. Tolerancia del 10 %, y la báscula manda en el redondeo
+
+`TOLERANCIA_DOSIS = 0,10`: hasta un 10 % de diferencia no se avisa. Con 12,5 g
+esperados, entre 11,25 y 13,75 no pasa nada; 11,5 g calla y 9 g avisa. Es café,
+no farmacia, y el Filtro (12 contra 12,5, un 4 %) tiene que poder quedarse como
+está sin dar la lata.
+
+Las dosis se redondean a **media unidad** (`REDONDEO_DOSIS_G`), que es lo que
+distingue la báscula de la barra. Proponer 12,8125 g sería teatro.
+
+### 85. La hoja de té entra como insumo: un té no puede costar cero
+
+Hallazgo al escribir la revisión, no del encargo: la receta del Té eran agua,
+vaso y menaje. La hoja no existía, así que **la infusión salía gratis** en el
+escandallo del evento.
+
+Se añade `te_hoja` (g, «Sin costear», con seguimiento de stock) y se mete en la
+receta con los 2 g que pide la infusión a 1:100. Como nace a 0 €, el coste del
+té **no cambia** —hay un test que lo comprueba comparando antes y después—: lo
+que cambia es que ahora se ve, con su etiqueta «Sin costear», y que el Té sale
+en «bebidas por revisar» hasta que alguien mire la factura. Nunca se inventa un
+número.
+
+### 86. Cinco bebidas por revisar, y ninguna por dosis
+
+Lo que la revisión ha destapado sobre la carta real, que es lo que Nicolas tiene
+que decidir:
+
+| Bebida | Aviso |
+|---|---|
+| Flat white | 192 ml no caben en el vaso de 180 ml |
+| Espresso tonic | la Tónica no tiene coste |
+| Cremaet | el Licor no tiene coste |
+| Carajillo | el Licor no tiene coste |
+| Té / infusión | la Hoja de té no tiene coste |
+
+El del **Flat white** es el hallazgo de verdad: 36 g de café dan 72 ml, más
+120 ml de leche son 192, y el vaso de 6 oz son 180. Salió al subirlo a doble
+dosis (decisión de la fase 7) y nadie lo vio. No se arregla desde aquí porque
+las dos salidas —bajar la leche a 108 ml o pasarlo al vaso de 10 oz, que cuesta
+3,5 céntimos más— las decide Mutuo, no la app. El aviso no ofrece arreglo
+automático a propósito.
+
+Los otros cuatro ya se sabían por Insumos; verlos en la bebida es lo que dice
+**cuánto** importan.
+
+### 87. La marca «revisar» va en ámbar y a 15 px, no en rojo
+
+Son avisos, no errores: la carta funciona igual y la barra sirve igual. Por eso
+en la lista va una píldora **«revisar»** en `--warn` con contorno, a 15 px —el
+mínimo de `DESIGN.md`, no los 13 px de `.etiqueta`— y la cabecera dice «5
+bebidas por revisar» en la misma frase de siempre. Nada de números dentro de un
+círculo rojo.
+
+Cada aviso, dentro de la hoja, va con un punto ámbar de 10 px y su texto: el
+mismo idioma que el punto de categoría del tile. **Nunca una franja lateral**,
+que la prohíbe `DESIGN.md`. Los seis pares de color nuevos están medidos en
+`scripts/contraste.mjs` (78 pares, todos por encima del mínimo en los dos
+temas).
+
+### 88. Crear una bebida propone la receta, y la vía sigue al método
+
+Lo que ahorra teclear a ciegas: eliges método y volumen, y la receta se propone
+sola —dosis por ratio, líquido si el método lo escribe, hielo si lo lleva, el
+vaso más pequeño en el que quepa y el menaje—. Un cold brew de 250 ml trae 25 g
+de café y el vaso frío. En cuanto se toca la receta, la propuesta se calla y
+manda la de Nicolas.
+
+**El cold brew va siempre al vaso frío**, quepa o no en uno más pequeño: 125 ml
+caben en un vaso de 10 oz, pero un cold brew no se sirve en un vaso de café
+caliente. Es la única excepción a «el más pequeño en el que quepa».
+
+Corregido al ver la captura: la hoja enseñaba «Método: Cold brew» y «Cómo se
+prepara: Máquina de espresso» a la vez, contradiciéndose. Ahora la **vía sigue
+al método** mientras nadie la toque, y el campo de la vía se llama **«Qué ocupa
+al servirla»** con la aclaración de que solo la máquina cuenta para el ritmo:
+son dos cosas distintas y ahora lo dicen.
+
+Límite conocido de la propuesta: para un método con extracción, el volumen que
+escribes es a la vez el servido y el de extracción, porque una bebida recién
+creada no lleva leche. Si vas a hacer un latte, propones el espresso y luego
+añades la leche a mano; el bloque «Preparación» te avisará entonces si la dosis
+no cuadra.
+
+### 89. Los lotes se escriben en Preparar y suman a la carga
+
+La sugerencia de carga contaba `bebidas × 18 g × 1,15`, que es la vía del grupo.
+Un batch de 4 L son 250 g más que había que recordar de memoria. Ahora, encima
+de la carga y solo si la carta activa tiene bebidas de lote, hay una fila por
+método: escribes los litros y contesta «4 L → 250 g de café + 4 L de agua
+(1:16)», y esos gramos entran en el café sugerido. Se guardan en `Event.lotes`,
+así que siguen ahí la mañana del evento.
+
+Cada fila se enseña solo si su vía existe en la carta activa: si el cold brew
+está desactivado, su fila no ocupa sitio.
+
+### 90. La migración v4 solo añade metadatos
+
+`SEED_VERSION` 4. Añade `method` y `servingMl` a las catorce bebidas,
+`capacityMl` a los tres vasos, el insumo `te_hoja` y sus 2 g en la receta del
+Té. **No toca ninguna dosis, ningún precio y ningún modificador.**
+
+Los seguros son los de siempre: la receta del Té solo se toca si sigue siendo la
+que dejó la semilla, y un `method` o un `servingMl` ya puestos a mano no se
+pisan. Hay un test que mide los tres costes del escandallo sobre una base v3
+recién migrada y comprueba que salen idénticos.
+
+### 91. Lo que queda por decidir (para Nicolas)
+
+- **El Flat white no cabe en su vaso.** Bajar la leche a 108 ml o pasarlo al
+  vaso de 10 oz (+0,035 € por bebida). Lo decide Mutuo.
+- **La tónica, el licor y la hoja de té siguen a 0 €.** Cuatro bebidas de la
+  carta tienen el coste incompleto. Con la factura delante son cinco minutos en
+  Ajustes → Insumos.
+- **El nombre del tile se recorta a 14 caracteres** desde la fase 3: al crear
+  «Cold brew doble» el botón de la barra dice «Cold brew dobl», con la palabra
+  partida. No es de esta fase y no se ha tocado, pero ahora que crear bebidas
+  cuesta menos se va a ver más. Cortar por palabra en vez de por carácter es un
+  rato.
+- **El agua de extracción del Filtro dice 192 ml, no 200.** Sale de la dosis
+  real (12 g × 16), no de la que pide el ratio. Es lo honesto —es el agua que
+  consume de verdad—, pero si al leerlo confunde junto a los «200 ml piden
+  12,5 g» de la misma línea, se cambia en una línea.

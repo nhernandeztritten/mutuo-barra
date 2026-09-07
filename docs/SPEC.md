@@ -36,6 +36,7 @@ Materia prima o consumible con coste unitario. Todo coste **con IVA incluido** (
 | tapa_10 | Tapa 10 oz | ud | ud | 0,057 € | escandallo |
 | tapa_fria | Tapa vaso frío | ud | ud | 0,121 € | escandallo |
 | menaje | Servilleta + removedor + azúcar | ud | ud | 0,031 € | escandallo (0,014+0,007+0,010) |
+| te_hoja | Hoja de té / infusión | g | g | 0 € | SIN COSTEAR (añadido 07/09/2026) |
 | tonica | Tónica | ml | L | 0 € | SIN COSTEAR |
 | licor | Licor (cremaet / 43) | ml | L | 0 € | SIN COSTEAR (escandallo §6) |
 | sirope | Sirope | ml | L | 0 € | SIN COSTEAR |
@@ -43,7 +44,9 @@ Materia prima o consumible con coste unitario. Todo coste **con IVA incluido** (
 
 Los insumos con coste 0 se muestran en Ajustes con la etiqueta **«Sin costear»** para que Nicolas los rellene. Nunca se inventa un número.
 
-Campos: `id, name, unit ('g'|'ml'|'ud'), stockUnit ('kg'|'L'|'ud'|'g'), stockFactor (1000 para g→kg y ml→L, 1 para ud/g), costPerUnit, costSource ('medido'|'estimado'|'sin-costear'), trackStock (bool: aparece en carga y recuento), sortOrder`.
+Campos: `id, name, unit ('g'|'ml'|'ud'), stockUnit ('kg'|'L'|'ud'|'g'), stockFactor (1000 para g→kg y ml→L, 1 para ud/g), costPerUnit, costSource ('medido'|'estimado'|'sin-costear'), trackStock (bool: aparece en carga y recuento), sortOrder, capacityMl? (solo los vasos: vaso_6 180, vaso_10 300, vaso_frio 425)`.
+
+La **hoja de té** entra el 07/09/2026 porque hasta entonces un té no costaba nada: su receta eran agua, vaso y menaje. Nace a 0 € y «Sin costear», como los demás; añadirla no cambia el coste de ninguna bebida.
 
 ### 2.2 Producto (`Product`)
 Bebida de la carta. Tiene receta base (lista de `{ingredientId, qty}`), categoría, vía de producción, precio provisional y qué grupos de modificadores admite.
@@ -54,26 +57,30 @@ Carta inicial (v1, editable en Ajustes). Todas las recetas incluyen 1 `menaje`. 
 
 **Doble dosis (decisión de Nicolas, 07/09/2026)**: el **Americano** y el **Flat white** se sacan con 36 g de café. Como ya son dobles, no admiten el modificador «Doble».
 
-| Categoría | Producto | Vía | Receta | Precio provisional* |
-|---|---|---|---|---|
-| Espresso | Espresso | grupo | cafe 18 · vaso_6 | 2,00 |
-| Espresso | Americano | grupo | **cafe 36** · agua 150 · vaso_10 | 2,50 |
-| Con leche | Cortado | grupo | cafe 18 · leche 120 · vaso_6 | 2,20 |
-| Con leche | Flat white | grupo | **cafe 36** · leche 120 · vaso_6 | 3,00 |
-| Con leche | Cappuccino | grupo | cafe 18 · leche 130 · vaso_6 | 3,00 |
-| Con leche | Latte | grupo | cafe 18 · leche 220 · vaso_10 | 3,20 |
-| Filtro | Filtro | lote_caliente | cafe 12 · vaso_10 | 2,80 |
-| Fríos | Cold brew | lote_frio | cafe 12,5 · hielo 120 · vaso_frio | 3,50 |
-| Fríos | Espresso tonic | grupo | cafe 18 · tonica 200 · hielo 120 · vaso_frio | 3,80 |
-| Fríos | Matcha latte | lote_frio | matcha 2,5 · leche 200 · vaso_10 | 3,80 |
-| Especiales | Cremaet | grupo | cafe 18 · licor 30 · vaso_6 | 3,50 |
-| Especiales | Carajillo | grupo | cafe 18 · licor 30 · vaso_6 | 3,50 |
-| Otros | Té / infusión | lote_caliente | agua 200 · vaso_10 | 2,00 |
-| Otros | Agua | envasado | vaso_10 · agua 250 | 1,00 |
+| Categoría | Producto | Vía | Método | Servido | Receta | Precio provisional* |
+|---|---|---|---|---|---|---|
+| Espresso | Espresso | grupo | espresso | 36 ml | cafe 18 · vaso_6 | 2,00 |
+| Espresso | Americano | grupo | espresso | 222 ml | **cafe 36** · agua 150 · vaso_10 | 2,50 |
+| Con leche | Cortado | grupo | espresso | 156 ml | cafe 18 · leche 120 · vaso_6 | 2,20 |
+| Con leche | Flat white | grupo | espresso | 192 ml | **cafe 36** · leche 120 · vaso_6 | 3,00 |
+| Con leche | Cappuccino | grupo | espresso | 166 ml | cafe 18 · leche 130 · vaso_6 | 3,00 |
+| Con leche | Latte | grupo | espresso | 256 ml | cafe 18 · leche 220 · vaso_10 | 3,20 |
+| Filtro | Filtro | lote_caliente | filtro | 200 ml | cafe 12 · vaso_10 | 2,80 |
+| Fríos | Cold brew | lote_frio | cold_brew | 125 ml | cafe 12,5 · hielo 120 · vaso_frio | 3,50 |
+| Fríos | Espresso tonic | grupo | espresso | 236 ml | cafe 18 · tonica 200 · hielo 120 · vaso_frio | 3,80 |
+| Fríos | Matcha latte | lote_frio | batido | 200 ml | matcha 2,5 · leche 200 · vaso_10 | 3,80 |
+| Especiales | Cremaet | grupo | espresso | 66 ml | cafe 18 · licor 30 · vaso_6 | 3,50 |
+| Especiales | Carajillo | grupo | espresso | 66 ml | cafe 18 · licor 30 · vaso_6 | 3,50 |
+| Otros | Té / infusión | lote_caliente | infusion | 200 ml | **te_hoja 2** · agua 200 · vaso_10 | 2,00 |
+| Otros | Agua | envasado | sin_extraccion | 250 ml | vaso_10 · agua 250 | 1,00 |
+
+**Servido** es el volumen de bebida que llega al vaso, sin contar el hielo. Es un
+metadato: no entra en el coste ni en el consumo. Se usa para comparar la receta
+con el ratio clásico de su método (§2.6) y para avisar si no cabe en su vaso.
 
 \* **Los precios son provisionales y NO están decididos por Mutuo.** Solo se usan en modo «venta por bebida». Ajustes los muestra con la etiqueta «provisional» hasta que se editen. El hielo por bebida (120 g) es una estimación: el escandallo no lo desglosa.
 
-Campos: `id, name, shortName (≤ 12 car. para el tile), category, via, recipe[], price, priceProvisional (bool), allowedModifierGroups[], active, sortOrder`.
+Campos: `id, name, shortName (≤ 12 car. para el tile), category, via, recipe[], price, priceProvisional (bool), allowedModifierGroups[], active, sortOrder, method (§2.6), servingMl`.
 
 ### 2.3 Modificadores (`Modifier`)
 Cambian la receta y opcionalmente el precio. Se agrupan; un grupo `single` admite una opción, `multi` varias.
@@ -95,12 +102,20 @@ Cambian la receta y opcionalmente el precio. Se agrupan; un grupo `single` admit
 Regla de aplicación: los modificadores se aplican sobre la receta base en orden `leche → cafe → extra`, y el resultado (receta final + precio final) **se congela en la línea del pedido**. Editar la carta después no reescribe la historia.
 
 ### 2.4 Evento (`Event`)
-`id (uuid), name, type ('boda'|'privado'|'activacion'|'rodaje'|'mercado'|'otro'), date (ISO), venue, guestsExpected, drinksPerGuest (default 1,2), hoursContracted, baristas (default 2), mode ('incluido'|'venta'), status ('planned'|'live'|'closed'), openedAt, closedAt, stockStart {ingredientId: qtyRecipeUnits}, stockEnd {ingredientId: qtyRecipeUnits} | null, guestsReal, setupMinutes, teardownMinutes, notes, createdAt, updatedAt`.
+`id (uuid), name, type ('boda'|'privado'|'activacion'|'rodaje'|'mercado'|'otro'), date (ISO), venue, guestsExpected, drinksPerGuest (default 1,2), hoursContracted, baristas (default 2), mode ('incluido'|'venta'), status ('planned'|'live'|'closed'), openedAt, closedAt, stockStart {ingredientId: qtyRecipeUnits}, stockEnd {ingredientId: qtyRecipeUnits} | null, guestsReal, setupMinutes, teardownMinutes, notes, createdAt, updatedAt, lotes? {filtro?: litros, cold_brew?: litros}`.
 
 Solo puede haber **un evento `live`** a la vez. Abrir otro pide pausar el actual (pasa a `planned` conservando pedidos; se puede reabrir).
 
 **Sugerencia de carga** al crear el evento (solo sugerencia; Nicolas escribe lo que carga de verdad):
 `bebidas previstas = guestsExpected × drinksPerGuest` → café = bebidas × 18 g × 1,15 · leche = bebidas × 120 ml (ratio Nobil, conservador) · avena = bebidas × 10 % × 200 ml · vasos 6 oz = bebidas × 55 % × 1,1 · vasos 10 oz = bebidas × 35 % × 1,1 · vasos fríos = bebidas × 10 % × 1,1 · hielo = bebidas × 30 g. Los porcentajes vienen del mix de boda del escandallo. Se muestra como «Sugerido: 3,25 kg» junto al campo, con botón «Usar sugerencia».
+
+**Lotes** (07/09/2026). Encima de la carga, y solo si la carta activa tiene
+bebidas de vía `lote_caliente` o `lote_frio`: una fila por método —Batch brew y
+Cold brew— donde se escriben los **litros que se van a preparar**. La fila
+contesta «4 L → 250 g de café + 4 L de agua (1:16)» con el ratio de §2.6, y esos
+gramos **suman al café de la sugerencia de carga**, que hasta ahora solo contaba
+las bebidas de la vía del grupo. Se guardan en `Event.lotes`: es lo que se mira
+la mañana del evento.
 
 ### 2.5 Pedido (`Order`) y líneas (`OrderLine`)
 Un pedido es un grupo de bebidas servidas a la vez (una persona pide tres).
@@ -117,6 +132,57 @@ Todo es **append-only con uuid + deviceId**: anular es poner `voidedAt`, nunca b
 - `editado`: el pedido se **corrigió**. Editar un pedido servido no lo reescribe: crea otro con las líneas nuevas, el **mismo `servedAt`** —para no mover las franjas ni el ritmo— y `replacesOrderId` apuntando al original, que queda anulado como `editado`. Las dos filas se quedan en la base. En Resumen → Pedidos el original sale tachado y con la etiqueta «Corregido», no «Anulado» (decisiones 70 y 71). `replacesOrderId` solo existe en los pedidos que corrigen a otro.
 
 `unvoidOrder(id)` deshace una anulación (quita `voidedAt` y el motivo) sin tocar hora, líneas ni propina. Es lo que hay detrás del «Deshacer» de anular y del de corregir.
+
+### 2.6 Recetas clásicas por método (`Metodo`, 07/09/2026)
+
+Cada bebida declara **cómo se extrae** (`method`) y **cuánto se sirve**
+(`servingMl`). Cada método conoce su relación clásica entre gramos de materia y
+mililitros de líquido, en `RATIOS_CLASICOS`:
+
+| Método | Ratio | Materia | Líquido | Lectura |
+|---|---|---|---|---|
+| `espresso` | 1:2 | cafe | agua | 18 g → 36 ml en la taza |
+| `filtro` | 1:16 | cafe | agua | 60 g/L; una taza de 200 ml pide 12,5 g |
+| `cold_brew` | 1:10 | cafe | agua | 1 g por cada 10 ml de bebida |
+| `infusion` | 1:100 | te_hoja | agua | 2 g de hoja por 200 ml |
+| `batido` | 1:80 | matcha | leche | 2,5 g por 200 ml de leche |
+| `sin_extraccion` | — | — | — | agua, refrescos, latas: no hay extracción |
+
+**El principio que manda: ningún ratio reescribe una receta por su cuenta.** Los
+costes del escandallo están medidos y no los pisa una relación teórica. El ratio
+calcula, compara y **avisa**; aplicar el cambio es siempre un toque de Nicolas.
+Los ratios se editan en Ajustes → Métodos y ratios (§3.6) y se guardan en
+`settings.ratios`; cambiar uno no toca ninguna receta.
+
+El ratio se aplica **a la extracción, no al vaso entero**. Un cortado de 156 ml
+con 120 ml de leche extrae 36 ml, así que pide 18 g, no 78. La cuenta:
+
+- `volumenExtraidoObjetivo` = `servingMl` menos los líquidos de la receta,
+  salvo en `infusion` y `batido`, donde el líquido **es** la receta.
+- `volumenServido` = líquidos de la receta más la extracción cuando esta no
+  está escrita en la receta. El hielo no cuenta: va en gramos.
+- `aguaDeExtraccion` = lo que consume prepararla. No se añade a la receta.
+
+`revisarReceta(product, ingredients, ratios)` devuelve avisos tipados:
+
+| Tipo | Cuándo | Arreglo |
+|---|---|---|
+| `dosis-fuera-de-ratio` | la dosis se aparta más de un **10 %** (`TOLERANCIA_DOSIS`) de la que pide el ratio | «Usar el ratio»: cambia la dosis del insumo base y **nada más** |
+| `no-cabe-en-el-vaso` | el volumen servido supera la `capacityMl` del vaso de la receta | ninguno: se lee y ya |
+| `sin-metodo` / `sin-volumen` | falta declararlos | ninguno |
+| `insumo-sin-costear` | la receta lleva un insumo a 0 € | ninguno; se arregla en Insumos |
+
+Las dosis se redondean a media unidad (`REDONDEO_DOSIS_G`): es lo que da la
+báscula de la barra.
+
+Al **crear una bebida** se elige método y volumen y `recetaPropuesta` propone la
+receta: dosis por ratio, el líquido cuando el método lo escribe, el hielo del
+método, el vaso más pequeño en el que quepa —el cold brew va siempre al frío— y
+el menaje. En cuanto se toca la receta, manda la de Nicolas. La vía sigue al
+método por lo mismo, y también hasta que se toque.
+
+`lotePara(metodo, litros, ratios)` devuelve `{cafeG, aguaL}` para los lotes de
+§2.4: `lotePara('filtro', 4)` son 250 g de café y 4 L de agua.
 
 ## 3. Pantallas y flujos
 
@@ -183,8 +249,9 @@ Botón «Cerrar evento». Un evento cerrado se puede **Reabrir** desde su detall
 - **Exportar**: CSV de pedidos (una fila por línea), CSV de consumos por evento, JSON completo (copia de seguridad). **Importar** JSON (fusiona por uuid, no duplica). En iPad, exportar usa `navigator.share` con archivo si está disponible; si no, descarga.
 
 ### 3.6 Ajustes
-- **Carta**: lista de productos por categoría, activar/desactivar, editar nombre corto, precio (con etiqueta «provisional»), receta (insumo + cantidad), modificadores admitidos, orden. Crear producto nuevo. Crear modificador nuevo dentro de un grupo.
+- **Carta**: lista de productos por categoría, activar/desactivar, editar nombre corto, precio (con etiqueta «provisional»), receta (insumo + cantidad), modificadores admitidos, orden. Crear producto nuevo. Crear modificador nuevo dentro de un grupo. Al editar una bebida, encima de la receta hay un bloque **«Preparación»** con el método, el volumen servido, la lectura del ratio («Ratio 1:16 · 200 ml piden 12,5 g de café · agua de extracción 192 ml») y los avisos de §2.6, cada uno con su **«Usar el ratio»** cuando tenga arreglo. En la lista, las bebidas con avisos llevan una marca discreta **«revisar»** en ámbar (≥ 15 px, nunca un número en rojo) y la cabecera cuenta cuántas son.
 - **Insumos**: coste unitario, origen del dato (medido / estimado / sin costear), seguimiento de stock sí/no.
+- **Métodos y ratios** (`/ajustes/ratios`): los seis métodos de §2.6 con su ratio editable («1 g de café por ___ ml»), la lectura en cristiano de cada uno («18 g de café dan 36 ml de espresso en la taza») y **«Restaurar los clásicos»**. Una línea de ayuda arriba: cambiar un ratio no reescribe ninguna receta; solo cambia lo que la app compara y lo que propone.
 - **Dispositivo**: nombre del dispositivo (para `deviceId`), estado de almacenamiento persistente, versión de la app, botón «Copia de seguridad ahora».
 
 ## 4. Cálculos (funciones puras, con tests)
@@ -193,7 +260,9 @@ Botón «Cerrar evento». Un evento cerrado se puede **Reabrir** desde su detall
 - `eventConsumption(orders) → {ingredientId: qty}` (excluye anulados)
 - `eventStats(event, orders, products) → {served, byProduct, byCategory, byMilk, perHalfHour[], lastHourRate, peakRate15, costTheoretical, revenue, tips, drinksPerGuest}`
 - `closeStats(event, orders, ingredients) → {realConsumption, deviationPct, costReal, costPerDrink, wastePct}`
-- `loadSuggestion(guests, drinksPerGuest) → {ingredientId: qty}`
+- `loadSuggestion(guests, drinksPerGuest, cafeDeLotesG) → {ingredientId: qty}`
+- `dosisPara(metodo, volumenMl, ratios)` · `volumenPara(metodo, dosisG, ratios)` · `lotePara(metodo, litros, ratios)` (§2.6)
+- `volumenServido(product, ingredients, ratios)` · `aguaDeExtraccion(product, ratios)` · `revisarReceta(product, ingredients, ratios)` · `recetaPropuesta(metodo, volumenMl, ingredients, ratios)`
 - `formatMoney`, `formatQty` (es-ES, coma decimal, «3,25 kg», «17,5 L», «180 ud»)
 
 ## 5. Técnica
@@ -202,7 +271,7 @@ Botón «Cerrar evento». Un evento cerrado se puede **Reabrir** desde su detall
 - `navigator.storage.persist()` al arrancar; mostrar en Ajustes si se concedió.
 - iOS: `apple-mobile-web-app-capable`, `apple-touch-icon` 180 px, `viewport-fit=cover`, `env(safe-area-inset-*)`, `touch-action: manipulation`, `-webkit-tap-highlight-color: transparent`, `user-select: none` en tiles y chips, evitar zoom por doble toque, inputs numéricos con `inputmode="decimal"` y ≥ 16 px para que Safari no haga zoom.
 - Tests: vitest para el dominio (cálculos) y para la capa de datos con `fake-indexeddb`.
-- Rutas: `/` eventos · `/evento/nuevo` · `/evento/:id` (barra si live, detalle si no) · `/evento/:id/resumen` · `/evento/:id/cerrar` · `/panel` · `/ajustes` (+ `/ajustes/carta`, `/ajustes/insumos`).
+- Rutas: `/` eventos · `/evento/nuevo` · `/evento/:id` (barra si live, detalle si no) · `/evento/:id/resumen` · `/evento/:id/cerrar` · `/panel` · `/ajustes` (+ `/ajustes/carta`, `/ajustes/insumos`, `/ajustes/ratios`).
 - Idioma: castellano, formato es-ES, 24 h. Sin i18n.
 - Sin backend en v1. **v2** (documentada en `docs/SYNC.md`, no construida): Supabase con tablas espejo `events/orders` y `merge` por uuid; el modelo append-only de v1 ya lo permite.
 
