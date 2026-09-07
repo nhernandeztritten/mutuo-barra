@@ -26,8 +26,8 @@ import {
   TicketHoja,
   TicketPanel,
   type PaymentResult,
-  type RecentDrink,
 } from '../ui/barra-parts';
+import { ultimosPedidos, type UltimoPedido } from '../ui/ultimos';
 import { categoriasDe, ordenarTiles } from '../ui/orden';
 import { Pasos } from '../ui/pasos';
 import { ResumenContenido } from './resumen';
@@ -69,6 +69,9 @@ const FLASH_MS = 400;
 
 const SERVE_FADE_MS = 180;
 
+/** El fundido de la fila que se acaba de repetir. Sin ventanas emergentes. */
+const REPEAT_FLASH_MS = 600;
+
 export function Barra() {
   const route = useIr();
   const { params } = useRoute();
@@ -102,7 +105,10 @@ export function Barra() {
   const [sheetOpen, setSheetOpen] = useState(false);
   /** Categoría resaltada tras tocar la leyenda, cuando el grid cabe entero. */
   const [flash, setFlash] = useState<Category | null>(null);
-  const [resumenOpen, setResumenOpen] = useState(false);
+  /** La hoja de Resumen. `'pedidos'` la abre directamente en su lista de pedidos. */
+  const [resumenOpen, setResumenOpen] = useState<'todo' | 'pedidos' | null>(null);
+  /** El pedido que se acaba de repetir, para el fundido de su fila. */
+  const [repetido, setRepetido] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -384,15 +390,57 @@ export function Barra() {
   const cafePct = stockCafe > 0 ? (remainingCafe / stockCafe) * 100 : 0;
   const meterState = cafePct < 10 ? 'danger' : cafePct < 25 ? 'warn' : 'ok';
 
-  const recent: RecentDrink[] = orders
-    .filter((o) => o.voidedAt === null)
-    .slice(-5)
-    .reverse()
-    .map((o) => ({
-      id: o.id,
-      label: o.lines.map((l) => `${l.qty > 1 ? `${l.qty} × ` : ''}${l.productName}`).join(', '),
-      servedAt: o.servedAt,
-    }));
+  const ultimos = ultimosPedidos(orders);
+
+  /**
+   * Reconstruye las líneas de un pedido servido para volver a pedirlo.
+   *
+   * Se recalculan la receta, el coste y el precio con la carta de **ahora**:
+   * repetir es pedir lo mismo otra vez, no clonar un cobro antiguo. Si una
+   * bebida ya no está activa en la carta, esa línea se cae; el pedido se repite
+   * con lo que quede y, si no queda nada, se avisa y no pasa nada más.
+   */
+  function lineasDe(pedidoId: string): TicketLine[] {
+    const order = orders.find((o) => o.id === pedidoId);
+    if (!order) return [];
+    const out: TicketLine[] = [];
+    for (const l of order.lines) {
+      const product = products.find((p) => p.id === l.productId);
+      if (!product) continue;
+      const { line } = buildLine(
+        product,
+        optionsOf(l.modifiers.map((m) => m.optionId)),
+        ingredients.value,
+        modifierGroups.value,
+        l.note,
+      );
+      out.push({ ...line, qty: l.qty });
+    }
+    return out;
+  }
+
+  /**
+   * «Repetir». En modo normal las líneas caen en el pedido actual y se agrupan
+   * con lo que ya hubiera; en Rápido se sirven al momento, con su «Deshacer»,
+   * porque en ese modo no hay pedido en el que dejarlas.
+   */
+  function onRepetir(pedido: UltimoPedido): void {
+    const nuevas = lineasDe(pedido.id);
+    if (nuevas.length === 0) {
+      showToast('Esa bebida ya no está en la carta');
+      return;
+    }
+    setRepetido(pedido.id);
+    later(() => setRepetido((prev) => (prev === pedido.id ? null : prev)), REPEAT_FLASH_MS);
+
+    if (oneTap.value) {
+      void serve(nuevas, null);
+      return;
+    }
+    let ultimo: string | null = null;
+    for (const line of nuevas) ultimo = addLine(line);
+    setCurrentLineId(ultimo);
+  }
 
   const editingProduct = editing ? products.find((p) => p.id === editing.productId) : undefined;
   const drinks = ticketDrinks(lines);
@@ -424,7 +472,10 @@ export function Barra() {
     displayLines: serving && lines.length === 0 ? fading : lines,
     mode: event.mode,
     oneTap: oneTap.value,
-    recent,
+    ultimos,
+    repetido,
+    onRepetir,
+    onVerTodos: () => setResumenOpen('pedidos'),
     serving,
     currentLineId: currentLine?.id ?? null,
     onSelect: (line: TicketLine) => setCurrentLineId(line.id),
@@ -514,7 +565,7 @@ export function Barra() {
             )}{' '}
             Noche
           </button>
-          <Button onClick={() => setResumenOpen(true)}>Resumen</Button>
+          <Button onClick={() => setResumenOpen('todo')}>Resumen</Button>
           <Button class="barra__cerrar" onClick={() => route(`/evento/${event.id}/cerrar`)}>
             Cerrar barra
           </Button>
@@ -598,7 +649,12 @@ export function Barra() {
       ) : null}
 
       {resumenOpen ? (
-        <Sheet title="Resumen" wide onClose={() => setResumenOpen(false)}>
+        <Sheet
+          title="Resumen"
+          wide
+          onClose={() => setResumenOpen(null)}
+          {...(resumenOpen === 'pedidos' ? { anclaId: 'resumen-pedidos' } : {})}
+        >
           <ResumenContenido event={event} orders={orders} onOrdersChange={setOrders} />
         </Sheet>
       ) : null}
