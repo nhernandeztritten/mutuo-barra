@@ -129,15 +129,6 @@ function anularDe(index = 0): HTMLButtonElement {
   return accionDe('.ultimos__anular', index);
 }
 
-/** Los chips de motivo que salen al tocar «Anular», por su texto. */
-function chipMotivo(texto: string): HTMLButtonElement {
-  const found = [...document.querySelectorAll<HTMLButtonElement>('.ultimos .chip--mini')].find(
-    (el) => el.textContent?.trim() === texto,
-  );
-  if (!found) throw new Error(`No hay chip de motivo «${texto}»`);
-  return found;
-}
-
 /** La cabecera del ticket: dice si se está montando un pedido o corrigiendo uno. */
 function cabeceraTicket(): string {
   return document.querySelector('.barra__cols .ticket__head')?.textContent?.trim() ?? '';
@@ -839,22 +830,7 @@ describe('desplegar un pedido para verlo entero', () => {
 });
 
 describe('anular un pedido desde su fila', () => {
-  it('pregunta el motivo en línea, sin ventana emergente', async () => {
-    await setupBar();
-    fireEvent.click(tile('Cortado'));
-    await servirYEsperar(1);
-    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
-
-    fireEvent.click(anularDe());
-    await waitFor(() => expect(document.querySelector('.ultimos .chip--mini')).not.toBeNull());
-    const motivos = [...document.querySelectorAll('.ultimos .chip--mini')].map((el) =>
-      el.textContent?.trim(),
-    );
-    expect(motivos).toEqual(['Error', 'Devuelto', 'Otro', 'Cancelar']);
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('elegir «Error» lo saca de la lista y baja el contador', async () => {
+  it('anula de un toque, sin preguntar el motivo', async () => {
     const eventId = await setupBar();
     fireEvent.click(tile('Latte'));
     await servirYEsperar(1);
@@ -863,17 +839,20 @@ describe('anular un pedido desde su fila', () => {
     await waitFor(() => expect(ultimosFilas()).toHaveLength(2));
 
     fireEvent.click(anularDe(0)); // el Espresso, el más nuevo
-    fireEvent.click(chipMotivo('Error'));
+
+    // Ni chips de motivo ni ventana emergente: se anula y ya está.
+    expect(document.querySelector('.ultimos .chip--mini')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     await waitFor(() => expect(servedCount()).toBe('1'));
     await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
     expect(ultimosFrases()).toEqual(['Latte']);
 
-    // Nada se borra: la fila sigue en la base, anulada con su motivo.
+    // Nada se borra: la fila sigue en la base, anulada.
     const orders = await listOrders(eventId);
     expect(orders).toHaveLength(2);
     const anulado = orders.find((o) => o.voidedAt !== null);
-    expect(anulado?.voidReason).toBe('error');
+    expect(anulado?.voidReason).toBe('anulado');
   });
 
   it('«Deshacer» del aviso lo devuelve a la lista', async () => {
@@ -883,7 +862,6 @@ describe('anular un pedido desde su fila', () => {
     await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
 
     fireEvent.click(anularDe());
-    fireEvent.click(chipMotivo('Error'));
     await waitFor(() => expect(ultimosFilas()).toHaveLength(0));
     await waitFor(() => expect(ultimoToast()).toContain('Pedido anulado'));
     expect(ultimoToast()).toContain('Deshacer');
@@ -892,21 +870,6 @@ describe('anular un pedido desde su fila', () => {
     await waitFor(() => expect(servedCount()).toBe('1'));
     await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
     expect(ultimosFrases()).toEqual(['Latte']);
-  });
-
-  it('«Cancelar» deja el pedido como estaba', async () => {
-    await setupBar();
-    fireEvent.click(tile('Latte'));
-    await servirYEsperar(1);
-    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
-
-    fireEvent.click(anularDe());
-    await waitFor(() => expect(document.querySelector('.ultimos .chip--mini')).not.toBeNull());
-    fireEvent.click(chipMotivo('Cancelar'));
-
-    await waitFor(() => expect(document.querySelector('.ultimos .chip--mini')).toBeNull());
-    expect(ultimosFilas()).toHaveLength(1);
-    expect(servedCount()).toBe('1');
   });
 });
 

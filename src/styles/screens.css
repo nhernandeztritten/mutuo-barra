@@ -1785,18 +1785,6 @@
   font-weight: 400;
 }
 
-.pedido__motivos {
-  display: flex;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-}
-
-.chip--mini {
-  min-height: var(--h-step);
-  padding: 0 var(--s-3);
-  font-size: var(--fs-meta);
-}
-
 /* ---------- Recuento del cierre ---------- */
 
 .recuento {

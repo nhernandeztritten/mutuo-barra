@@ -890,3 +890,22 @@ Corrigiendo, el botón grande sigue diciendo **«Servir 1 bebida»** / «Cobrar
 una bebida más y el contador **no se mueve** al pulsarlo, porque el pedido
 sustituye a otro. Si en la boda confunde, decirlo: cambiarlo a «Guardar la
 corrección» es una línea.
+
+### 79. Anular es un toque: se quita el motivo (07/09/2026)
+
+Decisión de Nicolas al probar la barra. Anular preguntaba el motivo con cuatro
+chips (Error · Devuelto · Otro · Cancelar) antes de hacer nada.
+
+Con cola delante, elegir entre tres motivos cuesta más que el error que
+pretendía documentar, y el dato no se usaba en ningún informe: el Resumen solo
+lo mostraba junto a «Anulado». Ahora **«Anular» anula al instante** y el aviso
+ofrece «Deshacer» durante ocho segundos, que es la salida real de un toque
+equivocado; desde el Resumen también se puede recuperar más tarde.
+
+Lo que se guarda no cambia: `voidedAt` y `voidReason: 'anulado'` (constante
+`VOID_MANUAL`). Nada se borra. `editado` y `deshacer` siguen distinguiéndose,
+porque los pone la app y sirven para no llamar «Anulado» a un pedido corregido.
+
+Descartado: dejar los motivos solo en el Resumen (dos comportamientos distintos
+para el mismo botón) y un «¿Seguro?» (lo prohíbe `DESIGN.md`: deshacer, no
+confirmar).

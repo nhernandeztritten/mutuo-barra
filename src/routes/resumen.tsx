@@ -22,7 +22,7 @@ import { useIr } from '../ui/navegar';
 import { BarraApilada, BarrasHorizontales, Columnas, Grafico, Medidor } from '../ui/graficos';
 import { Pasos } from '../ui/pasos';
 import { PAGO_LABEL } from '../ui/etiquetas';
-import { ChipsMotivo, etiquetaDeAnulacion } from '../ui/motivos';
+import { VOID_MANUAL, etiquetaDeAnulacion } from '../ui/motivos';
 import { Cifra, Fila } from '../ui/piezas';
 import { eventById, ingredients, products } from '../ui/store';
 import { showToast } from '../ui/toast';
@@ -49,7 +49,6 @@ export function ResumenContenido({
   orders: Order[];
   onOrdersChange: (orders: Order[]) => void;
 }) {
-  const [anulando, setAnulando] = useState<string | null>(null);
 
   const stats = eventStats(event, orders, products.value);
   const consumo = eventConsumption(orders);
@@ -97,7 +96,6 @@ export function ResumenContenido({
   async function anular(orderId: string, motivo: string): Promise<void> {
     await voidOrder(orderId, motivo);
     onOrdersChange(await listOrders(event.id));
-    setAnulando(null);
     showToast('Pedido anulado');
   }
 
@@ -228,13 +226,8 @@ export function ResumenContenido({
                         : `${formatMoney(order.total)}${order.payment ? ` · ${PAGO_LABEL[order.payment] ?? ''}` : ''}`}
                     </span>
                   ) : null}
-                  {anulado ? null : anulando === order.id ? (
-                    <ChipsMotivo
-                      onElegir={(motivoId) => void anular(order.id, motivoId)}
-                      onCancelar={() => setAnulando(null)}
-                    />
-                  ) : (
-                    <Button variant="ghost" onClick={() => setAnulando(order.id)}>
+                  {anulado ? null : (
+                    <Button variant="ghost" onClick={() => void anular(order.id, VOID_MANUAL)}>
                       Anular
                     </Button>
                   )}

@@ -17,7 +17,7 @@ import type {
 } from '../data/types';
 import { Button, Chip, Sheet, useHoja } from './components';
 import { CHIP_LABEL, PAGO_LABEL } from './etiquetas';
-import { ChipsMotivo } from './motivos';
+import { VOID_MANUAL } from './motivos';
 import { fraseDePartes, haceTexto, type UltimoPedido } from './ultimos';
 import {
   isOptionActive,
@@ -230,15 +230,7 @@ export function UltimosPedidos({
   onAnular,
   onVerTodos,
 }: UltimosPedidosProps) {
-  /** Qué fila está preguntando el motivo de la anulación. */
-  const [anulando, setAnulando] = useState<string | null>(null);
   const listaRef = useRef<HTMLDivElement>(null);
-
-  // Cerrar la fila cancela la pregunta: si no, al volver a abrirla saldrían los
-  // chips de motivo como si el barista acabara de tocar «Anular».
-  useEffect(() => {
-    setAnulando(null);
-  }, [abierto]);
 
   // La fila que se abre tiene que quedar a la vista, sin arrastrar la página:
   // `nearest` desplaza lo justo dentro de la lista y no toca nada más.
@@ -346,44 +338,33 @@ export function UltimosPedidos({
                         </p>
                       ) : null}
 
-                      {anulando === pedido.id ? (
-                        <ChipsMotivo
-                          etiqueta={`Motivo de la anulación de ${frase}`}
-                          onElegir={(motivoId) => {
-                            setAnulando(null);
-                            onAnular?.(pedido, motivoId);
-                          }}
-                          onCancelar={() => setAnulando(null)}
-                        />
-                      ) : (
-                        <div class="ultimos__acciones">
-                          <Button
-                            class="ultimos__repetir"
-                            aria-label={`Repetir ${frase}`}
-                            onClick={() => onRepetir(pedido)}
-                          >
-                            Repetir
-                          </Button>
-                          <Button
-                            class="ultimos__editar"
-                            disabled={!puedeEditar}
-                            {...(puedeEditar ? {} : { title: EDITAR_BLOQUEADO })}
-                            aria-label={`Editar ${frase}`}
-                            onClick={() => onEditar?.(pedido)}
-                          >
-                            Editar
-                          </Button>
-                          <span class="spacer" />
-                          <Button
-                            variant="ghost"
-                            class="ultimos__anular"
-                            aria-label={`Anular ${frase}`}
-                            onClick={() => setAnulando(pedido.id)}
-                          >
-                            Anular
-                          </Button>
-                        </div>
-                      )}
+                      <div class="ultimos__acciones">
+                        <Button
+                          class="ultimos__repetir"
+                          aria-label={`Repetir ${frase}`}
+                          onClick={() => onRepetir(pedido)}
+                        >
+                          Repetir
+                        </Button>
+                        <Button
+                          class="ultimos__editar"
+                          disabled={!puedeEditar}
+                          {...(puedeEditar ? {} : { title: EDITAR_BLOQUEADO })}
+                          aria-label={`Editar ${frase}`}
+                          onClick={() => onEditar?.(pedido)}
+                        >
+                          Editar
+                        </Button>
+                        <span class="spacer" />
+                        <Button
+                          variant="ghost"
+                          class="ultimos__anular"
+                          aria-label={`Anular ${frase}`}
+                          onClick={() => onAnular?.(pedido, VOID_MANUAL)}
+                        >
+                          Anular
+                        </Button>
+                      </div>
 
                       {puedeEditar ? null : (
                         <p class="ultimos__aviso">{EDITAR_BLOQUEADO}</p>
