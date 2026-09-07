@@ -10,12 +10,12 @@
  * 3. Con la red cortada: recarga, crea un evento, abre la barra y sirve.
  * 4. `navigator.storage.persisted()` contesta y Ajustes enseña lo mismo.
  *
- * Guarda las capturas de la prueba en `docs/capturas/fase-4/`.
+ * Guarda las capturas de la prueba en `docs/capturas/fase-5/`.
  */
 import { mkdirSync } from 'node:fs';
 import { BASE, HORIZONTAL, abrirBarra, abrirNavegador, crearEvento, irA } from './lib/recorrido.mjs';
 
-const CAPTURAS = 'docs/capturas/fase-4';
+const CAPTURAS = 'docs/capturas/fase-5';
 mkdirSync(CAPTURAS, { recursive: true });
 
 const fallos = [];
@@ -101,7 +101,7 @@ linea(
   noche.tema === 'night' && noche.themeColor === '#1c1c1b',
   `theme-color en noche: ${noche.themeColor}`,
 );
-await page.screenshot({ path: `${CAPTURAS}/40-ajustes-en-noche.png` });
+await page.screenshot({ path: `${CAPTURAS}/30-ajustes-en-noche.png` });
 
 // La sección de instalación, a la que lleva «Cómo hacerlo» del aviso de Eventos.
 await irA(page, '/ajustes#instalar');
@@ -112,7 +112,7 @@ const scrolled = await page.evaluate(() => {
   return el && main ? el.getBoundingClientRect().top < main.getBoundingClientRect().bottom : false;
 });
 linea(scrolled, '«/ajustes#instalar» deja la sección de instalación a la vista');
-await page.screenshot({ path: `${CAPTURAS}/45-ajustes-instalar-en-el-ipad.png` });
+await page.screenshot({ path: `${CAPTURAS}/35-ajustes-instalar-en-el-ipad.png` });
 
 // Y vuelta a claro para el resto de la prueba.
 await page.evaluate(() => {
@@ -166,7 +166,7 @@ linea(
   (await page.locator('h1.display').first().textContent()) === 'Eventos',
   'la app carga sin red y enseña Eventos',
 );
-await page.screenshot({ path: `${CAPTURAS}/41-sin-red-carga-la-app.png` });
+await page.screenshot({ path: `${CAPTURAS}/31-sin-red-carga-la-app.png` });
 
 await crearEvento(page, { nombre: 'Boda sin red', invitados: '90' });
 linea(
@@ -176,7 +176,7 @@ linea(
 
 await abrirBarra(page);
 linea((await page.locator('.tile-grid .tile').count()) === 14, 'sin red se abre la barra entera');
-await page.screenshot({ path: `${CAPTURAS}/42-sin-red-barra-abierta.png` });
+await page.screenshot({ path: `${CAPTURAS}/32-sin-red-barra-abierta.png` });
 
 await page.locator('.tile-grid .tile', { hasText: /^Cortado/ }).first().click();
 await page.locator('.tile-grid .tile', { hasText: /^Latte/ }).first().click();
@@ -184,7 +184,7 @@ await page.locator('.ticket .btn--action').click();
 await page.waitForTimeout(600);
 const servidas = await page.locator('.barra__count-value').textContent();
 linea(servidas?.trim() === '2', `sin red se sirven bebidas y el contador dice ${servidas?.trim()}`);
-await page.screenshot({ path: `${CAPTURAS}/43-sin-red-dos-bebidas-servidas.png` });
+await page.screenshot({ path: `${CAPTURAS}/33-sin-red-dos-bebidas-servidas.png` });
 
 // Y sobreviven a una recarga con la red todavía cortada.
 await page.reload({ waitUntil: 'load' });
@@ -195,7 +195,7 @@ linea(
   trasRecarga?.trim() === '2',
   `tras recargar sin red las bebidas siguen ahí (${trasRecarga?.trim()})`,
 );
-await page.screenshot({ path: `${CAPTURAS}/44-sin-red-tras-recargar.png` });
+await page.screenshot({ path: `${CAPTURAS}/34-sin-red-tras-recargar.png` });
 
 /* ---------- 5. Vuelta a la red ---------- */
 
