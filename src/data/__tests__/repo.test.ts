@@ -57,7 +57,7 @@ afterEach(async () => {
 
 describe('initDb', () => {
   it('siembra la carta completa la primera vez', async () => {
-    expect(await db.ingredients.count()).toBe(19);
+    expect(await db.ingredients.count()).toBe(20);
     expect(await db.products.count()).toBe(14);
     expect(await db.modifierGroups.count()).toBe(3);
     expect(await db.modifierOptions.count()).toBe(9);
@@ -96,14 +96,14 @@ describe('initDb', () => {
     const before = await getSettings(db);
     await initDb(db);
     await initDb(db);
-    expect(await db.ingredients.count()).toBe(19);
+    expect(await db.ingredients.count()).toBe(20);
     expect(await db.products.count()).toBe(14);
     expect((await getSettings(db)).deviceId).toBe(before.deviceId);
   });
 
   it('los insumos sin costear se quedan a 0 y marcados', async () => {
     const sinCostear = (await db.ingredients.toArray()).filter((i) => i.costSource === 'sin-costear');
-    expect(sinCostear.map((i) => i.id).sort()).toEqual(['licor', 'pajita', 'sirope', 'tonica']);
+    expect(sinCostear.map((i) => i.id).sort()).toEqual(['licor', 'pajita', 'sirope', 'te_hoja', 'tonica']);
     expect(sinCostear.every((i) => i.costPerUnit === 0)).toBe(true);
   });
 
@@ -345,7 +345,7 @@ describe('exportar e importar', () => {
     const first = await importJson(backup, target);
     expect(first.events.added).toBe(1);
     expect(first.orders.added).toBe(1);
-    expect(first.catalog.added).toBe(19 + 14 + 3 + 9);
+    expect(first.catalog.added).toBe(20 + 14 + 3 + 9);
 
     const second = await importJson(backup, target);
     expect(second.events.added).toBe(0);

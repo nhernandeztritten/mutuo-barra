@@ -144,6 +144,7 @@ export interface NewEventInput {
   baristas?: number;
   mode?: EventMode;
   stockStart?: StockMap;
+  lotes?: Event['lotes'];
   notes?: string;
   isDemo?: boolean;
 }
@@ -166,6 +167,7 @@ export async function createEvent(input: NewEventInput, database: BarraDb = db):
     closedAt: null,
     stockStart: input.stockStart ?? {},
     stockEnd: null,
+    lotes: input.lotes ?? {},
     guestsReal: null,
     setupMinutes: null,
     teardownMinutes: null,

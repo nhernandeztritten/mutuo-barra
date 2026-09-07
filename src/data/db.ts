@@ -4,13 +4,17 @@
  */
 import Dexie, { type Table } from 'dexie';
 import {
+  CAPACITY_MIGRATIONS,
   DOSE_MIGRATIONS,
   INGREDIENTS,
+  METHOD_MIGRATIONS,
   MODIFIER_GROUPS,
   MODIFIER_OPTIONS,
   PRODUCTS,
   SEED_VERSION,
   SHORTNAME_MIGRATIONS,
+  TE_HOJA_QTY,
+  TE_RECETA_ANTERIOR,
 } from './seed';
 import { uuid } from './uuid';
 import type {
@@ -72,7 +76,13 @@ export async function getSettings(database: BarraDb = db): Promise<Settings> {
   const found = await database.settings.get('app');
   // Una base de una versión anterior no trae los campos nuevos; se rellenan
   // aquí para que ninguna pantalla tenga que preguntarse si existen.
-  if (found) return { ...found, installHintDismissed: found.installHintDismissed ?? false };
+  if (found) {
+    return {
+      ...found,
+      installHintDismissed: found.installHintDismissed ?? false,
+      ratios: found.ratios ?? {},
+    };
+  }
   const now = new Date().toISOString();
   const fresh: Settings = {
     id: 'app',
@@ -83,6 +93,7 @@ export async function getSettings(database: BarraDb = db): Promise<Settings> {
     persistentStorage: null,
     installHintDismissed: false,
     oneTapMode: false,
+    ratios: {},
     createdAt: now,
     updatedAt: now,
   };
@@ -140,6 +151,7 @@ export async function initDb(database: BarraDb = db): Promise<InitResult> {
   if (!seeded && settings.seedVersion < SEED_VERSION) {
     await migrarNombresCortos(database);
     await migrarDosisDeCafe(database);
+    await migrarMetodosYVolumenes(database);
   }
 
   const persisted = await requestPersistence();
@@ -224,6 +236,49 @@ async function migrarDosisDeCafe(database: BarraDb): Promise<void> {
     );
 
     await database.products.put({ ...product, recipe, allowedModifierGroups });
+  }
+}
+
+/**
+ * Semilla v4: la carta aprende su método de extracción y su volumen servido.
+ *
+ * Esta migración **solo añade metadatos**. No toca ninguna dosis, ningún precio
+ * y ningún modificador: los costes del escandallo (Cortado 0,7428 €, Flat white
+ * 1,277 €…) tienen que salir exactamente iguales antes y después. La única
+ * receta que cambia es la del Té, para meterle la hoja que hasta ahora no
+ * tenía, y solo si sigue siendo la que dejó la semilla.
+ */
+async function migrarMetodosYVolumenes(database: BarraDb): Promise<void> {
+  // 1. Método y volumen servido, sin pisar lo que ya hubiera.
+  for (const cambio of METHOD_MIGRATIONS) {
+    const product = await database.products.get(cambio.id);
+    if (!product) continue;
+    const method = product.method ?? cambio.method;
+    const servingMl = typeof product.servingMl === 'number' ? product.servingMl : cambio.servingMl;
+    if (product.method === method && product.servingMl === servingMl) continue;
+    await database.products.put({ ...product, method, servingMl });
+  }
+
+  // 2. Capacidad de los vasos.
+  for (const cambio of CAPACITY_MIGRATIONS) {
+    const ingredient = await database.ingredients.get(cambio.id);
+    if (!ingredient || typeof ingredient.capacityMl === 'number') continue;
+    await database.ingredients.put({ ...ingredient, capacityMl: cambio.capacityMl });
+  }
+
+  // 3. La hoja de té como insumo, sin costear.
+  const semilla = INGREDIENTS.find((i) => i.id === 'te_hoja');
+  if (semilla && (await database.ingredients.get('te_hoja')) === undefined) {
+    await database.ingredients.put(semilla);
+  }
+
+  // 4. Los 2 g de hoja en la receta del Té, solo si nadie la ha tocado.
+  const te = await database.products.get('te');
+  if (te && mismaReceta(te.recipe, TE_RECETA_ANTERIOR)) {
+    await database.products.put({
+      ...te,
+      recipe: [{ ingredientId: 'te_hoja', qty: TE_HOJA_QTY }, ...te.recipe],
+    });
   }
 }
 

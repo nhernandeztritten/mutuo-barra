@@ -3,10 +3,10 @@
  * Every cost includes VAT. Ingredients with no measured cost carry 0 and
  * `costSource: 'sin-costear'` so Settings can flag them; we never invent a number.
  */
-import type { Ingredient, ModifierGroup, ModifierOption, Product } from './types';
+import type { Ingredient, Metodo, ModifierGroup, ModifierOption, Product } from './types';
 
 /** Bump when the seed content changes so `initDb` can migrate. */
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 
 /**
  * Cambios de la semilla que hay que llevar a una base ya sembrada. Solo se
@@ -64,6 +64,51 @@ export const DOSE_MIGRATIONS: DoseMigration[] = [
   },
 ];
 
+/**
+ * v4 (07/09/2026): la carta aprende las recetas clásicas por método. La
+ * migración **solo añade metadatos** —método, volumen servido, capacidad de los
+ * vasos y el insumo `te_hoja`—; no toca ninguna dosis, ningún precio y ningún
+ * modificador. Los costes del escandallo no se mueven ni un céntimo.
+ */
+export const METHOD_MIGRATIONS: { id: string; method: Metodo; servingMl: number }[] = [
+  { id: 'espresso', method: 'espresso', servingMl: 36 },
+  { id: 'americano', method: 'espresso', servingMl: 222 },
+  { id: 'cortado', method: 'espresso', servingMl: 156 },
+  { id: 'flat_white', method: 'espresso', servingMl: 192 },
+  { id: 'cappuccino', method: 'espresso', servingMl: 166 },
+  { id: 'latte', method: 'espresso', servingMl: 256 },
+  { id: 'filtro', method: 'filtro', servingMl: 200 },
+  { id: 'cold_brew', method: 'cold_brew', servingMl: 125 },
+  { id: 'espresso_tonic', method: 'espresso', servingMl: 236 },
+  { id: 'matcha_latte', method: 'batido', servingMl: 200 },
+  { id: 'cremaet', method: 'espresso', servingMl: 66 },
+  { id: 'carajillo', method: 'espresso', servingMl: 66 },
+  { id: 'te', method: 'infusion', servingMl: 200 },
+  { id: 'agua_botella', method: 'sin_extraccion', servingMl: 250 },
+];
+
+/** Capacidad de los vasos, en ml. Sin esto no se puede avisar de que algo no cabe. */
+export const CAPACITY_MIGRATIONS: { id: string; capacityMl: number }[] = [
+  { id: 'vaso_6', capacityMl: 180 },
+  { id: 'vaso_10', capacityMl: 300 },
+  { id: 'vaso_frio', capacityMl: 425 },
+];
+
+/**
+ * El té no costaba nada porque no tenía insumo: solo agua, vaso y menaje. Se
+ * añade la hoja, sin costear (nadie ha mirado la factura todavía), y se mete en
+ * la receta del Té con los 2 g que pide la infusión a 1:100.
+ *
+ * `recetaAnterior` es el seguro: si la receta guardada ya no es la de la
+ * semilla, Nicolas la editó y no se le toca.
+ */
+export const TE_RECETA_ANTERIOR = [
+  { ingredientId: 'agua', qty: 200 },
+  { ingredientId: 'vaso_10', qty: 1 },
+  { ingredientId: 'menaje', qty: 1 },
+];
+export const TE_HOJA_QTY = 2;
+
 export const INGREDIENTS: Ingredient[] = [
   // --- Cafés ---
   { id: 'cafe', name: 'Café', unit: 'g', stockUnit: 'kg', stockFactor: 1000, costPerUnit: 0.0297, costSource: 'medido', trackStock: true, sortOrder: 10 },
@@ -75,16 +120,19 @@ export const INGREDIENTS: Ingredient[] = [
   { id: 'agua', name: 'Agua filtrada', unit: 'ml', stockUnit: 'L', stockFactor: 1000, costPerUnit: 0.00038, costSource: 'estimado', trackStock: false, sortOrder: 60 },
   { id: 'hielo', name: 'Hielo', unit: 'g', stockUnit: 'kg', stockFactor: 1000, costPerUnit: 0.00035, costSource: 'medido', trackStock: true, sortOrder: 70 },
   { id: 'matcha', name: 'Matcha', unit: 'g', stockUnit: 'g', stockFactor: 1, costPerUnit: 0.0908, costSource: 'medido', trackStock: true, sortOrder: 80 },
-  // --- Vasos y tapas ---
-  { id: 'vaso_6', name: 'Vaso 6 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.062, costSource: 'medido', trackStock: true, sortOrder: 90 },
-  { id: 'vaso_10', name: 'Vaso 10 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.097, costSource: 'medido', trackStock: true, sortOrder: 100 },
-  { id: 'vaso_frio', name: 'Vaso frío 425 ml', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.142, costSource: 'medido', trackStock: true, sortOrder: 110 },
+  // --- Vasos y tapas (`capacityMl`: lo que cabe dentro, para avisar de que algo no cabe) ---
+  { id: 'vaso_6', name: 'Vaso 6 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.062, costSource: 'medido', trackStock: true, sortOrder: 90, capacityMl: 180 },
+  { id: 'vaso_10', name: 'Vaso 10 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.097, costSource: 'medido', trackStock: true, sortOrder: 100, capacityMl: 300 },
+  { id: 'vaso_frio', name: 'Vaso frío 425 ml', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.142, costSource: 'medido', trackStock: true, sortOrder: 110, capacityMl: 425 },
   { id: 'tapa_6', name: 'Tapa 6 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.044, costSource: 'medido', trackStock: true, sortOrder: 120 },
   { id: 'tapa_10', name: 'Tapa 10 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.057, costSource: 'medido', trackStock: true, sortOrder: 130 },
   { id: 'tapa_fria', name: 'Tapa vaso frío', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.121, costSource: 'medido', trackStock: true, sortOrder: 140 },
   // --- Menaje ---
   { id: 'menaje', name: 'Servilleta + removedor + azúcar', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.031, costSource: 'medido', trackStock: false, sortOrder: 150 },
   // --- Sin costear: Nicolas los rellena en Ajustes ---
+  // La hoja de té entra en la v4: hasta ahora un té no costaba nada porque no
+  // tenía insumo ninguno, solo agua y vaso.
+  { id: 'te_hoja', name: 'Hoja de té / infusión', unit: 'g', stockUnit: 'g', stockFactor: 1, costPerUnit: 0, costSource: 'sin-costear', trackStock: true, sortOrder: 155 },
   { id: 'tonica', name: 'Tónica', unit: 'ml', stockUnit: 'L', stockFactor: 1000, costPerUnit: 0, costSource: 'sin-costear', trackStock: true, sortOrder: 160 },
   { id: 'licor', name: 'Licor (cremaet / 43)', unit: 'ml', stockUnit: 'L', stockFactor: 1000, costPerUnit: 0, costSource: 'sin-costear', trackStock: true, sortOrder: 170 },
   { id: 'sirope', name: 'Sirope', unit: 'ml', stockUnit: 'L', stockFactor: 1000, costPerUnit: 0, costSource: 'sin-costear', trackStock: true, sortOrder: 180 },
@@ -103,7 +151,7 @@ export const PRODUCTS: Product[] = [
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
     price: 2.0, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_doble', 'extra_iced', 'extra_tapa'] }],
-    active: true, sortOrder: 10,
+    active: true, sortOrder: 10, method: 'espresso', servingMl: 36,
   },
   {
     // Doble de café por decisión de Nicolas (07/09/2026): ya sale doble, así
@@ -112,14 +160,14 @@ export const PRODUCTS: Product[] = [
     recipe: [{ ingredientId: 'cafe', qty: 36 }, { ingredientId: 'agua', qty: 150 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.5, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_iced', 'extra_tapa'] }],
-    active: true, sortOrder: 20,
+    active: true, sortOrder: 20, method: 'espresso', servingMl: 222,
   },
   {
     id: 'cortado', name: 'Cortado', shortName: 'Cortado', category: 'Con leche', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'leche', qty: 120 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
     price: 2.2, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'leche' }, { groupId: 'cafe' }, { groupId: 'extra' }],
-    active: true, sortOrder: 30,
+    active: true, sortOrder: 30, method: 'espresso', servingMl: 156,
   },
   {
     // Doble de café, como el Americano: sin el modificador «Doble».
@@ -131,77 +179,77 @@ export const PRODUCTS: Product[] = [
       { groupId: 'cafe' },
       { groupId: 'extra', optionIds: ['extra_iced', 'extra_sirope', 'extra_tapa'] },
     ],
-    active: true, sortOrder: 40,
+    active: true, sortOrder: 40, method: 'espresso', servingMl: 192,
   },
   {
     id: 'cappuccino', name: 'Cappuccino', shortName: 'Cappuccino', category: 'Con leche', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'leche', qty: 130 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
     price: 3.0, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'leche' }, { groupId: 'cafe' }, { groupId: 'extra' }],
-    active: true, sortOrder: 50,
+    active: true, sortOrder: 50, method: 'espresso', servingMl: 166,
   },
   {
     id: 'latte', name: 'Latte', shortName: 'Latte', category: 'Con leche', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'leche', qty: 220 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 3.2, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'leche' }, { groupId: 'cafe' }, { groupId: 'extra' }],
-    active: true, sortOrder: 60,
+    active: true, sortOrder: 60, method: 'espresso', servingMl: 256,
   },
   {
     id: 'filtro', name: 'Filtro', shortName: 'Filtro', category: 'Filtro', via: 'lote_caliente',
     recipe: [{ ingredientId: 'cafe', qty: 12 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.8, priceProvisional: true,
     allowedModifierGroups: [EXTRA_TAPA],
-    active: true, sortOrder: 70,
+    active: true, sortOrder: 70, method: 'filtro', servingMl: 200,
   },
   {
     id: 'cold_brew', name: 'Cold brew', shortName: 'Cold brew', category: 'Fríos', via: 'lote_frio',
     recipe: [{ ingredientId: 'cafe', qty: 12.5 }, { ingredientId: 'hielo', qty: 120 }, { ingredientId: 'vaso_frio', qty: 1 }, MENAJE],
     price: 3.5, priceProvisional: true,
     allowedModifierGroups: [EXTRA_TAPA],
-    active: true, sortOrder: 80,
+    active: true, sortOrder: 80, method: 'cold_brew', servingMl: 125,
   },
   {
     id: 'espresso_tonic', name: 'Espresso tonic', shortName: 'Espresso tonic', category: 'Fríos', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'tonica', qty: 200 }, { ingredientId: 'hielo', qty: 120 }, { ingredientId: 'vaso_frio', qty: 1 }, MENAJE],
     price: 3.8, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_doble'] }],
-    active: true, sortOrder: 90,
+    active: true, sortOrder: 90, method: 'espresso', servingMl: 236,
   },
   {
     id: 'matcha_latte', name: 'Matcha latte', shortName: 'Matcha latte', category: 'Fríos', via: 'lote_frio',
     recipe: [{ ingredientId: 'matcha', qty: 2.5 }, { ingredientId: 'leche', qty: 200 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 3.8, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'leche' }, { groupId: 'extra', optionIds: ['extra_iced', 'extra_tapa'] }],
-    active: true, sortOrder: 100,
+    active: true, sortOrder: 100, method: 'batido', servingMl: 200,
   },
   {
     id: 'cremaet', name: 'Cremaet', shortName: 'Cremaet', category: 'Especiales', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'licor', qty: 30 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
     price: 3.5, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'cafe' }],
-    active: true, sortOrder: 110,
+    active: true, sortOrder: 110, method: 'espresso', servingMl: 66,
   },
   {
     id: 'carajillo', name: 'Carajillo', shortName: 'Carajillo', category: 'Especiales', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'licor', qty: 30 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
     price: 3.5, priceProvisional: true,
     allowedModifierGroups: [{ groupId: 'cafe' }],
-    active: true, sortOrder: 120,
+    active: true, sortOrder: 120, method: 'espresso', servingMl: 66,
   },
   {
     id: 'te', name: 'Té / infusión', shortName: 'Té / infusión', category: 'Otros', via: 'lote_caliente',
-    recipe: [{ ingredientId: 'agua', qty: 200 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
+    recipe: [{ ingredientId: 'te_hoja', qty: 2 }, { ingredientId: 'agua', qty: 200 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.0, priceProvisional: true,
     allowedModifierGroups: [EXTRA_TAPA],
-    active: true, sortOrder: 130,
+    active: true, sortOrder: 130, method: 'infusion', servingMl: 200,
   },
   {
     id: 'agua_botella', name: 'Agua', shortName: 'Agua', category: 'Otros', via: 'envasado',
     recipe: [{ ingredientId: 'vaso_10', qty: 1 }, { ingredientId: 'agua', qty: 250 }, MENAJE],
     price: 1.0, priceProvisional: true,
     allowedModifierGroups: [EXTRA_TAPA],
-    active: true, sortOrder: 140,
+    active: true, sortOrder: 140, method: 'sin_extraccion', servingMl: 250,
   },
 ];
 

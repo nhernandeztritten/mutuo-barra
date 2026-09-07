@@ -25,6 +25,11 @@ export interface Ingredient {
   /** Shows up in the load screen and the closing count. */
   trackStock: boolean;
   sortOrder: number;
+  /**
+   * Cuánto cabe dentro, en ml. Solo los vasos lo declaran; sirve para avisar de
+   * que una receta no cabe en su propio vaso (`src/domain/recetas.ts`).
+   */
+  capacityMl?: number;
 }
 
 /* ---------------- Producto ---------------- */
@@ -33,6 +38,20 @@ export interface Ingredient {
 export type Via = 'grupo' | 'lote_caliente' | 'lote_frio' | 'envasado';
 
 export type Category = 'Espresso' | 'Con leche' | 'Filtro' | 'Fríos' | 'Especiales' | 'Otros';
+
+/**
+ * Cómo se extrae la bebida. Cada método tiene una receta clásica —una relación
+ * entre gramos de materia y mililitros de líquido— que la app usa para
+ * **comparar y avisar**, nunca para reescribir una receta por su cuenta
+ * (`src/domain/recetas.ts`).
+ */
+export type Metodo =
+  | 'espresso'
+  | 'filtro'
+  | 'cold_brew'
+  | 'infusion'
+  | 'batido'
+  | 'sin_extraccion';
 
 export interface RecipeItem {
   ingredientId: string;
@@ -63,6 +82,10 @@ export interface Product {
   allowedModifierGroups: AllowedModifierGroup[];
   active: boolean;
   sortOrder: number;
+  /** Cómo se extrae. Solo metadato: no entra en el coste ni en el consumo. */
+  method: Metodo;
+  /** Volumen de bebida servida, en ml, sin contar el hielo. También metadato. */
+  servingMl: number;
 }
 
 /* ---------------- Modificadores ---------------- */
@@ -141,6 +164,12 @@ export interface Event {
   updatedAt: string;
   /** Marks the «Probar con un evento de ejemplo» event. */
   isDemo: boolean;
+  /**
+   * Litros de lote que se van a preparar, por método. Suman al café de la carga
+   * sugerida (SPEC §2.4) y se leen la mañana del evento. Opcional: los eventos
+   * anteriores a la fase 8 no lo traen.
+   */
+  lotes?: { filtro?: number; cold_brew?: number };
 }
 
 /** Alias, because `Event` collides with the DOM global inside UI modules. */
@@ -227,6 +256,12 @@ export interface Settings {
   /** «Ahora no» en el aviso de instalar: no se vuelve a enseñar en Eventos. */
   installHintDismissed: boolean;
   oneTapMode: boolean;
+  /**
+   * Ratios de extracción editados en «Métodos y ratios». Solo los que Nicolas
+   * haya cambiado; los que falten valen los de fábrica (`RATIOS_CLASICOS`).
+   * Cambiar uno **no reescribe ninguna receta**: cambia lo que la app compara.
+   */
+  ratios?: Partial<Record<Metodo, number>>;
   createdAt: string;
   updatedAt: string;
 }
