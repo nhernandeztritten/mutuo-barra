@@ -357,7 +357,7 @@ await page.locator('.recuento__input input').first().fill('2,80');
 await page.waitForTimeout(300);
 const desviacion = await page.locator('.recuento__row').first().locator('.recuento__cell').last().textContent();
 linea(
-  desviacion !== 'sin recuento',
+  desviacion !== 'no contado',
   `al escribir el recuento la fila enseña la desviación: ${desviacion?.trim()}`,
 );
 await page.fill('#ci-invitados', '112');
