@@ -1127,7 +1127,7 @@ describe('editar un pedido ya servido', () => {
     // Un extra sin coste: el total sigue siendo 2,00 €.
     fireEvent.click(extra('Desca'));
     await waitFor(() => expect(rows()[0]?.textContent).toContain('desca'));
-    expect(serveButton().textContent).toContain('Cobrar 2,00 €');
+    expect(serveButton().textContent).toContain('Guardar la corrección · 2,00 €');
 
     fireEvent.click(serveButton());
     // Sin hoja de cobro de por medio: ya estaba cobrado.
@@ -1161,7 +1161,7 @@ describe('editar un pedido ya servido', () => {
     fireEvent.click(editarDe());
     await waitFor(() => expect(rows()).toHaveLength(1));
     fireEvent.click(extra('Avena')); // +0,50 → 3,70
-    await waitFor(() => expect(serveButton().textContent).toContain('Cobrar 3,70 €'));
+    await waitFor(() => expect(serveButton().textContent).toContain('Guardar la corrección · 3,70 €'));
 
     fireEvent.click(serveButton());
     const hoja = await screen.findByRole('dialog');

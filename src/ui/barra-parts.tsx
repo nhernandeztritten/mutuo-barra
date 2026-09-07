@@ -481,8 +481,13 @@ export function TicketPanel({
   const drinks = ticketDrinks(lines);
   const total = ticketTotal(lines);
   const editando = editandoDe !== null;
-  const label =
-    mode === 'venta'
+  // Correcting replaces another order: the counter will not move, so the
+  // button says what really happens instead of «Servir».
+  const label = editando
+    ? mode === 'venta'
+      ? `Guardar la corrección · ${formatMoney(total)}`
+      : 'Guardar la corrección'
+    : mode === 'venta'
       ? `Cobrar ${formatMoney(total)}`
       : `Servir ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`;
   /**
