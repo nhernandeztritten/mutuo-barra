@@ -15,8 +15,16 @@ import type {
   PaymentMethod,
   Product,
 } from '../data/types';
-import { Button, Sheet, useHoja } from './components';
-import { lineContent, replaceLine, ticketDrinks, ticketTotal, type TicketLine } from './ticket';
+import { Button, Chip, Sheet, useHoja } from './components';
+import {
+  isOptionActive,
+  lineContent,
+  replaceLine,
+  ticketDrinks,
+  ticketTotal,
+  toggleOption,
+  type TicketLine,
+} from './ticket';
 
 /** Acento por categoría: punto de 10 px y subrayado de la pestaña. Nunca franjas. */
 export const CATEGORY_COLOR: Record<Category, string> = {
@@ -27,6 +35,143 @@ export const CATEGORY_COLOR: Record<Category, string> = {
   Especiales: 'var(--cat-especiales)',
   Otros: 'var(--cat-otros)',
 };
+
+/**
+ * Etiqueta corta solo en la fila de extras, donde el ancho manda.
+ * «Descafeinado» sigue siendo la palabra completa en la hoja, en el ticket y en
+ * la exportación (decisión 21).
+ */
+export const CHIP_LABEL: Record<string, string> = { cafe_descafeinado: 'Desca' };
+
+/* ================= Fila de extras de la bebida actual ================= */
+
+/** Los grupos que admite un producto, con sus opciones ya filtradas y ordenadas. */
+export function gruposDe(
+  product: Product,
+  groups: ModifierGroup[],
+  options: ModifierOption[],
+): { group: ModifierGroup; options: ModifierOption[] }[] {
+  return product.allowedModifierGroups
+    .map((allowance) => {
+      const group = groups.find((g) => g.id === allowance.groupId);
+      if (!group) return null;
+      const groupOptions = options
+        .filter((o) => o.groupId === group.id)
+        .filter((o) => allowance.optionIds === undefined || allowance.optionIds.includes(o.id));
+      return groupOptions.length > 0 ? { group, options: groupOptions } : null;
+    })
+    .filter((x): x is { group: ModifierGroup; options: ModifierOption[] } => x !== null)
+    .sort((a, b) => a.group.sortOrder - b.group.sortOrder);
+}
+
+export interface ExtrasRowProps {
+  /** La bebida actual: la última tocada. `null` deja la fila en reposo. */
+  actual: { productName: string; optionIds: string[] } | null;
+  /** El producto de esa bebida; sin él no se sabe qué extras admite. */
+  product?: Product | undefined;
+  groups: ModifierGroup[];
+  options: ModifierOption[];
+  /**
+   * Modo Rápido. Cambia lo que dice la fila: ahí el toque ya sirve la bebida y
+   * lo que se está editando es un pedido guardado, no uno en curso.
+   *
+   * Esta explicación vive aquí y no en el subtítulo del interruptor porque en
+   * la cabecera no cabe: el texto largo empujaba «Cerrar barra» fuera de los
+   * 1180 px del iPad.
+   */
+  oneTap?: boolean;
+  /** Texto de ayuda al final de la fila (el modo Rápido lo usa). */
+  ayuda?: string | undefined;
+  onToggle: (option: ModifierOption) => void;
+}
+
+/**
+ * La fila de 56 px, ahora **postfija y contextual**: enseña los extras de la
+ * última bebida tocada, no un prefijo que armar antes.
+ *
+ * Consecuencia buscada: un extra que no aplica ya no se muestra, así que el
+ * barista no puede armar algo que se va a ignorar y la sacudida del chip
+ * sobra. Cada grupo se pinta como lo que es: la leche, opción única en un
+ * segmento; el café, un solo interruptor «Desca»; los extras, interruptores.
+ */
+export function ExtrasRow({
+  actual,
+  product,
+  groups,
+  options,
+  oneTap = false,
+  ayuda,
+  onToggle,
+}: ExtrasRowProps) {
+  const bloques = useMemo(
+    () => (product ? gruposDe(product, groups, options) : []),
+    [product, groups, options],
+  );
+
+  if (!actual || !product) {
+    return (
+      <div class="extras extras--vacia">
+        <p class="extras__pista">
+          {oneTap
+            ? 'Toca una bebida: se sirve al momento y sus extras salen aquí'
+            : 'Toca una bebida; sus extras salen aquí'}
+        </p>
+      </div>
+    );
+  }
+
+  const marcada = (option: ModifierOption): boolean =>
+    isOptionActive(actual.optionIds, option, options);
+
+  return (
+    <div class="extras" role="group" aria-label={`Extras de ${actual.productName}`}>
+      <span class="extras__bebida">{actual.productName}</span>
+      {/* Va pegado al nombre y no al final: la fila se desplaza a lo ancho y
+          cualquier cosa detrás del último extra se sale de la vista. */}
+      {ayuda ? <span class="extras__ayuda">· {ayuda}</span> : null}
+
+      {bloques.map(({ group, options: groupOptions }) => {
+        const porDefecto = groupOptions.filter((o) => o.isDefault);
+        const resto = groupOptions.filter((o) => !o.isDefault);
+
+        // Un grupo de opción única con un solo cambio posible («Normal» o
+        // «Descafeinado») no necesita segmento: es un interruptor.
+        if (group.type === 'single' && porDefecto.length === 1 && resto.length === 1) {
+          const option = resto[0]!;
+          return (
+            <Chip key={option.id} armed={marcada(option)} onClick={() => onToggle(option)}>
+              {CHIP_LABEL[option.id] ?? option.name}
+            </Chip>
+          );
+        }
+
+        if (group.type === 'single') {
+          return (
+            <div class="seg" role="group" aria-label={group.name} key={group.id}>
+              {groupOptions.map((option) => (
+                <button
+                  type="button"
+                  class="seg__opt"
+                  key={option.id}
+                  aria-pressed={marcada(option)}
+                  onClick={() => onToggle(option)}
+                >
+                  {CHIP_LABEL[option.id] ?? option.name}
+                </button>
+              ))}
+            </div>
+          );
+        }
+
+        return groupOptions.map((option) => (
+          <Chip key={option.id} armed={marcada(option)} onClick={() => onToggle(option)}>
+            {CHIP_LABEL[option.id] ?? option.name}
+          </Chip>
+        ));
+      })}
+    </div>
+  );
+}
 
 /* ================= Ticket ================= */
 
@@ -47,6 +192,11 @@ export interface TicketPanelProps {
   sheet?: boolean;
   /** Solo la versión desplegada: la ref que atrapa el foco dentro de la hoja. */
   hojaRef?: RefObject<HTMLElement>;
+  /** La línea cuyos extras enseña la fila de arriba. */
+  currentLineId?: string | null;
+  /** Tocar el nombre de una línea la convierte en la actual. */
+  onSelect: (line: TicketLine) => void;
+  /** «Más»: abre la hoja lateral de esa línea (nota, precio, todos los grupos). */
   onEdit: (line: TicketLine) => void;
   onQty: (lineId: string, qty: number) => void;
   onUndoLast: () => void;
@@ -72,6 +222,8 @@ export function TicketPanel({
   serving,
   sheet = false,
   hojaRef,
+  currentLineId = null,
+  onSelect,
   onEdit,
   onQty,
   onUndoLast,
@@ -124,8 +276,18 @@ export function TicketPanel({
               <p class="ticket__empty">El pedido está vacío.</p>
             ) : (
               shown.map((line) => (
-                <div class="ticket__row" key={line.id}>
-                  <button type="button" class="ticket__name" onClick={() => onEdit(line)}>
+                <div
+                  class={['ticket__row', line.id === currentLineId ? 'is-current' : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  key={line.id}
+                >
+                  <button
+                    type="button"
+                    class="ticket__name"
+                    aria-pressed={line.id === currentLineId}
+                    onClick={() => onSelect(line)}
+                  >
                     <span class="ticket__product">{line.productName}</span>
                     {line.modifiers.length > 0 ? (
                       <span class="ticket__mods">
@@ -153,6 +315,17 @@ export function TicketPanel({
                     onClick={() => onQty(line.id, line.qty + 1)}
                   >
                     <Plus size={20} strokeWidth={1.75} />
+                  </button>
+                  {/* La hoja lateral se abre con un botón, no manteniendo
+                      pulsado: con las manos mojadas y cinco segundos por
+                      interacción, una pulsación larga es una apuesta. */}
+                  <button
+                    type="button"
+                    class="btn btn--mas"
+                    aria-label={`Más opciones de ${line.productName}`}
+                    onClick={() => onEdit(line)}
+                  >
+                    Más
                   </button>
                 </div>
               ))
@@ -182,6 +355,7 @@ export function LineSheet({
   options,
   ingredients,
   onClose,
+  onSaved,
 }: {
   line: TicketLine;
   product: Product;
@@ -189,24 +363,17 @@ export function LineSheet({
   options: ModifierOption[];
   ingredients: Ingredient[];
   onClose: () => void;
+  /** El id de la línea resultante: puede haberse fusionado con otra igual. */
+  onSaved?: (lineId: string | null) => void;
 }) {
   const [selected, setSelected] = useState<string[]>(line.optionIds);
   const [note, setNote] = useState(line.note);
 
   /** Grupos que admite el producto, con sus opciones ya filtradas. */
-  const allowed = useMemo(() => {
-    return product.allowedModifierGroups
-      .map((allowance) => {
-        const group = groups.find((g) => g.id === allowance.groupId);
-        if (!group) return null;
-        const groupOptions = options
-          .filter((o) => o.groupId === group.id)
-          .filter((o) => allowance.optionIds === undefined || allowance.optionIds.includes(o.id));
-        return groupOptions.length > 0 ? { group, options: groupOptions } : null;
-      })
-      .filter((x): x is { group: ModifierGroup; options: ModifierOption[] } => x !== null)
-      .sort((a, b) => a.group.sortOrder - b.group.sortOrder);
-  }, [product.id, groups, options]);
+  const allowed = useMemo(
+    () => gruposDe(product, groups, options),
+    [product, groups, options],
+  );
 
   const selectedOptions = selected
     .map((id) => options.find((o) => o.id === id))
@@ -214,31 +381,26 @@ export function LineSheet({
 
   const preview = applyModifiers(product, selectedOptions, ingredients, groups);
 
-  function toggle(option: ModifierOption, group: ModifierGroup): void {
-    setSelected((prev) => {
-      if (prev.includes(option.id)) return prev.filter((id) => id !== option.id);
-      const cleaned = group.type === 'single'
-        ? prev.filter((id) => options.find((o) => o.id === id)?.groupId !== group.id)
-        : prev;
-      return [...cleaned, option.id];
-    });
+  function toggle(option: ModifierOption): void {
+    setSelected((prev) => toggleOption(prev, option, groups, options));
   }
 
   function save(): void {
+    // Las opciones por defecto no se guardan: si se guardaran, esta línea
+    // dejaría de agruparse con otra idéntica sin «Vaca» marcado.
     const applied = selectedOptions.filter(
-      (o) => !preview.ignored.some((i) => i.optionId === o.id),
+      (o) => !o.isDefault && !preview.ignored.some((i) => i.optionId === o.id),
     );
-    replaceLine(line.id, {
+    const resultId = replaceLine(line.id, {
       ...lineContent(line),
       optionIds: applied.map((o) => o.id),
-      modifiers: applied
-        .filter((o) => !o.isDefault)
-        .map((o) => ({ groupId: o.groupId, optionId: o.id, label: o.name })),
+      modifiers: applied.map((o) => ({ groupId: o.groupId, optionId: o.id, label: o.name })),
       unitPrice: preview.unitPrice,
       unitCost: preview.unitCost,
       usage: preview.usage,
       note: note.trim(),
     });
+    onSaved?.(resultId);
     onClose();
   }
 
@@ -253,8 +415,8 @@ export function LineSheet({
                 type="button"
                 class="opt"
                 key={option.id}
-                aria-pressed={selected.includes(option.id)}
-                onClick={() => toggle(option, group)}
+                aria-pressed={isOptionActive(selected, option, options)}
+                onClick={() => toggle(option)}
               >
                 <span>{option.name}</span>
                 {option.priceDelta !== 0 ? (

@@ -557,3 +557,81 @@ Los modificadores se editan **quitando** la opción de la lista que hubiera, no
 reemplazando la lista entera; si el producto las admitía todas (sin `optionIds`)
 la lista se materializa con las opciones del grupo menos la retirada. Así un
 extra que Nicolas añada por su cuenta sobrevive a la migración.
+
+### 46. Los extras van después de la bebida, y son los de esa bebida
+Los siete chips eran un **prefijo**: se armaban antes de tocar el tile y valían
+para cualquier bebida, así que había que enseñarlos todos aunque cinco no
+aplicaran. De ahí salía la regla 2 de `SPEC §3.2` —la sacudida del chip que no
+aplica—, que es un error que la interfaz provocaba y luego avisaba.
+
+La fila pasa a ser **postfija y contextual**: la misma altura (56 px) y el mismo
+sitio, pero enseña los extras de **la última bebida tocada** y solo los que esa
+bebida admite. Tocar un extra lo pone o lo quita en esa línea del pedido.
+Consecuencias:
+
+- El extra imposible **no existe en pantalla**: Avena no sale en un Espresso,
+  Doble no sale en un Americano. La sacudida y su código desaparecen.
+- Cada grupo se pinta como lo que es, en vez de siete píldoras iguales: `leche`
+  es un segmento de opción única (Vaca · Avena · Sin lactosa) con la activa
+  marcada, `cafe` es un solo interruptor «Desca», `extra` son interruptores.
+- Un cortado con avena **sigue costando dos toques** (`SPEC §1`): antes chip +
+  tile, ahora tile + chip. No se pierde velocidad, se gana no equivocarse.
+- Si al poner un extra la línea coincide con otra igual, se funden. Dos Lattes
+  tocados por separado y avenados uno a uno acaban en una línea de cantidad 2.
+
+**Lo que cuesta**: el extra se aplica a **toda la línea**. Si el barista toca
+Latte dos veces (se agrupan en cantidad 2) y luego pone Avena, las dos llevan
+avena. Para separar una hay que bajar la cantidad y tocar otra vez. La
+alternativa —partir la línea en dos al poner un extra— hacía imposible el caso
+contrario (dos lattes de avena para la misma persona) y dejaba la fila editando
+algo distinto de lo que el barista acababa de tocar. Se elige la regla simple de
+contar: **la fila edita la línea, no la unidad**. Si en la boda estorba, se
+cambia en una función.
+
+Las opciones por defecto (Vaca, Normal) dejan de guardarse en `optionIds`: si se
+guardaran, un Latte con «Vaca» marcado y un Latte sin marcar serían dos líneas
+distintas en el ticket y la misma bebida en el vaso.
+
+### 47. La hoja de una línea se abre con «Más», no con una pulsación larga
+El encargo dejaba elegir entre mantener pulsado ≥ 400 ms o un botón de 44 px.
+Se elige el botón. Motivo de `SPEC §1`: manos mojadas y cinco segundos por
+interacción. Una pulsación larga no se ve, no se aprende sola y compite con el
+toque corto, que ahora hace otra cosa —convertir esa línea en la actual—; medio
+segundo de más o de menos daría una acción distinta. El botón se ve, tiene
+etiqueta («Más», nunca un icono suelto: lo prohíbe `DESIGN.md`) y no depende del
+pulso de nadie.
+
+### 48. La línea actual se marca con fondo, nunca con una franja
+`DESIGN.md` prohíbe las franjas laterales de color. La línea que edita la fila
+lleva fondo `--surface-2` y el nombre en 600, que es el mismo par que ya usa la
+cabecera del ticket.
+
+### 49. En modo Rápido la fila edita el pedido ya guardado
+En Rápido cada toque sirve, así que no hay línea que editar: lo que hay es un
+pedido en Dexie de hace dos segundos. La fila lo sigue editando **mientras vive
+su toast «Deshacer»** (8 s, decisión 32): tocar un extra llama a
+`replaceOrderLines`, que reescribe las líneas conservando `id`, `servedAt`,
+`deviceId` y propina, y recalcula `usage` y `unitCost`.
+
+No rompe el modelo append-only: no se crea otro pedido ni se borra ninguno, y el
+uuid con el que se sincronizará en v2 no cambia. Un pedido **anulado no se
+edita**: lo que se anuló, anulado se queda. Alternativa descartada: anular y
+volver a crear. Habría dejado la mitad de la boda con pedidos anulados por
+«deshacer» que nadie deshizo, y el histórico dejaría de contar lo que pasó.
+
+### 50. La explicación del modo Rápido vive en la fila, no en el subtítulo
+El encargo pedía poner «cada toque sirve; los extras, justo después» en el
+subtítulo del interruptor **si cabía**. Medido a 1180 × 820: no cabe. Con ese
+texto, «Cerrar barra» —la única acción terminal de la barra— se salía del borde
+derecho de la pantalla. Se comprueba en una captura de la fase 5 y el fallo se
+ve a simple vista.
+
+El subtítulo se queda en «cada toque sirve una bebida» y la explicación pasa a
+la fila, que es donde ocurre: con Rápido encendido y nada servido todavía dice
+«Toca una bebida: se sirve al momento y sus extras salen aquí», y con una bebida
+servida enseña «Cortado · servida» seguido de sus extras. El «· servida» va
+pegado al nombre y no al final de la fila porque la fila se desplaza a lo ancho
+y cualquier cosa detrás del último extra se sale de la vista.
+
+`scripts/verifica-ui.mjs` mide ahora que la cabecera cabe entera y que «Cerrar
+barra» no se sale, para que un texto largo no vuelva a comérsela en silencio.

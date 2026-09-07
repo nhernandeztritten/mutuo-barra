@@ -452,20 +452,80 @@
   gap: var(--s-3);
 }
 
-.chips {
+/* Fila de extras de la bebida actual: postfija, no un prefijo que armar.
+   Mide 56 px como los chips que había antes y ocupa el mismo sitio. */
+.extras {
   display: flex;
+  align-items: center;
   gap: var(--s-2);
+  min-height: var(--h-chip);
   overflow-x: auto;
-  padding-block-end: var(--s-1);
   scrollbar-width: none;
 }
 
-.chips::-webkit-scrollbar {
+.extras::-webkit-scrollbar {
   display: none;
 }
 
-.chips .chip {
+.extras > * {
   flex: none;
+}
+
+.extras .chip {
+  /* Con el nombre de la bebida delante caben peor que los siete de antes. */
+  padding-inline: var(--s-4);
+}
+
+.extras__bebida {
+  padding-inline-end: var(--s-1);
+  font-size: var(--fs-row);
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.extras__pista,
+.extras__ayuda {
+  font-size: var(--fs-chip);
+  font-weight: 400;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* Grupo de opción única (la leche): un solo control, tres objetivos de 56 px. */
+.seg {
+  display: inline-flex;
+  align-items: stretch;
+  /* El borde va por fuera de los segmentos: con `min-height` en los hijos, la
+     fila medía 58 px y no los 56 de DESIGN.md. */
+  height: var(--h-chip);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.seg__opt {
+  min-height: 44px;
+  min-width: 56px;
+  padding: 0 var(--s-4);
+  border: 0;
+  border-inline-start: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--fs-chip);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color var(--t-press) var(--ease);
+}
+
+.seg__opt:first-child {
+  border-inline-start: 0;
+}
+
+.seg__opt[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* Leyenda de categorías: ocupa la fila donde estaban las pestañas. Dice qué
@@ -563,8 +623,29 @@
   gap: var(--s-2);
   min-height: var(--h-row);
   padding-block: var(--s-1);
+  padding-inline: var(--s-1);
+  border-radius: var(--r-chip);
   border-block-end: 1px solid var(--line);
   animation: line-in var(--t-enter) var(--ease);
+}
+
+/* La línea actual —la que edita la fila de extras— con fondo, nunca con una
+   franja lateral: DESIGN.md las prohíbe. */
+.ticket__row.is-current {
+  background: var(--surface-2);
+}
+
+.ticket__row.is-current .ticket__product {
+  font-weight: 600;
+}
+
+/* «Más» abre la hoja lateral de esa línea. Con etiqueta, no un icono suelto. */
+.btn--mas {
+  min-width: var(--h-step);
+  min-height: var(--h-step);
+  padding: 0 var(--s-2);
+  font-size: var(--fs-meta);
+  font-weight: 500;
 }
 
 @keyframes line-in {

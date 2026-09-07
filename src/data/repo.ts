@@ -320,6 +320,43 @@ export async function addOrder(input: NewOrderInput, database: BarraDb = db): Pr
   return order;
 }
 
+/**
+ * Reemplaza las líneas de un pedido ya guardado, conservando su id, su hora y
+ * su propina. Es lo que usa la fila de extras en modo Rápido: ahí la bebida se
+ * sirve al tocarla y el extra llega justo después, mientras vive su «Deshacer».
+ *
+ * Sigue siendo append-only en lo que importa: no se crea otro pedido ni se
+ * borra ninguno, así que el uuid con el que se sincronizará en v2 no cambia.
+ * Un pedido anulado no se edita: lo que se anuló, anulado se queda.
+ */
+export async function replaceOrderLines(
+  id: string,
+  lines: NewOrderLine[],
+  database: BarraDb = db,
+): Promise<Order> {
+  const current = await database.orders.get(id);
+  if (!current) throw new Error(`Pedido no encontrado: ${id}`);
+  if (current.voidedAt !== null) return current;
+
+  const next: OrderLine[] = lines.map((line) => ({
+    ...line,
+    id: line.id ?? newId(),
+    note: line.note ?? '',
+  }));
+  const subtotal = round(
+    next.reduce((sum, line) => sum + line.unitPrice * line.qty, 0),
+    2,
+  );
+  const updated: Order = {
+    ...current,
+    lines: next,
+    subtotal,
+    total: round(subtotal + current.tip, 2),
+  };
+  await database.orders.put(updated);
+  return updated;
+}
+
 /** Voids an order. Never deletes: the row stays for the audit trail and the sync. */
 export async function voidOrder(id: string, reason = '', database: BarraDb = db): Promise<Order> {
   const current = await database.orders.get(id);

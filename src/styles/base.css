@@ -228,24 +228,6 @@ table {
   color: var(--accent-ink);
 }
 
-/* Chip que no aplica: sacudida de 2 px, 200 ms. */
-.chip--shake {
-  animation: shake var(--t-shake) var(--ease);
-}
-
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-2px);
-  }
-  75% {
-    transform: translateX(2px);
-  }
-}
-
 /* ---------- Tile de producto ---------- */
 
 .tile {

@@ -107,9 +107,57 @@ export interface BuiltLine {
   ignored: IgnoredModifier[];
 }
 
+/** Contenido de una línea a partir de un producto y unas opciones, sin identidad. */
+export interface BuiltContent {
+  content: LineContent;
+  ignored: IgnoredModifier[];
+}
+
+export type LineContent = Omit<TicketLine, 'id' | 'qty' | 'seq'>;
+
 /**
- * Aplica los modificadores armados sobre el producto y devuelve la línea lista,
- * más las opciones que no se pudieron aplicar (la barra sacude ese chip).
+ * Calcula la receta, el precio y las etiquetas de una bebida con unas opciones.
+ * Es lo que comparten añadir una línea y cambiarle un extra desde la fila.
+ *
+ * Las opciones **por defecto** (Vaca, Normal) no se guardan en `optionIds`: son
+ * un no-op deliberado y, si se guardaran, dos líneas idénticas —una con «Vaca»
+ * marcado y otra sin marcar— dejarían de agruparse aunque en el vaso sean la
+ * misma bebida.
+ */
+export function contentFor(
+  product: Product,
+  options: ModifierOption[],
+  allIngredients: Ingredient[],
+  groups: ModifierGroup[],
+  note = '',
+): BuiltContent {
+  const result = applyModifiers(product, options, allIngredients, groups);
+  const ignoredIds = new Set(result.ignored.map((i) => i.optionId));
+  const applied = options.filter((o) => !ignoredIds.has(o.id) && !o.isDefault);
+  const modifiers: AppliedModifier[] = applied.map((o) => ({
+    groupId: o.groupId,
+    optionId: o.id,
+    label: o.name,
+  }));
+
+  return {
+    content: {
+      productId: product.id,
+      productName: product.name,
+      optionIds: applied.map((o) => o.id),
+      modifiers,
+      unitPrice: result.unitPrice,
+      unitCost: result.unitCost,
+      usage: result.usage,
+      note,
+    },
+    ignored: result.ignored,
+  };
+}
+
+/**
+ * Aplica los modificadores sobre el producto y devuelve la línea lista, más las
+ * opciones que no se pudieron aplicar.
  */
 export function buildLine(
   product: Product,
@@ -118,35 +166,59 @@ export function buildLine(
   groups: ModifierGroup[],
   note = '',
 ): BuiltLine {
-  const result = applyModifiers(product, options, allIngredients, groups);
-  const ignoredIds = new Set(result.ignored.map((i) => i.optionId));
-  const applied = options.filter((o) => !ignoredIds.has(o.id));
-  const modifiers: AppliedModifier[] = applied
-    .filter((o) => !o.isDefault)
-    .map((o) => ({ groupId: o.groupId, optionId: o.id, label: o.name }));
-
+  const { content, ignored } = contentFor(product, options, allIngredients, groups, note);
   return {
-    line: {
-      id: newId(),
-      productId: product.id,
-      productName: product.name,
-      optionIds: applied.map((o) => o.id),
-      modifiers,
-      qty: 1,
-      unitPrice: result.unitPrice,
-      unitCost: result.unitCost,
-      usage: result.usage,
-      note,
-      seq: ++seqCounter,
-    },
-    ignored: result.ignored,
+    line: { ...content, id: newId(), qty: 1, seq: ++seqCounter },
+    ignored,
   };
+}
+
+/**
+ * Enciende o apaga una opción sobre una selección.
+ *
+ * - Un grupo `single` admite una sola opción: encender una apaga la otra.
+ * - La opción por defecto del grupo (Vaca, Normal) **no se guarda**: elegirla es
+ *   dejar el grupo sin ninguna opción marcada, que es exactamente lo mismo.
+ */
+export function toggleOption(
+  optionIds: string[],
+  option: ModifierOption,
+  groups: ModifierGroup[],
+  allOptions: ModifierOption[],
+): string[] {
+  const sinGrupo = optionIds.filter(
+    (id) => allOptions.find((o) => o.id === id)?.groupId !== option.groupId,
+  );
+  if (option.isDefault) return sinGrupo;
+  if (optionIds.includes(option.id)) return optionIds.filter((id) => id !== option.id);
+  const group = groups.find((g) => g.id === option.groupId);
+  const base = group?.type === 'single' ? sinGrupo : optionIds;
+  return [...base, option.id];
+}
+
+/**
+ * Si una opción cuenta como marcada. La opción por defecto de un grupo `single`
+ * está marcada cuando no hay ninguna otra de su grupo: es el estado de reposo.
+ */
+export function isOptionActive(
+  optionIds: string[],
+  option: ModifierOption,
+  allOptions: ModifierOption[],
+): boolean {
+  if (!option.isDefault) return optionIds.includes(option.id);
+  return !optionIds.some((id) => allOptions.find((o) => o.id === id)?.groupId === option.groupId);
 }
 
 /* ---------------- Operaciones ---------------- */
 
-/** Añade una línea; si ya existe la misma bebida con los mismos extras, sube la cantidad. */
-export function addLine(line: TicketLine): void {
+/**
+ * Añade una línea; si ya existe la misma bebida con los mismos extras, sube la
+ * cantidad.
+ *
+ * @returns el id de la línea que queda en el pedido —la nueva, o aquella con la
+ *   que se agrupó—. La fila de extras necesita saber cuál es la bebida actual.
+ */
+export function addLine(line: TicketLine): string {
   const key = lineKey(line);
   const existing = ticket.value.find((l) => lineKey(l) === key);
   if (existing) {
@@ -155,9 +227,10 @@ export function addLine(line: TicketLine): void {
         l.id === existing.id ? { ...l, qty: l.qty + line.qty, seq: line.seq } : l,
       ),
     );
-    return;
+    return existing.id;
   }
   write([...ticket.value, line]);
+  return line.id;
 }
 
 export function setQty(lineId: string, qty: number): void {
@@ -179,10 +252,16 @@ export function undoLast(): void {
 /**
  * Reemplaza los modificadores de una línea. Si el resultado coincide con otra
  * línea ya presente, se fusionan.
+ *
+ * @returns el id de la línea resultante (la fusionada, si hubo fusión), o
+ *   `null` si la línea ya no existía.
  */
-export function replaceLine(lineId: string, next: Omit<TicketLine, 'id' | 'qty' | 'seq'>): void {
+export function replaceLine(
+  lineId: string,
+  next: Omit<TicketLine, 'id' | 'qty' | 'seq'>,
+): string | null {
   const current = ticket.value.find((l) => l.id === lineId);
-  if (!current) return;
+  if (!current) return null;
   const updated: TicketLine = { ...current, ...next, id: current.id, qty: current.qty, seq: current.seq };
   const key = lineKey(updated);
   const twin = ticket.value.find((l) => l.id !== lineId && lineKey(l) === key);
@@ -190,11 +269,21 @@ export function replaceLine(lineId: string, next: Omit<TicketLine, 'id' | 'qty' 
     write(
       ticket.value
         .filter((l) => l.id !== lineId)
+        // El `seq` del superviviente no se toca: sigue siendo el orden de
+        // llegada, que es lo que mira «Deshacer último». Cuál es la bebida
+        // actual lo decide la barra con el id que devuelve esta función.
         .map((l) => (l.id === twin.id ? { ...l, qty: l.qty + updated.qty } : l)),
     );
-    return;
+    return twin.id;
   }
   write(ticket.value.map((l) => (l.id === lineId ? updated : l)));
+  return updated.id;
+}
+
+/** La línea añadida o modificada más recientemente, que es la «bebida actual». */
+export function lastLine(lines: TicketLine[] = ticket.value): TicketLine | null {
+  if (lines.length === 0) return null;
+  return lines.reduce((best, l) => (l.seq > best.seq ? l : best), lines[0]!);
 }
 
 /** Contenido de una línea sin su identidad: lo que `replaceLine` sabe sustituir. */

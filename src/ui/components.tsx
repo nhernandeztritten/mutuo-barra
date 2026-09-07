@@ -19,19 +19,20 @@ export function Button({ variant = 'secondary', action = false, class: cls, ...r
 }
 
 type ChipProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
-  /** Armed chips are violet; they disarm after the drink is added. */
+  /**
+   * Un chip marcado va en violeta. Desde la fase 5 marca un extra **puesto** en
+   * la bebida actual, no uno armado a la espera de una bebida.
+   */
   armed?: boolean;
-  /** Shakes once when the chip does not apply to the product. */
-  shake?: boolean;
 };
 
-export function Chip({ armed = false, shake = false, class: cls, ...rest }: ChipProps) {
+export function Chip({ armed = false, class: cls, ...rest }: ChipProps) {
   return (
     <button
       type="button"
       {...rest}
       aria-pressed={armed}
-      class={['chip', shake ? 'chip--shake' : '', cls ?? ''].filter(Boolean).join(' ')}
+      class={['chip', cls ?? ''].filter(Boolean).join(' ')}
     />
   );
 }

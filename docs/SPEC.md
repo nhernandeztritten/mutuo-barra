@@ -125,10 +125,10 @@ Layout horizontal (1180 × 820 referencia iPad 10.ª gen; también 1024 × 768 y
 ```
 ┌ Cabecera 64 px: MUTUO. · Boda Ana y Marc · 84 servidas · 47/h · café ▮▮▮▯ 62 % · [Resumen] [Pausar] ┐
 ├───────────────────────────────────────────────┬──────────────────────────────┤
-│ Chips rápidos 56 px: Avena · Sin lactosa ·    │ Pedido actual (3)            │
-│   Desca · Doble · Iced · Tapa                 │ ─ Cortado · avena     1 [−+] │
-│ Pestañas categoría 48 px: Espresso · Con      │ ─ Latte               2 [−+] │
-│   leche · Filtro · Fríos · Especiales · Otros │                              │
+│ Extras de la última bebida 56 px:             │ Pedido actual (3)            │
+│   Latte · [Vaca|Avena|Sin lactosa] Desca      │ ─ Cortado · avena     1 [−+] │
+│   Doble Iced Sirope Tapa                      │ ─ Latte               2 [−+] │
+│ Leyenda de categorías 48 px                   │                              │
 │ Grid de tiles (auto-fit, min 150 px, alto 96) │  Deshacer último             │
 │   [Cortado] [Flat white] [Cappuccino] [Latte] │ ┌──────────────────────────┐ │
 │                                               │ │   Servir 3 bebidas       │ │ 72 px
@@ -137,12 +137,12 @@ Layout horizontal (1180 × 820 referencia iPad 10.ª gen; también 1024 × 768 y
 ```
 
 Reglas:
-1. **Tocar un tile añade la bebida al pedido** con los chips armados en ese momento; los chips se desarman tras añadir. Chips armados se muestran en violeta.
-2. Si un chip no aplica al producto (Avena en un Espresso) se ignora y el chip parpadea una vez; sin diálogo.
+1. **Tocar un tile añade la bebida al pedido**, sin modificadores, y esa línea pasa a ser **la bebida actual**.
+2. La fila de 56 px de arriba es **la de los extras de la bebida actual** —postfija, no un prefijo que armar antes (decisión 46)—. Antes de tocar nada dice «Toca una bebida; sus extras salen aquí». Con una bebida actual enseña su nombre y **solo los extras que ese producto admite**, por grupo: `leche` como segmento de opción única (Vaca · Avena · Sin lactosa), `cafe` como interruptor único «Desca», `extra` como interruptores. Tocar uno lo pone o lo quita **en esa línea**; si al hacerlo la línea coincide con otra, se funden. El extra puesto va en violeta. Un extra que no aplica **no se enseña**, así que no hay nada que ignorar ni ningún chip que sacudir.
 3. Misma bebida + mismos modificadores → se agrupa (qty +1).
-4. Tocar el nombre de una línea abre una hoja lateral (no modal centrado) con los grupos de modificadores del producto y una nota; cambiar y cerrar.
-5. **Servir**: guarda el pedido con `servedAt = now`, vacía el pedido, muestra toast «3 bebidas servidas · Deshacer» durante 8 s. Deshacer anula el pedido (voidedAt) y lo devuelve al ticket.
-6. **Modo un toque** (interruptor en cabecera, off por defecto): cada tile registra y sirve una bebida al instante, sin ticket. Para picos. Los chips siguen funcionando como prefijo.
+4. Tocar el nombre de una línea **la convierte en la bebida actual** (se marca con fondo `--surface-2` y el nombre en 600). Su botón **«Más»** (44 px, al final de la fila) abre la hoja lateral (no modal centrado) con los grupos de modificadores del producto y una nota; cambiar y cerrar. La hoja no se abre con una pulsación larga: con las manos mojadas es una apuesta (decisión 47).
+5. **Servir**: guarda el pedido con `servedAt = now`, vacía el pedido y **la fila de extras vuelve al estado vacío**; muestra toast «3 bebidas servidas · Deshacer» durante 8 s. Deshacer anula el pedido (voidedAt) y lo devuelve al ticket. «Deshacer último» quita la última línea y la fila pasa a la anterior.
+6. **Modo Rápido** (interruptor en cabecera, off por defecto): cada tile registra y sirve una bebida al instante, sin ticket. Para picos. La fila de extras edita **la última bebida servida** durante los 8 s que vive su «Deshacer»: tocar un extra reescribe las líneas de ese pedido ya guardado —mismo `id`, `usage` y `unitCost` recalculados— sin crear otro ni anular ninguno. Pasados los 8 s, o si se deshace el pedido, la fila vuelve al estado vacío.
 7. Modo `venta`: los tiles muestran el precio, el botón dice «Cobrar 6,20 €» y abre la hoja de cobro: Efectivo (importes rápidos: exacto, 5, 10, 20 → cambio) · Tarjeta · Bizum · Invitación; propina opcional. Confirmar = servir.
 8. Cabecera: bebidas servidas del evento, ritmo de la última hora (bebidas de la vía `grupo` en los últimos 60 min), barra de café restante (`stockStart.cafe − consumo teórico`) que pasa a ámbar < 25 % y a rojo < 10 %. Si no hay `stockStart.cafe`, la barra no se muestra y aparece «Sin carga registrada» tocable.
 9. **Pausar** lleva a Eventos sin cerrar. Nada se pierde: el pedido en curso se conserva en memoria del evento.
@@ -195,7 +195,7 @@ Botón «Cerrar evento». Un evento cerrado se puede **Reabrir** desde su detall
 | Referencia | Qué hace bien | Qué tomamos | Qué NO copiamos |
 |---|---|---|---|
 | **Square Register** (fotos en cafetería) | Grid por categoría, ticket lateral, un botón grande, variantes por producto | La estructura de dos columnas y la confirmación única | El cobro como centro, las abreviaturas de dos letras en los tiles, las variantes en modal centrado, impuestos/descuentos en el flujo caliente |
-| **Posso** (cafe ePOS, UK) | «Flat white con avena en dos toques», pantalla de barista, informes de top bebidas / horas punta / modificadores más pedidos | La regla de los dos toques (chip + tile), el informe de modificadores más pedidos (leches) | Nada más: es un TPV de tienda |
+| **Posso** (cafe ePOS, UK) | «Flat white con avena en dos toques», pantalla de barista, informes de top bebidas / horas punta / modificadores más pedidos | La regla de los dos toques (tile + extra, desde la fase 5), el informe de modificadores más pedidos (leches) | Nada más: es un TPV de tienda |
 | **Loyverse** | Recetas con descuento de stock por ingrediente, tickets abiertos, horas de más trabajo | La receta por ingrediente | **Su limitación**: no muestra stock sin internet. La barra de café restante de Mutuo funciona 100 % offline |
 | **joe / KDS de barista** | Cola cronológica, ticket con modificadores legibles, tiempos de preparación | El «modo cola» opcional para cuando una persona toma nota y otra prepara (v1.1) | Segunda pantalla, enrutado por estaciones |
 | **dev.pro · 10 tácticas UX para TPV** | Distancia de visión de 75 cm → fuentes y botones grandes; color por categoría; modo claro/oscuro para luz interior/exterior; avisar de stock antes del turno | Tamaños, código de color sutil por categoría, **modo noche** manual en la cabecera, aviso de carga incompleta al abrir la barra | Gamificación, upsell por IA, roles |

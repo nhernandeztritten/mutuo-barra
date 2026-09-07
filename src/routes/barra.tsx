@@ -11,15 +11,16 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
 import { ChevronLeft, Moon, Sun, Zap } from 'lucide-preact';
-import { addOrder, listOrders, voidOrder } from '../data/repo';
-import type { Category, Order, Product } from '../data/types';
+import { addOrder, listOrders, replaceOrderLines, voidOrder } from '../data/repo';
+import type { Category, ModifierOption, Order, Product } from '../data/types';
 import { eventConsumption, eventStats } from '../domain/stats';
 import { formatInt, formatQty, formatRate } from '../domain/format';
-import { Button, Chip, Sheet, Tile } from '../ui/components';
+import { Button, Sheet, Tile } from '../ui/components';
 import { useIr } from '../ui/navegar';
-import { clearToasts, showToast } from '../ui/toast';
+import { clearToasts, showToast, TOAST_ACTION_MS } from '../ui/toast';
 import {
   CATEGORY_COLOR,
+  ExtrasRow,
   LineSheet,
   PaymentSheet,
   TicketHoja,
@@ -46,39 +47,26 @@ import {
   addLine,
   buildLine,
   clearTicket,
+  contentFor,
   detachTicket,
+  lastLine,
+  lineContent,
   loadTicket,
+  replaceLine,
   restoreTicket,
   setQty,
   ticket,
   ticketDrinks,
   ticketTotal,
+  toggleOption,
   undoLast,
   type TicketLine,
 } from '../ui/ticket';
 import { barMode } from '../ui/layout';
 
-/** Chips rápidos de la fila de 56 px, en el orden de SPEC §3.2. */
-const QUICK_CHIPS = [
-  'leche_avena',
-  'leche_sin_lactosa',
-  'cafe_descafeinado',
-  'extra_doble',
-  'extra_iced',
-  'extra_sirope',
-  'extra_tapa',
-] as const;
-
-/**
- * Etiqueta corta solo en la fila de chips: siete chips de 56 px tienen que
- * caber sin scroll. «Descafeinado» es la palabra completa en el resto de la app.
- */
-const CHIP_LABEL: Record<string, string> = { cafe_descafeinado: 'Desca' };
-
 /** Cuánto dura el resalte violeta al tocar una categoría de la leyenda. */
 const FLASH_MS = 400;
 
-const SHAKE_MS = 220;
 const SERVE_FADE_MS = 180;
 
 export function Barra() {
@@ -88,8 +76,23 @@ export function Barra() {
   const event = eventById(eventId);
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [armed, setArmed] = useState<string[]>([]);
-  const [shaking, setShaking] = useState<string[]>([]);
+  /**
+   * La línea cuyos extras enseña la fila. Es una preferencia, no la verdad: si
+   * la línea desaparece (al servir, al deshacer, al recargar) manda la última
+   * por orden de llegada, que es lo que el barista acaba de tocar.
+   */
+  const [currentLineId, setCurrentLineId] = useState<string | null>(null);
+  /**
+   * Modo Rápido: el pedido ya servido que la fila puede seguir editando durante
+   * los 8 s que vive su «Deshacer».
+   */
+  const [quickEdit, setQuickEdit] = useState<{
+    orderId: string;
+    productId: string;
+    productName: string;
+    optionIds: string[];
+    note: string;
+  } | null>(null);
   const [editing, setEditing] = useState<TicketLine | null>(null);
   const [paying, setPaying] = useState(false);
   const [serving, setServing] = useState(false);
@@ -167,31 +170,91 @@ export function Barra() {
   const stats = eventStats(event, orders, products, now);
   const consumption = eventConsumption(orders);
 
-  /* ---- Chips ---- */
+  /* ---- La bebida actual y sus extras ---- */
 
-  const chipOptions = QUICK_CHIPS.map((id) => optionsById.value.get(id)).filter(
-    (o): o is NonNullable<typeof o> => o !== undefined,
-  );
+  /**
+   * La línea que la fila de extras está editando. `currentLineId` es lo que el
+   * barista eligió; si esa línea ya no está, la actual es la última que llegó.
+   */
+  const currentLine: TicketLine | null =
+    lines.find((l) => l.id === currentLineId) ?? lastLine(lines);
 
-  /** Interruptor: segundo toque desarma; dentro de un grupo `single` solo uno. */
-  function toggleChip(optionId: string): void {
-    const option = optionsById.value.get(optionId);
-    if (!option) return;
-    setArmed((prev) => {
-      if (prev.includes(optionId)) return prev.filter((id) => id !== optionId);
-      const group = modifierGroups.value.find((g) => g.id === option.groupId);
-      const cleaned =
-        group?.type === 'single'
-          ? prev.filter((id) => optionsById.value.get(id)?.groupId !== option.groupId)
-          : prev;
-      return [...cleaned, optionId];
-    });
+  /** La bebida que enseña la fila: la del pedido en curso, o la recién servida. */
+  const actual = quickEdit
+    ? { productName: quickEdit.productName, optionIds: quickEdit.optionIds }
+    : currentLine
+      ? { productName: currentLine.productName, optionIds: currentLine.optionIds }
+      : null;
+  const actualProductId = quickEdit?.productId ?? currentLine?.productId;
+  const actualProduct = actualProductId
+    ? products.find((p) => p.id === actualProductId)
+    : undefined;
+
+  function optionsOf(ids: string[]): ModifierOption[] {
+    return ids
+      .map((id) => optionsById.value.get(id))
+      .filter((o): o is ModifierOption => o !== undefined);
   }
 
-  function shake(ids: string[]): void {
-    if (ids.length === 0) return;
-    setShaking(ids);
-    later(() => setShaking([]), SHAKE_MS);
+  /**
+   * Tocar un extra. En modo normal cambia esa línea del pedido (y si al hacerlo
+   * coincide con otra, se fusionan). En modo Rápido reescribe las líneas del
+   * pedido ya guardado, sin crear otro.
+   */
+  function onExtra(option: ModifierOption): void {
+    if (quickEdit) {
+      void aplicarAServido(option);
+      return;
+    }
+    const line = currentLine;
+    if (!line) return;
+    const product = products.find((p) => p.id === line.productId);
+    if (!product) return;
+    const nextIds = toggleOption(line.optionIds, option, modifierGroups.value, modifierOptions.value);
+    const { content } = contentFor(
+      product,
+      optionsOf(nextIds),
+      ingredients.value,
+      modifierGroups.value,
+      line.note,
+    );
+    const resultId = replaceLine(line.id, { ...lineContent(line), ...content });
+    setCurrentLineId(resultId);
+  }
+
+  /** Modo Rápido: el extra entra en el pedido que se acaba de guardar. */
+  async function aplicarAServido(option: ModifierOption): Promise<void> {
+    const target = quickEdit;
+    if (!target) return;
+    const product = products.find((p) => p.id === target.productId);
+    if (!product) return;
+    const nextIds = toggleOption(
+      target.optionIds,
+      option,
+      modifierGroups.value,
+      modifierOptions.value,
+    );
+    const { content } = contentFor(
+      product,
+      optionsOf(nextIds),
+      ingredients.value,
+      modifierGroups.value,
+      target.note,
+    );
+    setQuickEdit({ ...target, optionIds: content.optionIds });
+    await replaceOrderLines(target.orderId, [
+      {
+        productId: content.productId,
+        productName: content.productName,
+        modifiers: content.modifiers,
+        qty: 1,
+        unitPrice: content.unitPrice,
+        unitCost: content.unitCost,
+        usage: content.usage,
+        note: content.note,
+      },
+    ]);
+    await reloadOrders();
   }
 
   /* ---- Servir ---- */
@@ -238,7 +301,12 @@ export function Barra() {
     void (async () => {
       await voidOrder(order.id, 'deshacer');
       await reloadOrders();
-      if (restore) restoreTicket(served);
+      // Un pedido anulado ya no se puede editar desde la fila.
+      setQuickEdit((prev) => (prev?.orderId === order.id ? null : prev));
+      if (restore) {
+        restoreTicket(served);
+        setCurrentLineId(null);
+      }
       showToast('Pedido deshecho');
     })();
   }
@@ -251,6 +319,24 @@ export function Barra() {
     const order = await persistOrder(toServe, payment);
     await reloadOrders();
     pulse();
+
+    // Modo Rápido con una sola bebida: la fila la sigue editando mientras vive
+    // el «Deshacer». Pasados los 8 s vuelve al estado vacío.
+    const única = toServe.length === 1 && toServe[0]!.qty === 1 ? toServe[0]! : null;
+    if (oneTap.value && única) {
+      setQuickEdit({
+        orderId: order.id,
+        productId: única.productId,
+        productName: única.productName,
+        optionIds: única.optionIds,
+        note: única.note,
+      });
+      later(
+        () => setQuickEdit((prev) => (prev?.orderId === order.id ? null : prev)),
+        TOAST_ACTION_MS,
+      );
+    }
+
     showToast(`${formatInt(drinks)} ${drinks === 1 ? 'bebida servida' : 'bebidas servidas'}`, {
       label: 'Deshacer',
       onAction: () => undoServe(order, toServe, !oneTap.value),
@@ -268,6 +354,8 @@ export function Barra() {
     setServing(true);
     setSheetOpen(false);
     clearTicket();
+    // Servido el pedido, la fila de extras vuelve al estado vacío.
+    setCurrentLineId(null);
     later(() => {
       setServing(false);
       setFading([]);
@@ -277,15 +365,15 @@ export function Barra() {
 
   /* ---- Tocar un producto ---- */
 
+  /**
+   * Tocar una bebida. Ya no arrastra ningún prefijo: la bebida entra tal cual y
+   * pasa a ser la actual, así que sus extras aparecen arriba para el toque
+   * siguiente.
+   */
   function onTile(product: Product): void {
-    const options = armed
-      .map((id) => optionsById.value.get(id))
-      .filter((o): o is NonNullable<typeof o> => o !== undefined);
-    const { line, ignored } = buildLine(product, options, ingredients.value, modifierGroups.value);
-    shake(ignored.map((i) => i.optionId));
-    setArmed([]);
+    const { line } = buildLine(product, [], ingredients.value, modifierGroups.value);
     if (oneTap.value) void serve([line], null);
-    else addLine(line);
+    else setCurrentLineId(addLine(line));
   }
 
   /* ---- Cabecera ---- */
@@ -338,9 +426,16 @@ export function Barra() {
     oneTap: oneTap.value,
     recent,
     serving,
+    currentLineId: currentLine?.id ?? null,
+    onSelect: (line: TicketLine) => setCurrentLineId(line.id),
     onEdit: (line: TicketLine) => setEditing(line),
     onQty: setQty,
-    onUndoLast: undoLast,
+    onUndoLast: () => {
+      undoLast();
+      // La fila pasa a la línea anterior: el id que había ya no existe y manda
+      // la última por orden de llegada.
+      setCurrentLineId(null);
+    },
     onServe: onServeButton,
   };
 
@@ -392,11 +487,17 @@ export function Barra() {
             type="button"
             class="switch switch--stacked"
             aria-pressed={oneTap.value}
-            onClick={() => void setOneTap(!oneTap.value)}
+            onClick={() => {
+              setQuickEdit(null);
+              void setOneTap(!oneTap.value);
+            }}
           >
             <Zap size={20} strokeWidth={1.75} />
             <span class="switch__text">
               <span class="switch__label">Rápido</span>
+              {/* Corto a propósito: con el texto largo, «Cerrar barra» se
+                  salía de la cabecera a 1180 px. Lo que hacen los extras en
+                  este modo lo explica la propia fila. */}
               <span class="switch__hint">cada toque sirve una bebida</span>
             </span>
           </button>
@@ -422,18 +523,17 @@ export function Barra() {
 
       <div class="barra__cols">
         <div class="barra__work">
-          <div class="chips" role="group" aria-label="Modificadores rápidos">
-            {chipOptions.map((option) => (
-              <Chip
-                key={option.id}
-                armed={armed.includes(option.id)}
-                shake={shaking.includes(option.id)}
-                onClick={() => toggleChip(option.id)}
-              >
-                {CHIP_LABEL[option.id] ?? option.name}
-              </Chip>
-            ))}
-          </div>
+          {/* Los extras van después de la bebida, no antes: la fila enseña los
+              de la última tocada y solo los que esa bebida admite. */}
+          <ExtrasRow
+            actual={actual}
+            product={actualProduct}
+            groups={modifierGroups.value}
+            options={modifierOptions.value}
+            oneTap={oneTap.value}
+            {...(oneTap.value && quickEdit ? { ayuda: 'servida' } : {})}
+            onToggle={onExtra}
+          />
 
           {/* La leyenda ocupa la fila donde estaban las pestañas: dice qué
               significa cada punto de color y sirve de atajo si el grid crece. */}
@@ -511,6 +611,7 @@ export function Barra() {
           options={modifierOptions.value}
           ingredients={ingredients.value}
           onClose={() => setEditing(null)}
+          onSaved={setCurrentLineId}
         />
       ) : null}
 
