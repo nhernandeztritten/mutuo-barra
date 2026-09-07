@@ -8,6 +8,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { ChevronRight, Download, HardDrive, Moon, Smartphone, Sun } from 'lucide-preact';
 import { APP_VERSION } from '../data/db';
 import { exportJson } from '../data/repo';
+import { METODOS, RATIOS_CLASICOS, ratiosEfectivos, revisarReceta } from '../domain/recetas';
 import { Button } from '../ui/components';
 import { useIr } from '../ui/navegar';
 import { guardarArchivo, nombreConFecha } from '../ui/archivos';
@@ -19,6 +20,7 @@ import {
   ingredients,
   pedirAlmacenamientoPersistente,
   products,
+  ratios,
   refrescarAlmacenamiento,
   setDeviceName,
   setTheme,
@@ -34,6 +36,13 @@ export function Ajustes() {
 
   const sinCostear = ingredients.value.filter((i) => i.costSource === 'sin-costear').length;
   const provisionales = products.value.filter((p) => p.priceProvisional).length;
+  const porRevisar = products.value.filter(
+    (p) => revisarReceta(p, ingredients.value, ratios.value).length > 0,
+  ).length;
+  const vigentes = ratiosEfectivos(ratios.value);
+  const ratiosEditados = METODOS.filter(
+    (m) => m.ratio > 0 && vigentes[m.id] !== RATIOS_CLASICOS[m.id],
+  ).length;
   const instalada = estaInstalada();
 
   useEffect(() => {
@@ -85,6 +94,7 @@ export function Ajustes() {
             <span class="meta">
               {activeProducts.value.length} bebidas activas de {products.value.length}
               {provisionales > 0 ? ` · ${provisionales} con precio provisional` : ''}
+              {porRevisar > 0 ? ` · ${porRevisar} por revisar` : ''}
             </span>
           </span>
           <ChevronRight size={22} strokeWidth={1.75} />
@@ -100,6 +110,21 @@ export function Ajustes() {
             <span class="meta">
               {ingredients.value.length} insumos
               {sinCostear > 0 ? ` · ${sinCostear} sin costear` : ''}
+            </span>
+          </span>
+          <ChevronRight size={22} strokeWidth={1.75} />
+        </button>
+
+        <button
+          type="button"
+          class="event-row event-row--link"
+          onClick={() => route('/ajustes/ratios')}
+        >
+          <span class="event-row__main">
+            <span class="event-row__name">Métodos y ratios</span>
+            <span class="meta">
+              Las recetas clásicas de cada método
+              {ratiosEditados > 0 ? ` · ${ratiosEditados} cambiado${ratiosEditados === 1 ? '' : 's'}` : ''}
             </span>
           </span>
           <ChevronRight size={22} strokeWidth={1.75} />

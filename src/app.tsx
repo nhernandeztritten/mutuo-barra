@@ -16,6 +16,7 @@ import { bootstrap, eventById, ready } from './ui/store';
 import { Ajustes } from './routes/ajustes';
 import { AjustesCarta } from './routes/ajustes-carta';
 import { AjustesInsumos } from './routes/ajustes-insumos';
+import { AjustesRatios } from './routes/ajustes-ratios';
 import { Barra } from './routes/barra';
 import { Cierre } from './routes/cierre';
 import { EventoDetalle } from './routes/evento-detalle';
@@ -129,6 +130,7 @@ export function App() {
               <Route path={conBase('/ajustes')} component={Ajustes} />
               <Route path={conBase('/ajustes/carta')} component={AjustesCarta} />
               <Route path={conBase('/ajustes/insumos')} component={AjustesInsumos} />
+              <Route path={conBase('/ajustes/ratios')} component={AjustesRatios} />
               <Route default component={NoEncontrado} />
             </Router>
           ) : bootError.value ? (
