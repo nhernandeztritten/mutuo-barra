@@ -82,6 +82,44 @@ function servedCount(): string {
   return document.querySelector('.barra__count-value')?.textContent ?? '';
 }
 
+/* ---- «Últimos pedidos» ---- */
+
+function ultimosFilas(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>('.ultimos__fila')];
+}
+
+/** La frase de cada fila, sin la hora ni el botón: lo que lee el barista. */
+function ultimosFrases(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.ultimos__frase')].map(
+    (el) => el.textContent?.trim() ?? '',
+  );
+}
+
+function repetirDe(index = 0): HTMLButtonElement {
+  const found = ultimosFilas()[index]?.querySelector<HTMLButtonElement>('.ultimos__repetir');
+  if (!found) throw new Error(`No hay «Repetir» en la fila ${index}`);
+  return found;
+}
+
+/** El interruptor «Rápido» de la cabecera. */
+function rapido(): HTMLButtonElement {
+  const found = document.querySelector<HTMLButtonElement>('.switch--stacked');
+  if (!found) throw new Error('No hay interruptor Rápido');
+  return found;
+}
+
+/** El aviso más reciente. Los de 8 s con «Deshacer» siguen vivos: no vale el primero. */
+function ultimoToast(): string {
+  const todos = [...document.querySelectorAll('.toast')];
+  return todos[todos.length - 1]?.textContent ?? '';
+}
+
+/** Sirve el pedido en curso y espera a que el contador llegue a `total`. */
+async function servirYEsperar(total: number): Promise<void> {
+  fireEvent.click(serveButton());
+  await waitFor(() => expect(servedCount()).toBe(String(total)));
+}
+
 async function setupBar(mode: EventMode = 'incluido'): Promise<string> {
   cleanup();
   clearToasts();
@@ -375,13 +413,6 @@ describe('recargar la página en medio del evento', () => {
 });
 
 describe('modo Rápido: los extras llegan justo después de servir', () => {
-  /** El interruptor «Rápido» de la cabecera. */
-  function rapido(): HTMLButtonElement {
-    const found = document.querySelector<HTMLButtonElement>('.switch--stacked');
-    if (!found) throw new Error('No hay interruptor Rápido');
-    return found;
-  }
-
   it('tocar «Cortado» sirve al instante y la fila sigue editando ese pedido', async () => {
     const eventId = await setupBar();
     fireEvent.click(rapido());
@@ -430,6 +461,217 @@ describe('modo Rápido: los extras llegan justo después de servir', () => {
     await waitFor(() => expect(servedCount()).toBe('0'));
     // Un pedido anulado ya no se edita desde la fila.
     await waitFor(() => expect(bebidaDeLaFila()).toBeNull());
+  });
+});
+
+describe('«Últimos pedidos»: qué me acaban de pedir', () => {
+  it('la barra recién abierta dice que todavía no hay pedidos', async () => {
+    await setupBar();
+    expect(document.querySelector('.ultimos__titulo')?.textContent).toBe('Últimos pedidos');
+    expect(document.querySelector('.ultimos__vacio')?.textContent).toBe(
+      'Todavía no hay pedidos servidos',
+    );
+    expect(ultimosFilas()).toHaveLength(0);
+  });
+
+  it('la lista se anuncia sin interrumpir: es una región polite', async () => {
+    await setupBar();
+    const lista = document.querySelector('.ultimos__lista')!;
+    expect(lista.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('está también en modo Rápido: es un solo componente para los dos', async () => {
+    await setupBar();
+    fireEvent.click(rapido());
+    await waitFor(() => expect(rapido().getAttribute('aria-pressed')).toBe('true'));
+    expect(document.querySelector('.ultimos__titulo')).not.toBeNull();
+    // Y la lista vieja de «Últimas servidas» ya no existe.
+    expect(document.querySelector('.recent')).toBeNull();
+  });
+
+  it('el pedido servido aparece arriba con su hora y su frase', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(rows()).toHaveLength(2));
+
+    await servirYEsperar(3);
+
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    expect(ultimosFrases()[0]).toBe('Latte · avena, 2 × Cortado');
+    // Hora en tabular, como manda DESIGN.md para las cifras.
+    expect(ultimosFilas()[0]?.querySelector('.ultimos__hora')?.textContent).toMatch(
+      /^\d{2}:\d{2}$/,
+    );
+  });
+
+  it('el pedido más nuevo se pone el primero', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(tile('Espresso'));
+    await servirYEsperar(2);
+
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(2));
+    expect(ultimosFrases()).toEqual(['Espresso', 'Latte']);
+  });
+
+  it('con seis pedidos solo se ven cinco', async () => {
+    await setupBar();
+    for (let i = 1; i <= 6; i += 1) {
+      fireEvent.click(tile('Cortado'));
+      await servirYEsperar(i);
+    }
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(5));
+  });
+
+  it('deshacer devuelve el pedido al ticket y lo quita de la lista', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.toast__action')!);
+    await waitFor(() => expect(servedCount()).toBe('0'));
+    // Fuera de la lista —lo anulado no se repite— y de vuelta en el pedido.
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(0));
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0]?.textContent).toContain('Cortado');
+  });
+});
+
+describe('«Repetir» un pedido', () => {
+  it('en modo normal devuelve las líneas al pedido actual, sin servir nada', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(repetirDe());
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(rows()[0]?.textContent).toContain('Latte');
+    expect(rows()[0]?.textContent).toContain('avena');
+    // Repetir no sirve: el contador y los pedidos guardados no se mueven.
+    expect(servedCount()).toBe('1');
+    expect(await listOrders(eventId)).toHaveLength(1);
+  });
+
+  it('agrupa con lo que ya hubiera en el pedido en vez de abrir otra línea', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    // Ya hay un Cortado en el pedido actual cuando se repite el de antes.
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(rows()).toHaveLength(1));
+
+    fireEvent.click(repetirDe());
+
+    await waitFor(() => expect(rows()[0]?.querySelector('.ticket__qty')?.textContent).toBe('2'));
+    expect(rows()).toHaveLength(1);
+    expect(serveButton().textContent).toContain('Servir 2 bebidas');
+  });
+
+  it('respeta la cantidad y los modificadores del pedido original', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.querySelector('.ticket__qty')?.textContent).toBe('2'));
+    await servirYEsperar(2);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    expect(ultimosFrases()[0]).toBe('2 × Cortado · avena');
+
+    fireEvent.click(repetirDe());
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(rows()[0]?.querySelector('.ticket__qty')?.textContent).toBe('2');
+    expect(rows()[0]?.textContent).toContain('avena');
+  });
+
+  it('la fila hace un fundido breve, sin ventana emergente', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(repetirDe());
+    await waitFor(() => expect(ultimosFilas()[0]?.className).toContain('is-repetida'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('en modo Rápido sirve el pedido al instante y lo pone arriba', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(rapido());
+    await waitFor(() => expect(rapido().getAttribute('aria-pressed')).toBe('true'));
+
+    fireEvent.click(repetirDe());
+
+    await waitFor(() => expect(servedCount()).toBe('2'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(2));
+    // El nuevo va arriba, con la misma frase que el que se repitió.
+    expect(ultimosFrases()).toEqual(['Latte · avena', 'Latte · avena']);
+
+    const orders = await listOrders(eventId);
+    expect(orders).toHaveLength(2);
+    expect(orders[1]?.lines[0]?.modifiers[0]?.label).toBe('Avena');
+    // Y con su «Deshacer», como cualquier otra cosa servida en este modo.
+    expect(ultimoToast()).toContain('1 bebida servida');
+    expect(ultimoToast()).toContain('Deshacer');
+  });
+
+  it('una bebida que ya no está en la carta avisa en vez de repetir a medias', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    const latte = products.value.find((p) => p.id === 'latte')!;
+    await saveProduct({ ...latte, active: false });
+    await loadCatalog();
+    await waitFor(() => expect(document.querySelectorAll('.tile-grid .tile')).toHaveLength(13));
+
+    fireEvent.click(repetirDe());
+
+    await waitFor(() => expect(ultimoToast()).toContain('Esa bebida ya no está en la carta'));
+    // Y no repite nada a medias: el pedido actual sigue vacío. Se mira el botón
+    // y no las filas porque durante los 180 ms del fundido lo que se pinta es
+    // la copia congelada del pedido servido, no el pedido de verdad.
+    expect(serveButton().disabled).toBe(true);
+    expect(serveButton().textContent).toContain('Toca una bebida');
+  });
+});
+
+describe('«Ver todos» lleva a la lista de pedidos del Resumen', () => {
+  it('abre la hoja de Resumen con sus pedidos y su «Anular»', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.ultimos__vertodos')!);
+
+    const hoja = await screen.findByRole('dialog');
+    expect(hoja.getAttribute('aria-label')).toBe('Resumen');
+    const pedidos = hoja.querySelector('#resumen-pedidos');
+    expect(pedidos).not.toBeNull();
+    expect(pedidos?.textContent).toContain('Pedidos (1)');
+    expect(pedidos?.textContent).toContain('Anular');
   });
 });
 
