@@ -3,7 +3,7 @@
  * Separadas de `routes/barra.tsx` para que cada archivo se lea de una sentada.
  */
 import type { RefObject } from 'preact';
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Minus, Plus, Undo2 } from 'lucide-preact';
 import { applyModifiers } from '../domain/modifiers';
 import { formatInt, formatMoney, formatTime } from '../domain/format';
@@ -16,8 +16,9 @@ import type {
   Product,
 } from '../data/types';
 import { Button, Chip, Sheet, useHoja } from './components';
-import { CHIP_LABEL } from './etiquetas';
-import { fraseDePartes, type UltimoPedido } from './ultimos';
+import { CHIP_LABEL, PAGO_LABEL } from './etiquetas';
+import { ChipsMotivo } from './motivos';
+import { fraseDePartes, haceTexto, type UltimoPedido } from './ultimos';
 import {
   isOptionActive,
   lineContent,
@@ -177,13 +178,28 @@ export function ExtrasRow({
 
 /* ================= Últimos pedidos ================= */
 
+/** Lo que se lee cuando «Editar» está apagado. Dice también cómo encenderlo. */
+export const EDITAR_BLOQUEADO = 'Sirve o vacía el pedido actual para editar';
+
 export interface UltimosPedidosProps {
   pedidos: UltimoPedido[];
   /** El pedido que acaba de repetirse: hace un fundido breve y se apaga solo. */
   repetido?: string | null;
+  /** El pedido desplegado, o `null`. Solo hay uno abierto a la vez. */
+  abierto?: string | null;
+  /** Tocar una fila: abre esa, o cierra la que ya lo estaba. */
+  onAbrir?: (pedidoId: string | null) => void;
+  /** Referencia de tiempo para el «hace N min». La barra la mueve cada 30 s. */
+  now?: Date;
   /** Repite ese pedido: en modo normal lo devuelve al pedido actual; en Rápido lo sirve. */
   onRepetir: (pedido: UltimoPedido) => void;
-  /** «Ver todos»: abre la hoja de Resumen en su lista de pedidos, donde está «Anular». */
+  /** Carga el pedido en el ticket para corregirlo. Solo con el pedido actual vacío. */
+  onEditar?: (pedido: UltimoPedido) => void;
+  /** Si se puede editar ahora mismo: el pedido en curso tiene que estar vacío. */
+  puedeEditar?: boolean;
+  /** Anula el pedido con ese motivo. Nunca borra: `voidedAt` y a la lista del Resumen. */
+  onAnular?: (pedido: UltimoPedido, motivoId: string) => void;
+  /** «Ver todos»: abre la hoja de Resumen en su lista de pedidos. */
   onVerTodos: () => void;
 }
 
@@ -191,18 +207,49 @@ export interface UltimosPedidosProps {
  * Los últimos pedidos servidos, siempre a la vista en los dos modos.
  *
  * Contesta la pregunta que se hace el barista cuando levanta la cabeza: «¿qué
- * me acaban de pedir?». Antes solo existía en modo Rápido («Últimas servidas»)
- * y era de lectura; ahora es un solo componente para los dos modos y cada fila
- * se puede **repetir**, que es el otro caso real —dos cafés iguales seguidos—.
+ * me acaban de pedir?». Cada fila se **despliega en el sitio** —nunca una
+ * ventana emergente, `DESIGN.md` las prohíbe en el flujo de servir— y enseña el
+ * pedido entero, una línea por bebida, con sus tres acciones: repetir,
+ * corregir y anular.
+ *
+ * Solo hay una abierta a la vez: con la columna de 360 px, dos pedidos
+ * desplegados dejan la lista sin sitio y el barista sin saber cuál está
+ * mirando.
  *
  * `aria-live="polite"` en la lista: el pedido nuevo se anuncia sin interrumpir.
  */
 export function UltimosPedidos({
   pedidos,
   repetido = null,
+  abierto = null,
+  onAbrir,
+  now,
   onRepetir,
+  onEditar,
+  puedeEditar = true,
+  onAnular,
   onVerTodos,
 }: UltimosPedidosProps) {
+  /** Qué fila está preguntando el motivo de la anulación. */
+  const [anulando, setAnulando] = useState<string | null>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar la fila cancela la pregunta: si no, al volver a abrirla saldrían los
+  // chips de motivo como si el barista acabara de tocar «Anular».
+  useEffect(() => {
+    setAnulando(null);
+  }, [abierto]);
+
+  // La fila que se abre tiene que quedar a la vista, sin arrastrar la página:
+  // `nearest` desplaza lo justo dentro de la lista y no toca nada más.
+  useEffect(() => {
+    if (abierto === null) return;
+    const fila = listaRef.current?.querySelector<HTMLElement>(
+      `.ultimos__fila[data-pedido="${CSS.escape(abierto)}"]`,
+    );
+    fila?.scrollIntoView({ block: 'nearest' });
+  }, [abierto]);
+
   return (
     <section class="ultimos" aria-labelledby="ultimos-titulo">
       <header class="ultimos__head">
@@ -214,39 +261,138 @@ export function UltimosPedidos({
         </Button>
       </header>
 
-      <div class="ultimos__lista" role="log" aria-live="polite" aria-relevant="additions text">
+      <div
+        class="ultimos__lista"
+        ref={listaRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+      >
         {pedidos.length === 0 ? (
           <p class="ultimos__vacio">Todavía no hay pedidos servidos</p>
         ) : (
-          pedidos.map((pedido) => (
-            <div
-              class={['ultimos__fila', pedido.id === repetido ? 'is-repetida' : '']
-                .filter(Boolean)
-                .join(' ')}
-              key={pedido.id}
-              data-pedido={pedido.id}
-            >
-              <span class="ultimos__hora num">{formatTime(pedido.servedAt)}</span>
-              {/* Se corta a dos líneas con elipsis: la frase entera está en el
-                  título y en la lista completa de «Ver todos». */}
-              <span class="ultimos__frase" title={fraseDePartes(pedido.partes)}>
-                {pedido.partes.map((parte, i) => (
-                  <span class="ultimos__parte" key={`${pedido.id}-${String(i)}`}>
-                    {i > 0 ? ', ' : ''}
-                    {parte.texto}
-                    {parte.mods ? <span class="ultimos__mods"> · {parte.mods}</span> : null}
-                  </span>
-                ))}
-              </span>
-              <Button
-                class="ultimos__repetir"
-                aria-label={`Repetir ${fraseDePartes(pedido.partes)}`}
-                onClick={() => onRepetir(pedido)}
+          pedidos.map((pedido) => {
+            const frase = fraseDePartes(pedido.partes);
+            const estaAbierta = pedido.id === abierto;
+            const venta = pedido.mode === 'venta';
+            return (
+              <div
+                class={[
+                  'ultimos__fila',
+                  pedido.id === repetido ? 'is-repetida' : '',
+                  estaAbierta ? 'is-abierta' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                key={pedido.id}
+                data-pedido={pedido.id}
               >
-                Repetir
-              </Button>
-            </div>
-          ))
+                {/* La fila entera es el objetivo táctil, no un botón pequeño en
+                    una esquina: con las manos mojadas se toca donde se mira. */}
+                <button
+                  type="button"
+                  class="ultimos__cabeza"
+                  aria-expanded={estaAbierta}
+                  onClick={() => onAbrir?.(estaAbierta ? null : pedido.id)}
+                >
+                  <span class="ultimos__hora num">{formatTime(pedido.servedAt)}</span>
+                  {/* Cerrada se corta a dos líneas con elipsis; abierta, debajo
+                      está el pedido entero línea por línea. */}
+                  <span class="ultimos__frase" title={frase}>
+                    {pedido.partes.map((parte, i) => (
+                      <span class="ultimos__parte" key={`${pedido.id}-${String(i)}`}>
+                        {i > 0 ? ', ' : ''}
+                        {parte.texto}
+                        {parte.mods ? <span class="ultimos__mods"> · {parte.mods}</span> : null}
+                      </span>
+                    ))}
+                  </span>
+                </button>
+
+                {estaAbierta ? (
+                  <div class="ultimos__panel">
+                    <div class="ultimos__panel-in">
+                      <p class="ultimos__cuando">
+                        <span class="num">{formatTime(pedido.servedAt)}</span> ·{' '}
+                        {haceTexto(pedido.servedAt, now ?? new Date())}
+                      </p>
+
+                      <ul class="ultimos__bebidas">
+                        {pedido.partes.map((parte, i) => (
+                          <li class="ultimos__bebida" key={`${pedido.id}-det-${String(i)}`}>
+                            <span class="ultimos__bebida-nombre">{parte.texto}</span>
+                            {parte.mods ? (
+                              <span class="ultimos__bebida-mods">{parte.mods}</span>
+                            ) : null}
+                            {parte.nota ? (
+                              <span class="ultimos__bebida-nota">{parte.nota}</span>
+                            ) : null}
+                            {venta ? (
+                              <span class="ultimos__bebida-importe num">
+                                {formatMoney(parte.importe)}
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+
+                      {pedido.note ? <p class="ultimos__nota">{pedido.note}</p> : null}
+
+                      {venta ? (
+                        <p class="ultimos__cobro">
+                          <span class="num">{formatMoney(pedido.total)}</span>
+                          {pedido.payment ? ` · ${PAGO_LABEL[pedido.payment] ?? pedido.payment}` : ''}
+                        </p>
+                      ) : null}
+
+                      {anulando === pedido.id ? (
+                        <ChipsMotivo
+                          etiqueta={`Motivo de la anulación de ${frase}`}
+                          onElegir={(motivoId) => {
+                            setAnulando(null);
+                            onAnular?.(pedido, motivoId);
+                          }}
+                          onCancelar={() => setAnulando(null)}
+                        />
+                      ) : (
+                        <div class="ultimos__acciones">
+                          <Button
+                            class="ultimos__repetir"
+                            aria-label={`Repetir ${frase}`}
+                            onClick={() => onRepetir(pedido)}
+                          >
+                            Repetir
+                          </Button>
+                          <Button
+                            class="ultimos__editar"
+                            disabled={!puedeEditar}
+                            {...(puedeEditar ? {} : { title: EDITAR_BLOQUEADO })}
+                            aria-label={`Editar ${frase}`}
+                            onClick={() => onEditar?.(pedido)}
+                          >
+                            Editar
+                          </Button>
+                          <span class="spacer" />
+                          <Button
+                            variant="ghost"
+                            class="ultimos__anular"
+                            aria-label={`Anular ${frase}`}
+                            onClick={() => setAnulando(pedido.id)}
+                          >
+                            Anular
+                          </Button>
+                        </div>
+                      )}
+
+                      {puedeEditar ? null : (
+                        <p class="ultimos__aviso">{EDITAR_BLOQUEADO}</p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
         )}
       </div>
     </section>
@@ -264,8 +410,20 @@ export interface TicketPanelProps {
   /** Los cinco últimos pedidos no anulados; la sección vive al pie de la columna. */
   ultimos: UltimoPedido[];
   repetido?: string | null;
+  abierto?: string | null;
+  onAbrir?: (pedidoId: string | null) => void;
+  now?: Date;
   onRepetir: (pedido: UltimoPedido) => void;
+  onEditar?: (pedido: UltimoPedido) => void;
+  onAnular?: (pedido: UltimoPedido, motivoId: string) => void;
   onVerTodos: () => void;
+  /**
+   * Hora del pedido que se está corrigiendo. Con esto la cabecera dice
+   * «Editando el pedido de 09:54» y aparece «Cancelar».
+   */
+  editandoDe?: string | null;
+  /** Vacía el ticket y vuelve a «Pedido actual», sin tocar el pedido original. */
+  onCancelarEdicion?: () => void;
   serving: boolean;
   sheet?: boolean;
   /** Solo la versión desplegada: la ref que atrapa el foco dentro de la hoja. */
@@ -298,8 +456,15 @@ export function TicketPanel({
   oneTap,
   ultimos,
   repetido = null,
+  abierto = null,
+  onAbrir,
+  now,
   onRepetir,
+  onEditar,
+  onAnular,
   onVerTodos,
+  editandoDe = null,
+  onCancelarEdicion,
   serving,
   sheet = false,
   hojaRef,
@@ -314,21 +479,43 @@ export function TicketPanel({
   const shown = displayLines ?? lines;
   const drinks = ticketDrinks(lines);
   const total = ticketTotal(lines);
+  const editando = editandoDe !== null;
   const label =
     mode === 'venta'
       ? `Cobrar ${formatMoney(total)}`
       : `Servir ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`;
+  /**
+   * Corrigiendo, el modo Rápido queda en pausa: el ticket y su botón vuelven,
+   * porque una corrección se monta a varios toques y no se puede servir sola.
+   */
+  const rapido = oneTap && !editando;
 
   return (
     <aside
       {...(sheet ? { ref: hojaRef, role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Pedido actual' } : {})}
-      class={['ticket', sheet ? 'ticket--sheet' : ''].filter(Boolean).join(' ')}
+      class={['ticket', sheet ? 'ticket--sheet' : '', editando ? 'is-editando' : '']
+        .filter(Boolean)
+        .join(' ')}
     >
-      <header class="ticket__head">
-        <span>{oneTap ? 'Modo rápido activo' : `Pedido actual (${formatInt(drinks)})`}</span>
-        {onCollapse ? (
+      <header class={['ticket__head', editando ? 'is-editando' : ''].filter(Boolean).join(' ')}>
+        <span>
+          {editando
+            ? `Editando el pedido de ${formatTime(editandoDe)}`
+            : oneTap
+              ? 'Modo rápido activo'
+              : `Pedido actual (${formatInt(drinks)})`}
+        </span>
+        {editando ? (
           <>
             <span class="spacer" />
+            <Button class="ticket__cancelar" onClick={() => onCancelarEdicion?.()}>
+              Cancelar
+            </Button>
+          </>
+        ) : null}
+        {onCollapse ? (
+          <>
+            {editando ? null : <span class="spacer" />}
             <Button variant="ghost" onClick={onCollapse}>
               Cerrar
             </Button>
@@ -336,7 +523,7 @@ export function TicketPanel({
         ) : null}
       </header>
 
-      {oneTap ? (
+      {rapido ? (
         <p class="ticket__pista">Cada bebida se sirve al tocarla; sus extras salen en la fila de arriba.</p>
       ) : (
         <div class={['ticket__list', serving ? 'is-serving' : ''].filter(Boolean).join(' ')}>
@@ -407,11 +594,17 @@ export function TicketPanel({
       <UltimosPedidos
         pedidos={ultimos}
         repetido={repetido}
+        abierto={abierto}
+        {...(onAbrir ? { onAbrir } : {})}
+        {...(now ? { now } : {})}
         onRepetir={onRepetir}
+        {...(onEditar ? { onEditar } : {})}
+        {...(onAnular ? { onAnular } : {})}
+        puedeEditar={lines.length === 0}
         onVerTodos={onVerTodos}
       />
 
-      {oneTap ? null : (
+      {rapido ? null : (
         <div class="ticket__foot">
           <Button variant="ghost" disabled={lines.length === 0} onClick={onUndoLast}>
             <Undo2 size={20} strokeWidth={1.75} /> Deshacer último
@@ -550,15 +743,25 @@ function parseAmount(text: string): number {
 export function PaymentSheet({
   subtotal,
   drinks,
+  metodoInicial,
+  titulo,
   onClose,
   onConfirm,
 }: {
   subtotal: number;
   drinks: number;
+  /**
+   * Método ya marcado al abrir. Al corregir un pedido cobrado con tarjeta,
+   * volver a preguntar desde «Efectivo» es hacerle repetir al barista una
+   * decisión que ya tomó.
+   */
+  metodoInicial?: PaymentMethod | undefined;
+  /** Encabezado alternativo: corrigiendo no se está cobrando otra vez. */
+  titulo?: string | undefined;
   onClose: () => void;
   onConfirm: (result: PaymentResult) => void;
 }) {
-  const [method, setMethod] = useState<PaymentMethod>('efectivo');
+  const [method, setMethod] = useState<PaymentMethod>(metodoInicial ?? 'efectivo');
   const [tipText, setTipText] = useState('');
   const [cashText, setCashText] = useState('');
 
@@ -570,7 +773,10 @@ export function PaymentSheet({
   const quick = [total, 5, 10, 20].filter((v, i, arr) => v >= total && arr.indexOf(v) === i);
 
   return (
-    <Sheet title={`Cobrar ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`} onClose={onClose}>
+    <Sheet
+      title={titulo ?? `Cobrar ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`}
+      onClose={onClose}
+    >
       <div class="pay">
         <div class="pay__total">
           <span class="meta">Total</span>

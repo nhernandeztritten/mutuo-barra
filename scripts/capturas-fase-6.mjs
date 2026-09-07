@@ -45,6 +45,20 @@ const frases = (page) => page.locator('.ultimos__frase').allTextContents();
 const toca = (page, nombre) =>
   page.locator('.tile-grid .tile', { hasText: new RegExp(`^${nombre}`) }).first().click();
 
+/**
+ * Despliega la fila `i` y toca «Repetir». Desde la fase 7 las tres acciones
+ * viven dentro de la fila desplegada, no en la cerrada.
+ */
+async function repetir(page, i = 0) {
+  const fila = page.locator('.ultimos__fila').nth(i);
+  const clase = (await fila.getAttribute('class')) ?? '';
+  if (!clase.includes('is-abierta')) {
+    await fila.locator('.ultimos__cabeza').click();
+    await page.waitForTimeout(250);
+  }
+  await fila.locator('.ultimos__repetir').click();
+}
+
 const { browser, page } = await abrirNavegador({ viewport: HORIZONTAL });
 console.log(`\n=== Últimos pedidos sobre ${BASE} a 1180 × 820 ===\n`);
 
@@ -128,7 +142,7 @@ linea(
   'y un Cortado suelto en el pedido actual antes de repetir',
 );
 
-await page.locator('.ultimos__fila').first().locator('.ultimos__repetir').click();
+await repetir(page);
 await page.waitForTimeout(400);
 
 const filasTicket = await page.locator('.ticket__row').count();
@@ -163,7 +177,7 @@ linea(
 
 const servidasAntes = await page.locator('.barra__count-value').textContent();
 const aRepetir = (await frases(page))[0];
-await page.locator('.ultimos__fila').first().locator('.ultimos__repetir').click();
+await repetir(page);
 await page.waitForTimeout(600);
 
 const servidasDespues = await page.locator('.barra__count-value').textContent();
@@ -245,7 +259,9 @@ linea(!scrollPagina.x && !scrollPagina.y, 'la barra sigue sin hacer scroll de p�
 
 const medidas = await page.evaluate(() => {
   const chico = [...document.querySelectorAll('.ultimos button')]
+    .filter((el) => !el.hasAttribute('disabled'))
     .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 0 && r.height > 0)
     .filter((r) => r.width < 44 || r.height < 44);
   const texto = [...document.querySelectorAll('.ultimos__frase, .ultimos__hora, .ultimos__vacio')]
     .map((el) => Number.parseFloat(getComputedStyle(el).fontSize))

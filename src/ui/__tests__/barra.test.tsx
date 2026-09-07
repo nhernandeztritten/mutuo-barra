@@ -8,6 +8,7 @@ import { LocationProvider, Route, Router } from 'preact-iso';
 import { initDb, resetDb } from '../../data/db';
 import { createEvent, listOrders, openEvent, saveProduct } from '../../data/repo';
 import type { EventMode } from '../../data/types';
+import { eventConsumption } from '../../domain/stats';
 import { Barra } from '../../routes/barra';
 import { ToastHost } from '../components';
 import { loadCatalog, loadSettings, products, refreshEvents } from '../store';
@@ -95,10 +96,51 @@ function ultimosFrases(): string[] {
   );
 }
 
-function repetirDe(index = 0): HTMLButtonElement {
-  const found = ultimosFilas()[index]?.querySelector<HTMLButtonElement>('.ultimos__repetir');
-  if (!found) throw new Error(`No hay «Repetir» en la fila ${index}`);
+/** Despliega la fila `index` (o la cierra si ya lo estaba). */
+function abrirFila(index = 0): void {
+  const cabeza = ultimosFilas()[index]?.querySelector<HTMLButtonElement>('.ultimos__cabeza');
+  if (!cabeza) throw new Error(`No hay fila ${index} en «Últimos pedidos»`);
+  fireEvent.click(cabeza);
+}
+
+/** El panel desplegado de la fila `index`, o null si está cerrada. */
+function panelDe(index = 0): HTMLElement | null {
+  return ultimosFilas()[index]?.querySelector<HTMLElement>('.ultimos__panel') ?? null;
+}
+
+/** Un botón de la fila desplegada, por su clase. La abre antes si hace falta. */
+function accionDe(clase: string, index = 0): HTMLButtonElement {
+  if (!ultimosFilas()[index]?.classList.contains('is-abierta')) abrirFila(index);
+  const found = ultimosFilas()[index]?.querySelector<HTMLButtonElement>(clase);
+  if (!found) throw new Error(`No hay «${clase}» en la fila ${index}`);
   return found;
+}
+
+/** «Repetir» vive dentro de la fila desplegada desde la fase 7. */
+function repetirDe(index = 0): HTMLButtonElement {
+  return accionDe('.ultimos__repetir', index);
+}
+
+function editarDe(index = 0): HTMLButtonElement {
+  return accionDe('.ultimos__editar', index);
+}
+
+function anularDe(index = 0): HTMLButtonElement {
+  return accionDe('.ultimos__anular', index);
+}
+
+/** Los chips de motivo que salen al tocar «Anular», por su texto. */
+function chipMotivo(texto: string): HTMLButtonElement {
+  const found = [...document.querySelectorAll<HTMLButtonElement>('.ultimos .chip--mini')].find(
+    (el) => el.textContent?.trim() === texto,
+  );
+  if (!found) throw new Error(`No hay chip de motivo «${texto}»`);
+  return found;
+}
+
+/** La cabecera del ticket: dice si se está montando un pedido o corrigiendo uno. */
+function cabeceraTicket(): string {
+  return document.querySelector('.barra__cols .ticket__head')?.textContent?.trim() ?? '';
 }
 
 /** El interruptor «Rápido» de la cabecera. */
@@ -677,6 +719,456 @@ describe('«Repetir» un pedido', () => {
     // la copia congelada del pedido servido, no el pedido de verdad.
     expect(serveButton().disabled).toBe(true);
     expect(serveButton().textContent).toContain('Toca una bebida');
+  });
+});
+
+describe('desplegar un pedido para verlo entero', () => {
+  it('la fila cerrada es un solo objetivo táctil, y dice si está abierta', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    const cabeza = ultimosFilas()[0]!.querySelector('.ultimos__cabeza')!;
+    expect(cabeza.getAttribute('aria-expanded')).toBe('false');
+    expect(panelDe()).toBeNull();
+
+    abrirFila();
+    await waitFor(() => expect(panelDe()).not.toBeNull());
+    expect(
+      ultimosFilas()[0]!.querySelector('.ultimos__cabeza')!.getAttribute('aria-expanded'),
+    ).toBe('true');
+    // Y sin ventana emergente: se despliega en el sitio.
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('enseña una línea por bebida, con sus extras y su nota', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    await servirYEsperar(3);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    abrirFila();
+    await waitFor(() => expect(panelDe()).not.toBeNull());
+
+    const bebidas = [...panelDe()!.querySelectorAll('.ultimos__bebida')];
+    expect(bebidas).toHaveLength(2);
+    expect(bebidas[0]?.querySelector('.ultimos__bebida-nombre')?.textContent).toBe('Latte');
+    expect(bebidas[0]?.querySelector('.ultimos__bebida-mods')?.textContent).toBe('avena');
+    expect(bebidas[1]?.querySelector('.ultimos__bebida-nombre')?.textContent).toBe('2 × Cortado');
+    // La hora y el «hace N min», que es lo que no se puede restar de cabeza.
+    expect(panelDe()!.querySelector('.ultimos__cuando')?.textContent).toContain('ahora mismo');
+  });
+
+  it('solo hay una abierta a la vez: abrir otra cierra la primera', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    fireEvent.click(tile('Espresso'));
+    await servirYEsperar(2);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(2));
+
+    abrirFila(0);
+    await waitFor(() => expect(panelDe(0)).not.toBeNull());
+    abrirFila(1);
+    await waitFor(() => expect(panelDe(1)).not.toBeNull());
+    expect(panelDe(0)).toBeNull();
+    expect(document.querySelectorAll('.ultimos__panel')).toHaveLength(1);
+  });
+
+  it('tocar la abierta la cierra', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    abrirFila();
+    await waitFor(() => expect(panelDe()).not.toBeNull());
+    abrirFila();
+    await waitFor(() => expect(panelDe()).toBeNull());
+  });
+
+  it('servir un pedido nuevo cierra la que estuviera abierta', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    abrirFila();
+    await waitFor(() => expect(panelDe()).not.toBeNull());
+
+    fireEvent.click(tile('Espresso'));
+    await servirYEsperar(2);
+
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(2));
+    // El nuevo va arriba y no queda ninguna desplegada: la lista se reordenó.
+    expect(ultimosFrases()[0]).toBe('Espresso');
+    expect(document.querySelectorAll('.ultimos__panel')).toHaveLength(0);
+  });
+
+  it('en modo venta la fila abierta enseña el importe y el método', async () => {
+    await setupBar('venta');
+    fireEvent.click(tile('Espresso')); // 2,00
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(serveButton());
+    const cobro = await screen.findByRole('dialog');
+    fireEvent.click(
+      [...cobro.querySelectorAll<HTMLButtonElement>('.btn')].find(
+        (b) => b.textContent?.trim() === 'Tarjeta',
+      )!,
+    );
+    fireEvent.click(
+      [...cobro.querySelectorAll<HTMLButtonElement>('.btn')].find((b) =>
+        b.textContent?.includes('Confirmar y servir'),
+      )!,
+    );
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    abrirFila();
+    await waitFor(() => expect(panelDe()).not.toBeNull());
+    expect(panelDe()!.querySelector('.ultimos__cobro')?.textContent).toBe('2,00 € · Tarjeta');
+    expect(panelDe()!.querySelector('.ultimos__bebida-importe')?.textContent).toBe('2,00 €');
+  });
+});
+
+describe('anular un pedido desde su fila', () => {
+  it('pregunta el motivo en línea, sin ventana emergente', async () => {
+    await setupBar();
+    fireEvent.click(tile('Cortado'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(anularDe());
+    await waitFor(() => expect(document.querySelector('.ultimos .chip--mini')).not.toBeNull());
+    const motivos = [...document.querySelectorAll('.ultimos .chip--mini')].map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(motivos).toEqual(['Error', 'Devuelto', 'Otro', 'Cancelar']);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('elegir «Error» lo saca de la lista y baja el contador', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    fireEvent.click(tile('Espresso'));
+    await servirYEsperar(2);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(2));
+
+    fireEvent.click(anularDe(0)); // el Espresso, el más nuevo
+    fireEvent.click(chipMotivo('Error'));
+
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    expect(ultimosFrases()).toEqual(['Latte']);
+
+    // Nada se borra: la fila sigue en la base, anulada con su motivo.
+    const orders = await listOrders(eventId);
+    expect(orders).toHaveLength(2);
+    const anulado = orders.find((o) => o.voidedAt !== null);
+    expect(anulado?.voidReason).toBe('error');
+  });
+
+  it('«Deshacer» del aviso lo devuelve a la lista', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(anularDe());
+    fireEvent.click(chipMotivo('Error'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(0));
+    await waitFor(() => expect(ultimoToast()).toContain('Pedido anulado'));
+    expect(ultimoToast()).toContain('Deshacer');
+
+    fireEvent.click([...document.querySelectorAll<HTMLButtonElement>('.toast__action')].pop()!);
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    expect(ultimosFrases()).toEqual(['Latte']);
+  });
+
+  it('«Cancelar» deja el pedido como estaba', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(anularDe());
+    await waitFor(() => expect(document.querySelector('.ultimos .chip--mini')).not.toBeNull());
+    fireEvent.click(chipMotivo('Cancelar'));
+
+    await waitFor(() => expect(document.querySelector('.ultimos .chip--mini')).toBeNull());
+    expect(ultimosFilas()).toHaveLength(1);
+    expect(servedCount()).toBe('1');
+  });
+});
+
+describe('editar un pedido ya servido', () => {
+  it('con el pedido actual lleno, «Editar» está apagado y dice por qué', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    // Ahora hay algo a medias en el pedido actual.
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(rows()).toHaveLength(1));
+
+    const editar = editarDe();
+    expect(editar.disabled).toBe(true);
+    expect(editar.getAttribute('title')).toBe('Sirve o vacía el pedido actual para editar');
+    expect(panelDe()?.querySelector('.ultimos__aviso')?.textContent).toBe(
+      'Sirve o vacía el pedido actual para editar',
+    );
+  });
+
+  it('carga las líneas en el pedido actual y la cabecera dice de qué hora es', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    const hora = ultimosFilas()[0]!.querySelector('.ultimos__hora')!.textContent;
+
+    fireEvent.click(editarDe());
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(rows()[0]?.textContent).toContain('Latte');
+    expect(cabeceraTicket()).toContain(`Editando el pedido de ${hora ?? ''}`);
+    expect(cabeceraTicket()).toContain('Cancelar');
+    // La fila se cierra: lo que se está mirando ahora es el ticket.
+    expect(document.querySelectorAll('.ultimos__panel')).toHaveLength(0);
+    // Y el original sigue intacto hasta confirmar.
+    expect(servedCount()).toBe('1');
+  });
+
+  it('«Cancelar» vacía el ticket y no toca el pedido original', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+
+    fireEvent.click(
+      [...document.querySelectorAll<HTMLButtonElement>('.barra__cols .ticket__head .btn')].find(
+        (b) => b.textContent?.trim() === 'Cancelar',
+      )!,
+    );
+
+    await waitFor(() => expect(cabeceraTicket()).toContain('Pedido actual (0)'));
+    // Se mira el botón y no las filas: durante los 180 ms del fundido de
+    // «Servir» lo que se pinta es la copia congelada del pedido anterior.
+    expect(serveButton().disabled).toBe(true);
+    expect(serveButton().textContent).toContain('Toca una bebida');
+    const orders = await listOrders(eventId);
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.voidedAt).toBeNull();
+  });
+
+  it('servir la corrección conserva la hora, anula el original y no mueve el contador', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    const original = (await listOrders(eventId))[0]!;
+
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+
+    fireEvent.click(serveButton());
+    await waitFor(() => expect(ultimoToast()).toContain('Pedido corregido'));
+
+    const orders = await listOrders(eventId);
+    expect(orders).toHaveLength(2);
+    const nuevo = orders.find((o) => o.id !== original.id)!;
+    expect(nuevo.servedAt).toBe(original.servedAt);
+    expect(nuevo.replacesOrderId).toBe(original.id);
+    expect(nuevo.lines[0]?.modifiers[0]?.label).toBe('Avena');
+
+    const viejo = orders.find((o) => o.id === original.id)!;
+    expect(viejo.voidedAt).not.toBeNull();
+    expect(viejo.voidReason).toBe('editado');
+
+    // El contador no se mueve: sigue habiendo una bebida servida.
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    // Y en la lista solo está la corregida, con la hora de siempre.
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    expect(ultimosFrases()).toEqual(['Latte · avena']);
+    expect(cabeceraTicket()).toContain('Pedido actual');
+  });
+
+  it('el consumo pasa a ser el de la bebida corregida, no la suma de las dos', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+    fireEvent.click(serveButton());
+    await waitFor(() => expect(ultimoToast()).toContain('Pedido corregido'));
+
+    await waitFor(async () => {
+      const consumo = eventConsumption(await listOrders(eventId));
+      expect(consumo['avena']).toBe(220);
+      expect(consumo['leche'] ?? 0).toBe(0);
+    });
+  });
+
+  it('«Deshacer» de la corrección devuelve el pedido original', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    const original = (await listOrders(eventId))[0]!;
+
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+    fireEvent.click(serveButton());
+    await waitFor(() => expect(ultimoToast()).toContain('Pedido corregido'));
+
+    fireEvent.click([...document.querySelectorAll<HTMLButtonElement>('.toast__action')].pop()!);
+
+    await waitFor(() => expect(ultimosFrases()).toEqual(['Latte']));
+    const orders = await listOrders(eventId);
+    expect(orders.find((o) => o.id === original.id)?.voidedAt).toBeNull();
+    expect(orders.find((o) => o.id !== original.id)?.voidedAt).not.toBeNull();
+    expect(servedCount()).toBe('1');
+  });
+
+  it('recargar a mitad de una corrección la recupera entera', async () => {
+    await setupBar();
+    fireEvent.click(tile('Latte'));
+    await servirYEsperar(1);
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+    const hora = ultimosFilas()[0]!.querySelector('.ultimos__hora')!.textContent;
+
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(extra('Avena'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('avena'));
+
+    // Recargar = desmontar y volver a montar leyendo lo persistido.
+    cleanup();
+    detachTicket();
+    render(<BarraHarness />);
+    await screen.findByText('Boda de prueba');
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(rows()[0]?.textContent).toContain('avena');
+    await waitFor(() => expect(cabeceraTicket()).toContain(`Editando el pedido de ${hora ?? ''}`));
+  });
+
+  it('en modo Rápido corregir suspende el modo: se monta y luego se sirve', async () => {
+    const eventId = await setupBar();
+    fireEvent.click(rapido());
+    await waitFor(() => expect(rapido().getAttribute('aria-pressed')).toBe('true'));
+
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    // Vuelve el botón de servir aunque Rápido siga puesto.
+    expect(rapido().getAttribute('aria-pressed')).toBe('true');
+    expect(cabeceraTicket()).toContain('Editando el pedido de');
+
+    // Y tocar una bebida ya no sirve: se añade a la corrección.
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(rows()).toHaveLength(2));
+    expect(servedCount()).toBe('1');
+
+    fireEvent.click(serveButton());
+    await waitFor(() => expect(ultimoToast()).toContain('Pedido corregido'));
+    // Servida la corrección, se vuelve a Rápido: el ticket desaparece.
+    await waitFor(() => expect(document.querySelector('.ticket__pista')).not.toBeNull());
+    await waitFor(() => expect(servedCount()).toBe('2'));
+
+    const orders = await listOrders(eventId);
+    expect(orders).toHaveLength(2);
+    expect(orders.find((o) => o.voidReason === 'editado')).toBeDefined();
+  });
+
+  it('en modo venta, si el total no cambia se conserva el cobro sin volver a preguntar', async () => {
+    const eventId = await setupBar('venta');
+    fireEvent.click(tile('Espresso')); // 2,00
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(serveButton());
+    const cobro = await screen.findByRole('dialog');
+    fireEvent.click(
+      [...cobro.querySelectorAll<HTMLButtonElement>('.btn')].find(
+        (b) => b.textContent?.trim() === 'Bizum',
+      )!,
+    );
+    fireEvent.click(
+      [...cobro.querySelectorAll<HTMLButtonElement>('.btn')].find((b) =>
+        b.textContent?.includes('Confirmar y servir'),
+      )!,
+    );
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    // Un extra sin coste: el total sigue siendo 2,00 €.
+    fireEvent.click(extra('Desca'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('desca'));
+    expect(serveButton().textContent).toContain('Cobrar 2,00 €');
+
+    fireEvent.click(serveButton());
+    // Sin hoja de cobro de por medio: ya estaba cobrado.
+    await waitFor(() => expect(ultimoToast()).toContain('Pedido corregido'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    const nuevo = (await listOrders(eventId)).find((o) => o.voidedAt === null)!;
+    expect(nuevo.payment).toBe('bizum');
+    expect(nuevo.total).toBe(2);
+  });
+
+  it('en modo venta, si el total cambia se abre el cobro con el método de antes', async () => {
+    await setupBar('venta');
+    fireEvent.click(tile('Latte')); // 3,20
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(serveButton());
+    const cobro = await screen.findByRole('dialog');
+    fireEvent.click(
+      [...cobro.querySelectorAll<HTMLButtonElement>('.btn')].find(
+        (b) => b.textContent?.trim() === 'Tarjeta',
+      )!,
+    );
+    fireEvent.click(
+      [...cobro.querySelectorAll<HTMLButtonElement>('.btn')].find((b) =>
+        b.textContent?.includes('Confirmar y servir'),
+      )!,
+    );
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(editarDe());
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    fireEvent.click(extra('Avena')); // +0,50 → 3,70
+    await waitFor(() => expect(serveButton().textContent).toContain('Cobrar 3,70 €'));
+
+    fireEvent.click(serveButton());
+    const hoja = await screen.findByRole('dialog');
+    expect(hoja.querySelector('.pay__amount')?.textContent).toBe('3,70 €');
+    // Con el método del original ya marcado: esa decisión ya la tomó.
+    const tarjeta = [...hoja.querySelectorAll<HTMLButtonElement>('.pay__methods .btn')].find(
+      (b) => b.textContent?.trim() === 'Tarjeta',
+    )!;
+    expect(tarjeta.getAttribute('aria-pressed')).toBe('true');
   });
 });
 

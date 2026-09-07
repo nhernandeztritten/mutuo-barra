@@ -84,6 +84,8 @@
   --t-tick: 240ms;
   /* Fundido de la fila de «Últimos pedidos» que se acaba de repetir. */
   --t-repeat: 600ms;
+  /* Lo que tarda una fila de «Últimos pedidos» en desplegarse. */
+  --t-desplegar: 180ms;
 }
 
 [data-theme='night'] {
@@ -127,5 +129,7 @@
     --t-toast-out: 120ms;
     --t-tick: 0ms;
     --t-repeat: 120ms;
+    /* Instantáneo: desplegar una fila no es decorativo, es abrir una lista. */
+    --t-desplegar: 0ms;
   }
 }

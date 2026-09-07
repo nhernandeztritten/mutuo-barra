@@ -599,6 +599,20 @@
   font-weight: 600;
 }
 
+/* Corrigiendo, la cabecera del ticket cambia de color: es lo único que
+   distingue «voy a servir un pedido nuevo» de «voy a sustituir el de las
+   09:54», y la diferencia importa. */
+.ticket__head.is-editando {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.ticket__cancelar {
+  min-height: var(--h-step);
+  padding-inline: var(--s-3);
+  font-size: var(--fs-meta);
+}
+
 /* `basis: auto` a propósito: con `0%` el pedido no cuenta como espacio pedido y
    «Últimos pedidos» se quedaba con el suyo mientras el pedido hacía scroll. */
 .ticket__list {
@@ -771,13 +785,16 @@
 
 .ultimos__fila {
   display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-height: var(--h-row);
-  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-2);
+  flex-direction: column;
   border-radius: var(--r-chip);
   border-block-end: 1px solid var(--line);
   animation: line-in var(--t-enter) var(--ease);
+}
+
+/* La fila desplegada se marca con fondo, como la línea actual del ticket.
+   Nunca con una franja lateral: DESIGN.md las prohíbe. */
+.ultimos__fila.is-abierta {
+  background: var(--surface-2);
 }
 
 /* Feedback de «Repetir»: un fundido breve de la fila, sin ventana emergente. */
@@ -795,6 +812,119 @@
   100% {
     background: transparent;
   }
+}
+
+/* La fila entera es el objetivo táctil: 56 px de alto y todo el ancho. Con las
+   manos mojadas se toca donde se está mirando, no un botón de una esquina. */
+.ultimos__cabeza {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: var(--h-row);
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  border-radius: var(--r-chip);
+  background: transparent;
+  text-align: start;
+}
+
+.ultimos__cabeza:active {
+  background: var(--bg);
+}
+
+/* ---- La fila desplegada ---- */
+
+/* `0fr → 1fr` en la fila del grid: es lo único que anima un alto automático sin
+   medirlo en JavaScript. Solo al abrir; cerrar es instantáneo, porque el panel
+   se desmonta (y así sus botones no se quedan en el orden de tabulación ni los
+   miden los scripts de verificación con 0 px de alto). */
+.ultimos__panel {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: desplegar var(--t-desplegar) var(--ease);
+}
+
+@keyframes desplegar {
+  from {
+    grid-template-rows: 0fr;
+  }
+}
+
+.ultimos__panel-in {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 var(--s-2) var(--s-3);
+}
+
+.ultimos__cuando {
+  color: var(--ink-3);
+  font-size: var(--fs-meta);
+}
+
+.ultimos__bebidas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Una línea por bebida, a 18 px: es lo que el barista lee de un vistazo a
+   60-75 cm. Los extras van al lado, apagados. */
+.ultimos__bebida {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-2);
+  font-size: var(--fs-row);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ultimos__bebida-mods,
+.ultimos__bebida-nota {
+  font-size: var(--fs-meta);
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.ultimos__bebida-importe {
+  margin-inline-start: auto;
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.ultimos__nota,
+.ultimos__cobro {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+
+.ultimos__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+/* «Anular» es texto en rojo y se va sola a la derecha: es la única de las tres
+   que no se deshace tocando otra vez. */
+.ultimos__anular {
+  margin-inline-start: auto;
+  color: var(--danger);
+}
+
+/* Por qué «Editar» está apagado, escrito donde se mira. Un `title` solo lo ve
+   quien tiene ratón, y aquí no hay ratón. */
+.ultimos__aviso {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
 }
 
 .ultimos__hora {
@@ -822,7 +952,9 @@
   color: var(--ink-3);
 }
 
-.ultimos__repetir {
+.ultimos__repetir,
+.ultimos__editar,
+.ultimos__anular {
   flex: none;
   min-width: var(--h-step);
   min-height: var(--h-step);
@@ -1639,6 +1771,14 @@
 .pedido.is-anulado .pedido__importe {
   text-decoration: line-through;
   color: var(--ink-3);
+}
+
+/* Un pedido corregido está tachado igual —lo que cuenta es el que lo
+   sustituye—, pero su etiqueta no es una alarma: nadie se equivocó, se
+   cambió. En rojo sería contar mal lo que pasó. */
+.pedido.is-corregido .pedido__motivo {
+  color: var(--ink-3);
+  font-weight: 400;
 }
 
 .pedido__motivos {

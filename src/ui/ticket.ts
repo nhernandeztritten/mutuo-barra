@@ -40,11 +40,26 @@ export const ticket = signal<TicketLine[]>([]);
 /** Evento al que pertenece el pedido cargado ahora mismo. */
 export const ticketEventId = signal<string | null>(null);
 
+/**
+ * El pedido ya servido que se está corrigiendo, o `null`.
+ *
+ * Se guarda junto al ticket y por el mismo motivo: recargar la página en medio
+ * de una corrección no puede dejar las líneas del pedido viejo en el ticket
+ * como si fueran un pedido nuevo. Con el id puesto, la cabecera sigue diciendo
+ * «Editando el pedido de 09:54» y «Servir» sabe a quién sustituye.
+ */
+export const editingOrderId = signal<string | null>(null);
+
 const STORAGE_PREFIX = 'mutuo-barra:ticket:';
+const EDIT_PREFIX = 'mutuo-barra:editando:';
 let seqCounter = 0;
 
 function storageKey(eventId: string): string {
   return `${STORAGE_PREFIX}${eventId}`;
+}
+
+function editKey(eventId: string): string {
+  return `${EDIT_PREFIX}${eventId}`;
 }
 
 function newId(): string {
@@ -74,23 +89,51 @@ function persist(): void {
 function write(lines: TicketLine[]): void {
   ticket.value = lines;
   persist();
+  // Un ticket vacío con una corrección abierta es un estado imposible: la
+  // cabecera diría «Editando el pedido de 09:54» sin nada que servir. Quitar la
+  // última línea de una corrección la cancela, y la cabecera vuelve a «Pedido
+  // actual».
+  if (lines.length === 0 && editingOrderId.value !== null) setEditingOrder(null);
+}
+
+/**
+ * Marca (o deja de marcar) que el ticket está corrigiendo un pedido servido.
+ * Se persiste al momento, igual que las líneas.
+ */
+export function setEditingOrder(orderId: string | null): void {
+  editingOrderId.value = orderId;
+  const eventId = ticketEventId.value;
+  if (eventId === null) return;
+  try {
+    if (orderId === null) localStorage.removeItem(editKey(eventId));
+    else localStorage.setItem(editKey(eventId), orderId);
+  } catch {
+    // Igual que con las líneas: sin almacenamiento se pierde solo la red de
+    // seguridad de la recarga, no la corrección en curso.
+  }
 }
 
 /** Carga el pedido guardado de un evento. Llamar al montar la barra. */
 export function loadTicket(eventId: string): TicketLine[] {
   ticketEventId.value = eventId;
   let lines: TicketLine[] = [];
+  let editando: string | null = null;
   try {
     const raw = localStorage.getItem(storageKey(eventId));
     if (raw) {
       const parsed: unknown = JSON.parse(raw);
       if (Array.isArray(parsed)) lines = parsed as TicketLine[];
     }
+    editando = localStorage.getItem(editKey(eventId));
   } catch {
     lines = [];
   }
   seqCounter = lines.reduce((max, l) => Math.max(max, l.seq), 0);
   ticket.value = lines;
+  // Sin líneas no hay corrección que retomar: un id suelto apuntaría a un
+  // pedido que se serviría sin nada dentro.
+  editingOrderId.value = lines.length > 0 ? editando : null;
+  if (lines.length === 0 && editando !== null) setEditingOrder(null);
   return lines;
 }
 
@@ -98,6 +141,7 @@ export function loadTicket(eventId: string): TicketLine[] {
 export function detachTicket(): void {
   ticketEventId.value = null;
   ticket.value = [];
+  editingOrderId.value = null;
 }
 
 /* ---------------- Construir una línea ---------------- */
@@ -300,6 +344,7 @@ export function lineContent(line: TicketLine): Omit<TicketLine, 'id' | 'qty' | '
   };
 }
 
+/** Vacía el pedido en curso. `write` se encarga de cerrar la corrección abierta. */
 export function clearTicket(): void {
   write([]);
 }

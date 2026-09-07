@@ -9,12 +9,14 @@ import {
   buildLine,
   clearTicket,
   detachTicket,
+  editingOrderId,
   isOptionActive,
   lastLine,
   lineContent,
   loadTicket,
   replaceLine,
   restoreTicket,
+  setEditingOrder,
   setQty,
   ticket,
   ticketDrinks,
@@ -169,6 +171,56 @@ describe('recarga de la página', () => {
     detachTicket();
     loadTicket(EVENT);
     expect(ticket.value).toHaveLength(0);
+  });
+});
+
+describe('corregir un pedido servido sobrevive a la recarga', () => {
+  it('vuelve con sus líneas y sabiendo a qué pedido corrige', () => {
+    add('latte');
+    setEditingOrder('pedido-de-las-9-54');
+    expect(editingOrderId.value).toBe('pedido-de-las-9-54');
+
+    detachTicket();
+    expect(editingOrderId.value).toBeNull();
+
+    loadTicket(EVENT);
+    expect(ticket.value).toHaveLength(1);
+    expect(editingOrderId.value).toBe('pedido-de-las-9-54');
+  });
+
+  it('cada evento guarda su corrección aparte', () => {
+    add('latte');
+    setEditingOrder('pedido-de-las-9-54');
+    detachTicket();
+    loadTicket('otro-evento');
+    expect(editingOrderId.value).toBeNull();
+  });
+
+  it('vaciar el pedido cancela la corrección: sin líneas no hay nada que servir', () => {
+    add('latte');
+    setEditingOrder('pedido-de-las-9-54');
+    clearTicket();
+    expect(editingOrderId.value).toBeNull();
+
+    detachTicket();
+    loadTicket(EVENT);
+    expect(editingOrderId.value).toBeNull();
+  });
+
+  it('quitar la última línea a mano también la cancela', () => {
+    add('latte');
+    setEditingOrder('pedido-de-las-9-54');
+    undoLast();
+    expect(ticket.value).toHaveLength(0);
+    expect(editingOrderId.value).toBeNull();
+  });
+
+  it('un id guardado sin líneas no resucita: se descarta al cargar', () => {
+    localStorage.setItem(`mutuo-barra:editando:${EVENT}`, 'pedido-fantasma');
+    detachTicket();
+    loadTicket(EVENT);
+    expect(editingOrderId.value).toBeNull();
+    expect(localStorage.getItem(`mutuo-barra:editando:${EVENT}`)).toBeNull();
   });
 });
 

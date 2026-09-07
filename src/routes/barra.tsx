@@ -11,10 +11,17 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
 import { ChevronLeft, Moon, Sun, Zap } from 'lucide-preact';
-import { addOrder, listOrders, replaceOrderLines, voidOrder } from '../data/repo';
-import type { Category, ModifierOption, Order, Product } from '../data/types';
+import { addOrder, listOrders, replaceOrderLines, unvoidOrder, voidOrder } from '../data/repo';
+import {
+  VOID_DESHACER,
+  VOID_EDITADO,
+  type Category,
+  type ModifierOption,
+  type Order,
+  type Product,
+} from '../data/types';
 import { eventConsumption, eventStats } from '../domain/stats';
-import { formatInt, formatQty, formatRate } from '../domain/format';
+import { formatInt, formatQty, formatRate, formatTime } from '../domain/format';
 import { Button, Sheet, Tile } from '../ui/components';
 import { useIr } from '../ui/navegar';
 import { clearToasts, showToast, TOAST_ACTION_MS } from '../ui/toast';
@@ -49,11 +56,13 @@ import {
   clearTicket,
   contentFor,
   detachTicket,
+  editingOrderId,
   lastLine,
   lineContent,
   loadTicket,
   replaceLine,
   restoreTicket,
+  setEditingOrder,
   setQty,
   ticket,
   ticketDrinks,
@@ -109,6 +118,8 @@ export function Barra() {
   const [resumenOpen, setResumenOpen] = useState<'todo' | 'pedidos' | null>(null);
   /** El pedido que se acaba de repetir, para el fundido de su fila. */
   const [repetido, setRepetido] = useState<string | null>(null);
+  /** La fila de «Últimos pedidos» desplegada. Solo una a la vez. */
+  const [abierto, setAbierto] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -173,6 +184,18 @@ export function Barra() {
   }
 
   const lines = ticket.value;
+  /**
+   * El pedido servido que se está corrigiendo. Sale de un signal persistido, no
+   * de un `useState`: recargar la página en medio de una corrección tiene que
+   * devolver la cabecera «Editando el pedido de 09:54», no un pedido nuevo con
+   * las líneas de uno viejo dentro.
+   */
+  const editandoId = editingOrderId.value;
+  const editando: Order | null = editandoId
+    ? (orders.find((o) => o.id === editandoId) ?? null)
+    : null;
+  /** Corrigiendo, el modo Rápido queda en pausa: hay que montar y luego servir. */
+  const rapido = oneTap.value && editandoId === null;
   const stats = eventStats(event, orders, products, now);
   const consumption = eventConsumption(orders);
 
@@ -282,6 +305,7 @@ export function Barra() {
   async function persistOrder(
     toServe: TicketLine[],
     payment: PaymentResult | null,
+    corrige: Order | null = null,
   ): Promise<Order> {
     return addOrder({
       eventId: event!.id,
@@ -299,13 +323,17 @@ export function Barra() {
       ...(payment
         ? { payment: payment.payment, tip: payment.tip, cashGiven: payment.cashGiven }
         : {}),
+      // Corregir conserva la hora del original: la bebida se sirvió cuando se
+      // sirvió, y moverla al presente falsearía las franjas de media hora y el
+      // ritmo de la última hora. `createdAt` sí es ahora: es cuando se escribió.
+      ...(corrige ? { servedAt: corrige.servedAt, replacesOrderId: corrige.id } : {}),
     });
   }
 
   /** Deshacer: anula el pedido y devuelve las líneas al ticket. */
   function undoServe(order: Order, served: TicketLine[], restore: boolean): void {
     void (async () => {
-      await voidOrder(order.id, 'deshacer');
+      await voidOrder(order.id, VOID_DESHACER);
       await reloadOrders();
       // Un pedido anulado ya no se puede editar desde la fila.
       setQuickEdit((prev) => (prev?.orderId === order.id ? null : prev));
@@ -317,14 +345,44 @@ export function Barra() {
     })();
   }
 
-  async function serve(toServe: TicketLine[], payment: PaymentResult | null): Promise<void> {
+  /**
+   * Deshacer una corrección: se anula el pedido nuevo y **vuelve** el original,
+   * con su hora, su cobro y sus líneas de antes. Nada se borra: las dos filas
+   * siguen en la base y en el Resumen.
+   */
+  function undoEdit(nuevo: Order, original: Order): void {
+    void (async () => {
+      await voidOrder(nuevo.id, VOID_DESHACER);
+      await unvoidOrder(original.id);
+      await reloadOrders();
+      setAbierto(null);
+      showToast('Corrección deshecha');
+    })();
+  }
+
+  async function serve(
+    toServe: TicketLine[],
+    payment: PaymentResult | null,
+    corrige: Order | null = null,
+  ): Promise<void> {
     // Sin candado: en modo rápido hay que aguantar tres toques seguidos sin
     // perder ninguno. Cada pedido es una fila con su uuid, no se pisan.
     if (toServe.length === 0) return;
     const drinks = toServe.reduce((sum, l) => sum + l.qty, 0);
-    const order = await persistOrder(toServe, payment);
+    const order = await persistOrder(toServe, payment, corrige);
+    // El original se anula **después** de escribir el nuevo: si algo fallara en
+    // medio, lo que queda es el pedido de siempre, no un hueco.
+    if (corrige) await voidOrder(corrige.id, VOID_EDITADO);
     await reloadOrders();
     pulse();
+
+    if (corrige) {
+      showToast('Pedido corregido', {
+        label: 'Deshacer',
+        onAction: () => undoEdit(order, corrige),
+      });
+      return;
+    }
 
     // Modo Rápido con una sola bebida: la fila la sigue editando mientras vive
     // el «Deshacer». Pasados los 8 s vuelve al estado vacío.
@@ -356,17 +414,22 @@ export function Barra() {
   async function serveTicket(payment: PaymentResult | null): Promise<void> {
     const toServe = lines;
     if (toServe.length === 0) return;
+    // Se captura antes de vaciar: `clearTicket` cierra también la corrección.
+    const corrige = editando;
     setFading(toServe);
     setServing(true);
     setSheetOpen(false);
     clearTicket();
     // Servido el pedido, la fila de extras vuelve al estado vacío.
     setCurrentLineId(null);
+    // Y la fila desplegada se cierra: la lista se reordena debajo y quedaría
+    // abierto un pedido distinto del que el barista estaba mirando.
+    setAbierto(null);
     later(() => {
       setServing(false);
       setFading([]);
     }, SERVE_FADE_MS);
-    await serve(toServe, payment);
+    await serve(toServe, payment, corrige);
   }
 
   /* ---- Tocar un producto ---- */
@@ -378,7 +441,9 @@ export function Barra() {
    */
   function onTile(product: Product): void {
     const { line } = buildLine(product, [], ingredients.value, modifierGroups.value);
-    if (oneTap.value) void serve([line], null);
+    // Corrigiendo un pedido, el toque **no** sirve aunque Rápido esté puesto:
+    // la corrección se monta entera y se confirma con «Servir».
+    if (rapido) void serve([line], null);
     else setCurrentLineId(addLine(line));
   }
 
@@ -433,7 +498,7 @@ export function Barra() {
     setRepetido(pedido.id);
     later(() => setRepetido((prev) => (prev === pedido.id ? null : prev)), REPEAT_FLASH_MS);
 
-    if (oneTap.value) {
+    if (rapido) {
       void serve(nuevas, null);
       return;
     }
@@ -442,12 +507,78 @@ export function Barra() {
     setCurrentLineId(ultimo);
   }
 
+  /**
+   * «Editar»: las líneas del pedido servido caen en el pedido actual —receta,
+   * coste y precio recalculados con la carta de ahora, igual que «Repetir»— y
+   * la cabecera pasa a «Editando el pedido de 09:54».
+   *
+   * El pedido original **no se toca** hasta confirmar: si el barista cancela o
+   * cierra la barra, lo servido sigue tal cual estaba.
+   */
+  function onEditarPedido(pedido: UltimoPedido): void {
+    // El botón ya sale deshabilitado, pero el estado manda sobre el botón:
+    // mezclar una corrección con un pedido a medias serviría las dos cosas
+    // juntas y anularía el original por el camino.
+    if (lines.length > 0) return;
+    const nuevas = lineasDe(pedido.id);
+    if (nuevas.length === 0) {
+      showToast('Esa bebida ya no está en la carta');
+      return;
+    }
+    let ultimo: string | null = null;
+    for (const line of nuevas) ultimo = addLine(line);
+    setCurrentLineId(ultimo);
+    // Después de añadir las líneas: con el ticket vacío, la corrección se cierra
+    // sola (es un estado imposible).
+    setEditingOrder(pedido.id);
+    setAbierto(null);
+  }
+
+  /** «Anular» desde la fila desplegada. Nunca borra: `voidedAt` y su motivo. */
+  function onAnularPedido(pedido: UltimoPedido, motivoId: string): void {
+    void (async () => {
+      await voidOrder(pedido.id, motivoId);
+      // Corregir un pedido que se acaba de anular no significa nada.
+      if (editingOrderId.value === pedido.id) clearTicket();
+      await reloadOrders();
+      setAbierto(null);
+      showToast('Pedido anulado', {
+        label: 'Deshacer',
+        onAction: () => {
+          void (async () => {
+            await unvoidOrder(pedido.id);
+            await reloadOrders();
+            showToast('Anulación deshecha');
+          })();
+        },
+      });
+    })();
+  }
+
   const editingProduct = editing ? products.find((p) => p.id === editing.productId) : undefined;
   const drinks = ticketDrinks(lines);
 
+  /**
+   * Servir (o cobrar). Corrigiendo en modo venta y con el **mismo total**, no
+   * se vuelve a abrir la hoja de cobro: ya está cobrado y el método era el que
+   * era. Si el total cambia sí hay que preguntar, con el método del original
+   * ya marcado.
+   */
   function onServeButton(): void {
-    if (event!.mode === 'venta') setPaying(true);
-    else void serveTicket(null);
+    if (event!.mode !== 'venta') {
+      void serveTicket(null);
+      return;
+    }
+    const mismoTotal = editando !== null && Math.abs(ticketTotal(lines) - editando.subtotal) < 0.005;
+    if (editando && mismoTotal && editando.payment) {
+      void serveTicket({
+        payment: editando.payment,
+        tip: editando.tip,
+        cashGiven: editando.cashGiven,
+      });
+      return;
+    }
+    setPaying(true);
   }
 
   /**
@@ -474,8 +605,18 @@ export function Barra() {
     oneTap: oneTap.value,
     ultimos,
     repetido,
+    abierto,
+    onAbrir: setAbierto,
+    now,
     onRepetir,
+    onEditar: onEditarPedido,
+    onAnular: onAnularPedido,
     onVerTodos: () => setResumenOpen('pedidos'),
+    editandoDe: editando?.servedAt ?? null,
+    onCancelarEdicion: () => {
+      clearTicket();
+      setCurrentLineId(null);
+    },
     serving,
     currentLineId: currentLine?.id ?? null,
     onSelect: (line: TicketLine) => setCurrentLineId(line.id),
@@ -631,7 +772,11 @@ export function Barra() {
           del de la hoja y quedan dos botones iguales, uno de ellos muerto. */}
       <div class={['ticket-bar', sheetOpen ? 'is-oculta' : ''].filter(Boolean).join(' ')}>
         <button type="button" class="ticket-bar__label" onClick={() => setSheetOpen(true)}>
-          {oneTap.value ? 'Modo rápido activo' : `Pedido (${formatInt(drinks)})`}
+          {editando
+            ? `Editando el de ${formatTime(editando.servedAt)}`
+            : rapido
+              ? 'Modo rápido activo'
+              : `Pedido (${formatInt(drinks)})`}
           {event.mode === 'venta' && drinks > 0
             ? ` · ${ticketTotal(lines).toFixed(2).replace('.', ',')} €`
             : ''}
@@ -675,6 +820,10 @@ export function Barra() {
         <PaymentSheet
           subtotal={ticketTotal(lines)}
           drinks={drinks}
+          {...(editando?.payment ? { metodoInicial: editando.payment } : {})}
+          {...(editando
+            ? { titulo: `Corregir el cobro de las ${formatTime(editando.servedAt)}` }
+            : {})}
           onClose={() => setPaying(false)}
           onConfirm={(result) => {
             setPaying(false);
