@@ -151,6 +151,16 @@ const PARES = [
   { id: 'etiqueta de aviso', fg: '--warn', bg: '--bg', nota: '«Sin proteger»' },
   { id: 'desviación en rojo', fg: '--danger', bg: '--bg', nota: 'cierre y resultados' },
   { id: 'barra de progreso llena', fg: '--primary', bg: '--primary-soft', nota: 'no es texto: 3:1', grande: true },
+
+  // Fase 8: las recetas clásicas por método. La marca «revisar» va sobre la
+  // fila de la carta (`--surface`), no sobre el fondo; el aviso y su lectura
+  // viven dentro de la hoja, que también es `--surface`.
+  { id: 'marca «revisar» de la carta', fg: '--warn', bg: '--surface', nota: 'contorno ámbar, 15 px' },
+  { id: 'texto de un aviso de receta', fg: '--ink', bg: '--surface', nota: '«192 ml no caben…», 16 px' },
+  { id: 'lectura del ratio', fg: '--ink-2', bg: '--surface', nota: '«Ratio 1:16 · 200 ml piden 12,5 g», 16 px' },
+  { id: 'punto ámbar del aviso', fg: '--warn', bg: '--surface', nota: 'no es texto: 3:1', grande: true },
+  { id: 'cuenta de un lote', fg: '--ink-2', bg: '--bg', nota: '«4 L → 250 g de café», 15 px' },
+  { id: 'campo de un ratio', fg: '--ink-2', bg: '--bg', nota: '«1 g de café por __ ml», 15 px' },
 ];
 
 function medir(tema, nombreTema) {

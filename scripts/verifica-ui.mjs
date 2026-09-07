@@ -246,6 +246,7 @@ const RUTAS = [
   '/ajustes',
   '/ajustes/carta',
   '/ajustes/insumos',
+  '/ajustes/ratios',
   '/ruta-que-no-existe',
 ];
 for (const ancho of [1180, 1024, 820, 768]) {
