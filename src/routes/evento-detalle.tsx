@@ -152,7 +152,7 @@ export function EventoDetalle() {
         <Cifra
           value={formatMoney(close.costPerDrink)}
           label="coste por bebida"
-          hint={close.hasCount ? 'con recuento' : 'teórico, sin recuento'}
+          hint={close.hasCount ? 'con recuento' : 'teórico: nada contado'}
         />
         <Cifra
           value={close.durationMinutes === null ? '—' : formatDuration(close.durationMinutes)}
@@ -172,11 +172,11 @@ export function EventoDetalle() {
         <Fila label="Coste teórico" value={formatMoney(close.costTheoretical)} />
         <Fila
           label="Coste real (con recuento)"
-          value={close.hasCount ? formatMoney(close.costReal) : 'sin recuento'}
+          value={close.hasCount ? formatMoney(close.costReal) : 'nada contado'}
         />
         <Fila
           label="Merma"
-          value={close.hasCount ? formatDeviation(close.wastePct) : 'sin recuento'}
+          value={close.hasCount ? formatDeviation(close.wastePct) : 'nada contado'}
           {...(close.hasCount ? { state: tono(close.wastePct) } : {})}
         />
         {event.mode === 'venta' ? (
@@ -239,7 +239,7 @@ export function EventoDetalle() {
                     <td class="tabla__num">{formatQty(row.theoretical, row.unit)}</td>
                     <td class="tabla__num">{formatQty(row.real, row.unit)}</td>
                     <td class={['tabla__num', row.counted ? `is-${tono(row.deviationPct) ?? 'ok'}` : ''].join(' ')}>
-                      {row.counted ? formatDeviation(row.deviationPct) : 'sin recuento'}
+                      {row.counted ? formatDeviation(row.deviationPct) : 'no contado'}
                     </td>
                   </tr>
                 ))}

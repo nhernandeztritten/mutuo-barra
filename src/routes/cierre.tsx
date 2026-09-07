@@ -164,7 +164,7 @@ export function Cierre() {
             aquí está en el paso 3 y el indicador tiene que decirlo. */}
         <Pasos eventId={event.id} status={event.status} paso={3} />
         <p class="meta">
-          Cuenta lo que queda para saber el consumo real. Sin recuento se usa el teórico.
+          Escribe cuánto queda de cada insumo y sabrás el consumo real. Lo que no cuentes se calcula con las recetas de las bebidas servidas. Contar solo el café y la leche ya sirve.
         </p>
       </header>
 
@@ -236,7 +236,7 @@ export function Cierre() {
                     class={['recuento__cell', 'num', row.counted ? `is-${tonoDesviacion(row.deviationPct) ?? 'ok'}` : ''].join(' ')}
                     data-label="Desviación"
                   >
-                    {row.counted ? formatDeviation(row.deviationPct) : 'sin recuento'}
+                    {row.counted ? formatDeviation(row.deviationPct) : 'no contado'}
                   </span>
                 </div>
               );
@@ -301,7 +301,7 @@ export function Cierre() {
           <Cifra
             value={formatMoney(close.costPerDrink)}
             label="coste por bebida"
-            hint={close.hasCount ? 'con recuento' : 'teórico, sin recuento'}
+            hint={close.hasCount ? 'con recuento' : 'teórico: nada contado'}
           />
           <Cifra
             value={duracion === null ? '—' : formatDuration(duracion)}
@@ -313,11 +313,11 @@ export function Cierre() {
           <Fila label="Coste teórico" value={formatMoney(close.costTheoretical)} />
           <Fila
             label="Coste real (con recuento)"
-            value={close.hasCount ? formatMoney(close.costReal) : 'sin recuento'}
+            value={close.hasCount ? formatMoney(close.costReal) : 'nada contado'}
           />
           <Fila
             label="Merma"
-            value={close.hasCount ? formatDeviation(close.wastePct) : 'sin recuento'}
+            value={close.hasCount ? formatDeviation(close.wastePct) : 'nada contado'}
             {...(close.hasCount ? { state: tonoDesviacion(close.wastePct) } : {})}
           />
           {event.mode === 'venta' ? (
