@@ -107,7 +107,10 @@
   --accent-soft: #2c2748;
 
   --warn: #e08a4a;
-  --danger: #e2695c;
+  /* Aclarado desde #e2695c: «Anular» de la fila desplegada va en rojo sobre
+     `--surface-2`, y ahí el anterior se quedaba en 3,91:1. Ahora 5,19:1, y
+     todos los demás sitios donde aparece suben con él. */
+  --danger: #ec8a7e;
 
   --overlay: rgb(0 0 0 / 0.5);
   --shadow-sheet: 0 8px 24px rgb(0 0 0 / 0.4);

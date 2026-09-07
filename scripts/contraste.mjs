@@ -114,6 +114,31 @@ const PARES = [
   { id: 'medidor de café en rojo', fg: '--danger', bg: '--surface', nota: '< 10 %' },
   { id: 'contador de la cabecera', fg: '--ink', bg: '--surface', grande: true, nota: '32 px' },
   { id: 'toast', fg: '--bg', bg: '--ink', nota: 'aviso con Deshacer' },
+  // --- Fila desplegada de «Últimos pedidos» (fase 7) ---
+  {
+    id: 'bebida de la fila desplegada',
+    fg: '--ink',
+    bg: '--surface-2',
+    nota: '«2 × Cortado», 18 px sobre el fondo de la fila abierta',
+  },
+  {
+    id: 'extras de la fila desplegada',
+    fg: '--ink-3',
+    bg: '--surface-2',
+    nota: '«avena · desca» y el «hace 3 min», 15 px',
+  },
+  {
+    id: '«Anular» de la fila desplegada',
+    fg: '--danger',
+    bg: '--surface-2',
+    nota: 'texto en rojo, la única acción que no se deshace tocando otra vez',
+  },
+  {
+    id: 'cabecera del ticket corrigiendo',
+    fg: '--accent-text',
+    bg: '--accent-soft',
+    nota: '«Editando el pedido de 09:54»',
+  },
   // --- Resto de la app ---
   { id: 'cuerpo sobre el fondo', fg: '--ink', bg: '--bg' },
   { id: 'sección en versalitas', fg: '--ink-3', bg: '--bg', nota: '.section-title, 15 px' },

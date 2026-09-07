@@ -860,7 +860,11 @@
   padding: 0 var(--s-2) var(--s-3);
 }
 
+/* Sustituye a la frase en la fila abierta: la hora sola no contesta «¿este
+   pedido es el de hace un momento o el de hace media hora?». */
 .ultimos__cuando {
+  flex: 1;
+  min-width: 0;
   color: var(--ink-3);
   font-size: var(--fs-meta);
 }

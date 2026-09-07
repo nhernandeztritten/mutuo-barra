@@ -761,8 +761,10 @@ describe('desplegar un pedido para verlo entero', () => {
     expect(bebidas[0]?.querySelector('.ultimos__bebida-nombre')?.textContent).toBe('Latte');
     expect(bebidas[0]?.querySelector('.ultimos__bebida-mods')?.textContent).toBe('avena');
     expect(bebidas[1]?.querySelector('.ultimos__bebida-nombre')?.textContent).toBe('2 × Cortado');
-    // La hora y el «hace N min», que es lo que no se puede restar de cabeza.
-    expect(panelDe()!.querySelector('.ultimos__cuando')?.textContent).toContain('ahora mismo');
+    // Abierta, la frase de arriba deja sitio al «hace N min»: lo de abajo ya
+    // dice qué se pidió, y la hora sola no dice cuándo fue.
+    expect(ultimosFilas()[0]!.querySelector('.ultimos__frase')).toBeNull();
+    expect(ultimosFilas()[0]!.querySelector('.ultimos__cuando')?.textContent).toBe('ahora mismo');
   });
 
   it('solo hay una abierta a la vez: abrir otra cierra la primera', async () => {

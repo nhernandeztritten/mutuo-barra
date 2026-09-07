@@ -296,27 +296,28 @@ export function UltimosPedidos({
                   onClick={() => onAbrir?.(estaAbierta ? null : pedido.id)}
                 >
                   <span class="ultimos__hora num">{formatTime(pedido.servedAt)}</span>
-                  {/* Cerrada se corta a dos líneas con elipsis; abierta, debajo
-                      está el pedido entero línea por línea. */}
-                  <span class="ultimos__frase" title={frase}>
-                    {pedido.partes.map((parte, i) => (
-                      <span class="ultimos__parte" key={`${pedido.id}-${String(i)}`}>
-                        {i > 0 ? ', ' : ''}
-                        {parte.texto}
-                        {parte.mods ? <span class="ultimos__mods"> · {parte.mods}</span> : null}
-                      </span>
-                    ))}
-                  </span>
+                  {/* Cerrada, la frase se corta a dos líneas con elipsis.
+                      Abierta desaparece: debajo está el pedido entero línea por
+                      línea, y repetirla arriba en pequeño solo es ruido. En su
+                      sitio va el «hace N min», que es lo que la hora no dice. */}
+                  {estaAbierta ? (
+                    <span class="ultimos__cuando">{haceTexto(pedido.servedAt, now ?? new Date())}</span>
+                  ) : (
+                    <span class="ultimos__frase" title={frase}>
+                      {pedido.partes.map((parte, i) => (
+                        <span class="ultimos__parte" key={`${pedido.id}-${String(i)}`}>
+                          {i > 0 ? ', ' : ''}
+                          {parte.texto}
+                          {parte.mods ? <span class="ultimos__mods"> · {parte.mods}</span> : null}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </button>
 
                 {estaAbierta ? (
                   <div class="ultimos__panel">
                     <div class="ultimos__panel-in">
-                      <p class="ultimos__cuando">
-                        <span class="num">{formatTime(pedido.servedAt)}</span> ·{' '}
-                        {haceTexto(pedido.servedAt, now ?? new Date())}
-                      </p>
-
                       <ul class="ultimos__bebidas">
                         {pedido.partes.map((parte, i) => (
                           <li class="ultimos__bebida" key={`${pedido.id}-det-${String(i)}`}>

@@ -374,6 +374,10 @@ export function Barra() {
     // medio, lo que queda es el pedido de siempre, no un hueco.
     if (corrige) await voidOrder(corrige.id, VOID_EDITADO);
     await reloadOrders();
+    // Entra un pedido nuevo: la fila desplegada se cierra. La lista se reordena
+    // debajo y, si no, quedaría abierto un pedido distinto del que se miraba.
+    // Va aquí y no en `serveTicket` para que valga también en modo Rápido.
+    setAbierto(null);
     pulse();
 
     if (corrige) {
@@ -422,9 +426,6 @@ export function Barra() {
     clearTicket();
     // Servido el pedido, la fila de extras vuelve al estado vacío.
     setCurrentLineId(null);
-    // Y la fila desplegada se cierra: la lista se reordena debajo y quedaría
-    // abierto un pedido distinto del que el barista estaba mirando.
-    setAbierto(null);
     later(() => {
       setServing(false);
       setFading([]);

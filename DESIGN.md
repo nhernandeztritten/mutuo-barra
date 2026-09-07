@@ -18,7 +18,7 @@ Claro:
 - `--warn` #b3541e · `--danger` #a3271c · `--ok` = primary
 Noche:
 - `--bg` #1c1c1b · `--surface` #262625 · `--surface-2` #33322f · `--ink` #f0efed · `--ink-2` #cfcbc4 · `--ink-3` #aaa59d · `--line` #3d3b38
-- `--primary` #2a8f88 (petróleo aclarado para 4,5:1 con texto blanco no, con texto #0e1a19: usar `--primary-ink` #0b1615) · `--accent` #9d8bff · `--accent-text` #b6a8ff · `--warn` #e08a4a · `--danger` #e2695c
+- `--primary` #2a8f88 (petróleo aclarado para 4,5:1 con texto blanco no, con texto #0e1a19: usar `--primary-ink` #0b1615) · `--accent` #9d8bff · `--accent-text` #b6a8ff · `--warn` #e08a4a · `--danger` #ec8a7e (aclarado desde #e2695c: en rojo sobre `--surface-2` —«Anular» de la fila desplegada— el anterior se quedaba en 3,91:1)
 
 Color por categoría (punto de 10 px en el tile y subrayado de la pestaña): Espresso tinta · Con leche arena oscura #b9a98f · Filtro petróleo · Fríos #3f7fc8 · Especiales violeta · Otros gris #808080. Solo acento; el fondo del tile es siempre `--surface`.
 
