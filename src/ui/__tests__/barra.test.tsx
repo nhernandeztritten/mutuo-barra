@@ -635,6 +635,29 @@ describe('«Repetir» un pedido', () => {
     expect(ultimoToast()).toContain('Deshacer');
   });
 
+  it('en modo venta el precio vuelve a salir de la carta de ahora', async () => {
+    await setupBar('venta');
+    fireEvent.click(tile('Espresso')); // 2,00
+    await waitFor(() => expect(rows()).toHaveLength(1));
+
+    // En venta, servir pasa por la hoja de cobro.
+    fireEvent.click(serveButton());
+    const cobro = await screen.findByRole('dialog');
+    fireEvent.click(
+      [...cobro.querySelectorAll<HTMLButtonElement>('.btn')].find((b) =>
+        b.textContent?.includes('Confirmar y servir'),
+      )!,
+    );
+    await waitFor(() => expect(servedCount()).toBe('1'));
+    await waitFor(() => expect(ultimosFilas()).toHaveLength(1));
+
+    fireEvent.click(repetirDe());
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    // El importe se recalcula, no se clona el cobro viejo.
+    expect(serveButton().textContent).toContain('Cobrar 2,00 €');
+  });
+
   it('una bebida que ya no está en la carta avisa en vez de repetir a medias', async () => {
     await setupBar();
     fireEvent.click(tile('Latte'));
