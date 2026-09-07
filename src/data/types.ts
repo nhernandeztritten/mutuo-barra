@@ -170,6 +170,20 @@ export interface OrderLine {
   note: string;
 }
 
+/**
+ * Motivos de anulación que escribe la propia aplicación, no el barista.
+ *
+ * `voidReason` es texto libre a propósito (los motivos del Resumen son
+ * `error` / `devuelto` / `otro` y Mutuo puede querer otros). Estos dos son los
+ * que la interfaz interpreta:
+ *
+ * - `deshacer`: el «Deshacer» de un toast, dentro de sus 8 s.
+ * - `editado`: el pedido se corrigió; el que lo sustituye lo apunta en
+ *   `replacesOrderId`. En el Resumen sale como «Corregido», no como «Anulado».
+ */
+export const VOID_DESHACER = 'deshacer';
+export const VOID_EDITADO = 'editado';
+
 export interface Order {
   id: string;
   eventId: string;
@@ -187,6 +201,12 @@ export interface Order {
   voidedAt: string | null;
   voidReason: string;
   note: string;
+  /**
+   * Id del pedido al que corrige, cuando este nació de editar uno ya servido.
+   * El original queda anulado con `voidReason: 'editado'` y este conserva su
+   * `servedAt`, para que las franjas y el ritmo no se muevan.
+   */
+  replacesOrderId?: string;
 }
 
 /* ---------------- Ajustes ---------------- */

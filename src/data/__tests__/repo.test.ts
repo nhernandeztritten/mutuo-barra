@@ -4,6 +4,7 @@ import {
   addOrder,
   closeEvent,
   createEvent,
+  eventConsumptionById,
   exportConsumptionCsv,
   exportJson,
   exportLinesCsv,
@@ -15,6 +16,7 @@ import {
   pauseEvent,
   replaceOrderLines,
   reopenEvent,
+  unvoidOrder,
   voidOrder,
 } from '../repo';
 import { INGREDIENTS, MODIFIER_GROUPS, MODIFIER_OPTIONS, PRODUCTS, SEED_VERSION } from '../seed';
@@ -233,6 +235,100 @@ describe('pedidos', () => {
     const orders = await listOrders(a.id, db);
     expect(orders).toHaveLength(2);
     expect(orders[0]?.servedAt).toBe('2026-09-12T18:00:00.000Z');
+  });
+});
+
+describe('corregir un pedido ya servido', () => {
+  /** Un Latte plano, la bebida a la que se corrige. */
+  function lattePlano(qty = 1): NewOrderLine {
+    const latte = PRODUCTS.find((p) => p.id === 'latte')!;
+    const r = applyModifiers(latte, [], INGREDIENTS, MODIFIER_GROUPS);
+    return {
+      productId: latte.id,
+      productName: latte.name,
+      modifiers: [],
+      qty,
+      unitPrice: r.unitPrice,
+      unitCost: r.unitCost,
+      usage: r.usage,
+    };
+  }
+
+  it('el pedido nuevo conserva la hora del original y apunta a quién sustituye', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    const original = await addOrder(
+      { eventId: e.id, lines: [lattePlano()], servedAt: '2026-09-12T09:54:00.000Z' },
+      db,
+    );
+
+    const corregido = await addOrder(
+      {
+        eventId: e.id,
+        lines: [latteConAvena()],
+        servedAt: original.servedAt,
+        replacesOrderId: original.id,
+      },
+      db,
+    );
+    const anulado = await voidOrder(original.id, 'editado', db);
+
+    // La hora es la de siempre: las franjas de media hora y el ritmo de la
+    // última hora no se mueven porque el barista corrigiera media hora después.
+    expect(corregido.servedAt).toBe('2026-09-12T09:54:00.000Z');
+    expect(corregido.createdAt).not.toBe(corregido.servedAt);
+    expect(corregido.replacesOrderId).toBe(original.id);
+    expect(anulado.voidReason).toBe('editado');
+    // Append-only: las dos filas siguen ahí.
+    expect(await db.orders.count()).toBe(2);
+  });
+
+  it('el original queda fuera del consumo y solo cuenta el corregido', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    const original = await addOrder({ eventId: e.id, lines: [lattePlano()] }, db);
+    await addOrder(
+      {
+        eventId: e.id,
+        lines: [latteConAvena()],
+        servedAt: original.servedAt,
+        replacesOrderId: original.id,
+      },
+      db,
+    );
+    await voidOrder(original.id, 'editado', db);
+
+    const consumo = await eventConsumptionById(e.id, db);
+    // Dos lattes de avena (220 ml × 2) y ni una gota de la leche del original.
+    expect(consumo['avena']).toBe(440);
+    expect(consumo['leche'] ?? 0).toBe(0);
+  });
+
+  it('un pedido normal no arrastra el campo: no lleva `replacesOrderId`', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    const order = await addOrder({ eventId: e.id, lines: [lattePlano()] }, db);
+    expect('replacesOrderId' in order).toBe(false);
+  });
+
+  it('deshacer la anulación devuelve el pedido a la vida sin tocar nada más', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    const order = await addOrder(
+      { eventId: e.id, lines: [latteConAvena()], tip: 0.6, servedAt: '2026-09-12T09:54:00.000Z' },
+      db,
+    );
+    await voidOrder(order.id, 'error', db);
+
+    const vivo = await unvoidOrder(order.id, db);
+    expect(vivo.voidedAt).toBeNull();
+    expect(vivo.voidReason).toBe('');
+    // Y sigue siendo el mismo pedido: hora, líneas y propina intactas.
+    expect(vivo.id).toBe(order.id);
+    expect(vivo.servedAt).toBe('2026-09-12T09:54:00.000Z');
+    expect(vivo.tip).toBe(0.6);
+    expect(vivo.lines).toHaveLength(1);
+    expect(await db.orders.count()).toBe(1);
+  });
+
+  it('deshacer la anulación de un pedido que no existe falla en vez de crear uno', async () => {
+    await expect(unvoidOrder('no-existe', db)).rejects.toThrow('Pedido no encontrado');
   });
 });
 

@@ -283,6 +283,11 @@ export interface NewOrderInput {
   note?: string;
   servedAt?: string;
   deviceId?: string;
+  /**
+   * Pedido al que corrige. Al editar un pedido ya servido se crea uno nuevo
+   * (con el `servedAt` del original) y el original se anula como `editado`.
+   */
+  replacesOrderId?: string;
 }
 
 export async function addOrder(input: NewOrderInput, database: BarraDb = db): Promise<Order> {
@@ -315,6 +320,9 @@ export async function addOrder(input: NewOrderInput, database: BarraDb = db): Pr
     voidedAt: null,
     voidReason: '',
     note: input.note ?? '',
+    // Campo opcional: solo se escribe cuando existe, para no llenar de `undefined`
+    // los pedidos normales ni la copia de seguridad.
+    ...(input.replacesOrderId ? { replacesOrderId: input.replacesOrderId } : {}),
   };
   await database.orders.put(order);
   return order;
@@ -362,6 +370,21 @@ export async function voidOrder(id: string, reason = '', database: BarraDb = db)
   const current = await database.orders.get(id);
   if (!current) throw new Error(`Pedido no encontrado: ${id}`);
   const next: Order = { ...current, voidedAt: current.voidedAt ?? nowIso(), voidReason: reason };
+  await database.orders.put(next);
+  return next;
+}
+
+/**
+ * Deshace una anulación: quita `voidedAt` y su motivo, y el pedido vuelve a
+ * contar. Es lo que hay detrás del «Deshacer» del aviso de anular y del de
+ * corregir, dentro de los 8 s que vive el toast.
+ *
+ * Sigue sin borrar nada: la fila es la misma, solo cambian dos campos.
+ */
+export async function unvoidOrder(id: string, database: BarraDb = db): Promise<Order> {
+  const current = await database.orders.get(id);
+  if (!current) throw new Error(`Pedido no encontrado: ${id}`);
+  const next: Order = { ...current, voidedAt: null, voidReason: '' };
   await database.orders.put(next);
   return next;
 }
