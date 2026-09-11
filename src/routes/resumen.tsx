@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
-import { listOrders, voidOrder } from '../data/repo';
+import { listOrders, unvoidOrder, voidOrder } from '../data/repo';
 import { VOID_EDITADO, type BarEvent, type Ingredient, type Order } from '../data/types';
 import { DRINKS_PER_BARISTA_HOUR, enPausa, eventConsumption, eventStats } from '../domain/stats';
 import {
@@ -100,10 +100,27 @@ export function ResumenContenido({
 
   const pedidos = [...orders].sort((a, b) => b.servedAt.localeCompare(a.servedAt));
 
+  /**
+   * Anular desde la lista de pedidos. Nunca borra: `voidedAt` y su motivo.
+   *
+   * Lleva «Deshacer», igual que el «Anular» de la barra: era la misma acción
+   * con dos comportamientos según la pantalla desde la que se tocara, y aquí
+   * —una lista larga, con el dedo— es justo donde más fácil es equivocarse de
+   * fila.
+   */
   async function anular(orderId: string, motivo: string): Promise<void> {
     await voidOrder(orderId, motivo);
     onOrdersChange(await listOrders(event.id));
-    showToast('Pedido anulado');
+    showToast('Pedido anulado', {
+      label: 'Deshacer',
+      onAction: () => {
+        void (async () => {
+          await unvoidOrder(orderId);
+          onOrdersChange(await listOrders(event.id));
+          showToast('Anulación deshecha');
+        })();
+      },
+    });
   }
 
   const parado = enPausa(event);

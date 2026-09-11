@@ -23,7 +23,7 @@ import { useIr } from '../ui/navegar';
 import { Pasos } from '../ui/pasos';
 import { Cifra, Fila } from '../ui/piezas';
 import { showToast } from '../ui/toast';
-import { clearTicket, loadTicket, ticket, ticketDrinks } from '../ui/ticket';
+import { clearTicket, loadTicket, restoreTicket, ticket, ticketDrinks } from '../ui/ticket';
 import { eventById, ingredients, products, refreshEvents, trackedIngredients } from '../ui/store';
 
 /** `"3,25"` → `3.25`. Acepta el punto por si el teclado lo mete. */
@@ -71,7 +71,7 @@ export function Cierre() {
       }
       setQueda(next);
     }
-    // Un pedido a medias no se puede quedar dentro del iPad sin que nadie lo vea.
+    // Un pedido a medias no se puede quedar guardado sin que nadie lo vea.
     loadTicket(event.id);
     setPendiente(ticketDrinks(ticket.value));
   }, [event?.id]);
@@ -134,10 +134,23 @@ export function Cierre() {
     showToast('Pedido servido');
   }
 
+  /**
+   * Tirar el pedido a medias. Lleva «Deshacer» porque es la única acción
+   * destructiva de la app sin vuelta atrás: lo que se descarta no queda en
+   * ninguna fila con `voidedAt`, se pierde. Y se toca justo al lado de «Servir
+   * ahora», con prisa y a punto de cerrar.
+   */
   function descartarPendiente(): void {
+    const descartadas = ticket.value;
     clearTicket();
     setPendiente(0);
-    showToast('Pedido descartado');
+    showToast('Pedido descartado', {
+      label: 'Deshacer',
+      onAction: () => {
+        restoreTicket(descartadas);
+        setPendiente(ticketDrinks(descartadas));
+      },
+    });
   }
 
   async function cerrar(): Promise<void> {

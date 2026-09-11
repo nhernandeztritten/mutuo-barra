@@ -368,6 +368,21 @@ table {
   pointer-events: none;
 }
 
+/* Con una hoja abierta, el aviso se va arriba.
+   La decisión 98 dice que «Deshacer» es un control de verdad y no puede
+   competir por el sitio de la acción principal; la hoja «Más» sube desde abajo
+   y el aviso caía justo encima de «Pausar servicio», que es exactamente el
+   mismo problema una capa más arriba. Medido: la fila quedaba tapada y un
+   toque ahí daba en «Deshacer».
+
+   Arriba no estorba a nadie: las hojas llenan la pantalla desde abajo o por el
+   lado, y en la barra la franja superior no tiene ningún objetivo táctil en el
+   centro. Donde `:has()` no exista, se queda como estaba. */
+.shell:has([role='dialog']) .toast-layer {
+  inset-block-end: auto;
+  inset-block-start: calc(var(--s-4) + env(safe-area-inset-top));
+}
+
 .toast {
   display: flex;
   align-items: center;
