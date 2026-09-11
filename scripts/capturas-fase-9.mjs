@@ -353,7 +353,7 @@ const conAvena = await page.evaluate(() => {
   const bar = document.querySelector('.ticket-bar__label');
   return bar?.textContent ?? '';
 });
-linea(conAvena.includes('Pedido (1)'), `dos toques y el pedido tiene una bebida: «${conAvena.trim()}»`);
+linea(conAvena.includes('Pedido actual (1)'), `dos toques y el pedido tiene una bebida: «${conAvena.trim()}»`);
 await revisa(page, 'Barra con una bebida');
 await captura(page, 'barra-cortado-con-avena');
 
@@ -395,7 +395,7 @@ linea(
   `sus cinco filas, con «Cerrar barra» la última: ${hojaMas.nombres.join(' · ')}`,
 );
 linea(
-  hojaMas.pistas[0] === 'cada toque sirve una bebida',
+  hojaMas.pistas[0] === 'un toque, una bebida',
   `cada fila explica qué hace: «Rápido — ${hojaMas.pistas[0]}»`,
 );
 linea(Math.min(...hojaMas.altos) >= 56, `y mide ${String(Math.min(...hojaMas.altos))} px la más baja`);

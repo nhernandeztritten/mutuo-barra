@@ -680,7 +680,15 @@ export function Barra() {
         )}
 
         {stockCafe > 0 ? (
-          <div class={`meter meter--${meterState}`} title={`Café restante: ${formatQty(remainingCafe, 'g')}`}>
+          // `title` no existe en un móvil: no hay ratón que se pare encima. Los
+          // gramos, que en móvil se esconden para que la cabecera quepa en una
+          // fila, solo los diría el `title` a quien pudiera verlo. Con
+          // `aria-label` los dice también VoiceOver.
+          <div
+            class={`meter meter--${meterState}`}
+            title={`Café restante: ${formatQty(remainingCafe, 'g')}`}
+            aria-label={`Café restante: ${formatQty(remainingCafe, 'g')}, el ${String(Math.round(cafePct))} % de la carga`}
+          >
             <span class="meter__track">
               <span
                 class="meter__fill"
@@ -714,10 +722,12 @@ export function Barra() {
             <Zap size={20} strokeWidth={1.75} />
             <span class="switch__text">
               <span class="switch__label">Rápido</span>
-              {/* Corto a propósito: con el texto largo, «Cerrar barra» se
-                  salía de la cabecera a 1180 px. Lo que hacen los extras en
-                  este modo lo explica la propia fila. */}
-              <span class="switch__hint">cada toque sirve una bebida</span>
+              {/* Corto a propósito: el ancho de la cabecera es el que es y el
+                  subtítulo sube de 13 a 15 px (DESIGN.md: nada por debajo de 15
+                  en la barra). «Un toque, una bebida» dice lo mismo en menos
+                  sitio y a un tamaño que se lee a 75 cm. Lo que hacen los
+                  extras en este modo lo explica la propia fila. */}
+              <span class="switch__hint">un toque, una bebida</span>
             </span>
           </button>
           <button
@@ -763,12 +773,16 @@ export function Barra() {
           {/* Pestañas de la carta: «Todas» primero y por defecto. Filtran el
               grid en el sitio; el punto de color dice de qué categoría es cada
               tile cuando están todas juntas. */}
+          {/* `aria-controls` apunta al grid, que es el panel que filtran: una
+              pestaña que no dice qué gobierna no es una pestaña para un lector
+              de pantalla, es un botón suelto. */}
           <div class="cat-tabs" role="tablist" aria-label="Categorías de la carta">
             <button
               type="button"
               role="tab"
               class="cat-tabs__item"
               aria-selected={categoriaActiva === null}
+              aria-controls="carta-grid"
               onClick={() => setCategoriaActiva(null)}
             >
               Todas
@@ -780,6 +794,7 @@ export function Barra() {
                 class="cat-tabs__item"
                 key={category}
                 aria-selected={categoriaActiva === category}
+                aria-controls="carta-grid"
                 onClick={() => setCategoriaActiva(category)}
               >
                 <span class="cat-tabs__punto" style={{ '--cat': CATEGORY_COLOR[category] }} />
@@ -790,7 +805,13 @@ export function Barra() {
 
           {/* Un solo grid continuo: los tiles miden lo mismo en toda la
               pantalla, van ordenados por categoría y no hay huecos raros. */}
-          <div class="grid-wrap" ref={gridRef}>
+          <div
+            class="grid-wrap"
+            ref={gridRef}
+            id="carta-grid"
+            role="tabpanel"
+            aria-label={categoriaActiva === null ? 'Todas las bebidas' : `Bebidas de ${categoriaActiva}`}
+          >
             <div class="tile-grid">
               {tilesVisibles.map((product) => (
                 <Tile
@@ -823,7 +844,10 @@ export function Barra() {
               ? `Editando el de ${formatTime(editando.servedAt)}`
               : rapido
                 ? 'Modo rápido activo'
-                : `Pedido (${formatInt(drinks)})`}
+                : // El mismo nombre que en la cabecera del ticket que abre: era
+                  // la misma cosa llamada de dos maneras en dos pantallas, y
+                  // «actual» es justo lo que la distingue de «Últimos pedidos».
+                  `Pedido actual (${formatInt(drinks)})`}
           {!pausado && event.mode === 'venta' && drinks > 0
             ? ` · ${ticketTotal(lines).toFixed(2).replace('.', ',')} €`
             : ''}
@@ -880,7 +904,11 @@ export function Barra() {
           </p>
           <HojaFila
             nombre="Rápido"
-            pista="cada toque sirve una bebida"
+            /* La misma frase que el interruptor de la cabecera. Eran dos
+               redacciones del mismo concepto —una por pantalla— y quien lee la
+               hoja en el móvil y el interruptor en el iPad tiene que reconocer
+               que hablan de lo mismo. */
+            pista="un toque, una bebida"
             estado={oneTap.value ? 'Puesto' : 'Quitado'}
             puesto={oneTap.value}
             onClick={() => {

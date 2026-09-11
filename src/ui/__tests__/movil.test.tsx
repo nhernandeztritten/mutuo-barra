@@ -143,7 +143,7 @@ describe('la cabecera de la barra en móvil', () => {
       'Cerrar barra',
     ]);
     // Cada acción dice qué hace: en la cabecera del iPad no cabía.
-    expect(filas[0]?.pista).toBe('cada toque sirve una bebida');
+    expect(filas[0]?.pista).toBe('un toque, una bebida');
     expect(filas[3]?.pista).toBe('el evento sigue abierto; nadie pierde nada');
   });
 
@@ -198,24 +198,24 @@ describe('la cabecera de la barra en móvil', () => {
 });
 
 describe('la barra inferior del pedido', () => {
-  it('dice la cuenta entera: «Pedido (N)» y «Servir N bebidas»', async () => {
+  it('dice la cuenta entera: «Pedido actual (N)» y «Servir N bebidas»', async () => {
     await setupMovil();
     fireEvent.click(tile('Cortado'));
     fireEvent.click(tile('Latte'));
-    await waitFor(() => expect(barraInferior()).toContain('Pedido (2)'));
+    await waitFor(() => expect(barraInferior()).toContain('Pedido actual (2)'));
     expect(document.querySelector('.ticket-bar .btn--action')?.textContent).toBe('Servir 2 bebidas');
   });
 
   it('vacía invita a empezar, sin cifras que no existen', async () => {
     await setupMovil();
-    expect(barraInferior()).toContain('Pedido (0)');
+    expect(barraInferior()).toContain('Pedido actual (0)');
     expect(document.querySelector('.ticket-bar .btn--action')?.textContent).toBe('Toca una bebida');
   });
 
   it('al desplegarla, la hoja del pedido lleva dentro «Últimos pedidos»', async () => {
     await setupMovil();
     fireEvent.click(tile('Cortado'));
-    await waitFor(() => expect(barraInferior()).toContain('Pedido (1)'));
+    await waitFor(() => expect(barraInferior()).toContain('Pedido actual (1)'));
 
     const etiqueta = document.querySelector<HTMLButtonElement>('.ticket-bar__label');
     fireEvent.click(etiqueta!);

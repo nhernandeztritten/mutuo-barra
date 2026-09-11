@@ -1318,7 +1318,7 @@ describe('cabecera de la barra', () => {
     await setupBar();
     const cabecera = document.querySelector('.barra__header')!;
     expect(cabecera.textContent).toContain('Rápido');
-    expect(cabecera.textContent).toContain('cada toque sirve una bebida');
+    expect(cabecera.textContent).toContain('un toque, una bebida');
     expect(cabecera.textContent).not.toContain('Un toque');
   });
 

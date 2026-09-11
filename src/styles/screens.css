@@ -1521,11 +1521,17 @@
   font-weight: 600;
 }
 
-/* 13 px: el tamaño que fija UX-REVISION-1 §C para este subtítulo. */
+/* 15 px, no 13. UX-REVISION-1 §C fijó 13 px para este subtítulo, pero DESIGN.md
+   manda por encima: «nunca por debajo de 15 px en la barra», y 14 px solo en las
+   tablas del panel. La fase 9 subió a 15 todos los rótulos del móvil y este se
+   quedó atrás porque en el iPad no se mide. Se lee a 60-75 cm, con las manos
+   mojadas y de noche: es justo donde 13 px no valen.
+   Y sin `opacity`, que bajaba el contraste por debajo de lo medido: el color
+   lo pone `--ink-3`, que está comprobado a 4,5:1. */
 .switch__hint {
-  font-size: 13px;
+  font-size: var(--fs-meta);
   font-weight: 400;
-  opacity: 0.8;
+  color: var(--ink-3);
 }
 
 /* El único terminal de la barra: contorno, nunca relleno. */
@@ -1879,9 +1885,19 @@
 
 /* ---------- Tablas ---------- */
 
+/* La tabla de Resultados tiene diez columnas: en un móvil se corta por la
+   derecha y nada decía que hubiera más. Las dos sombras de los lados aparecen
+   solo cuando hay algo escondido hacia ese lado y se apagan solas al llegar al
+   final — las capas `local` (del color del fondo) tapan a las `scroll` cuando
+   el desplazamiento está en el tope. Sin JavaScript y sin medir nada. */
 .tabla-wrap {
   width: 100%;
   overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--bg), transparent) left center / 24px 100% no-repeat local,
+    linear-gradient(to left, var(--bg), transparent) right center / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.14), transparent) left center / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.14), transparent) right center / 14px 100% no-repeat scroll;
 }
 
 .tabla {
@@ -2570,6 +2586,26 @@
     display: inline-flex;
     align-items: center;
     min-height: var(--h-step);
+  }
+
+  /* ---- Cabecera de sección: el título en su línea, las acciones en la suya ----
+     Con `flex-wrap` a 402 px pasaba esto en Resultados: «Importar» —el botón
+     secundario— se colaba al lado del título y «Exportar todo» —el principal—
+     caía solo a la línea siguiente. La jerarquía al revés, y por accidente.
+     Dándole al título la línea entera, los botones bajan juntos y en su orden. */
+  .resultados > header.row,
+  .eventos > header.row {
+    row-gap: var(--s-4);
+  }
+
+  .resultados > header.row > .display,
+  .eventos > header.row > .display {
+    flex: 1 0 100%;
+  }
+
+  .resultados > header.row > .spacer,
+  .eventos > header.row > .spacer {
+    display: none;
   }
 }
 

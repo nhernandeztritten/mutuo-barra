@@ -96,7 +96,7 @@ const PARES = [
   { id: 'texto del tile', fg: '--ink', bg: '--surface', nota: 'nombre de la bebida, 20 px' },
   { id: 'chip en reposo', fg: '--ink', bg: '--surface-2', nota: 'Avena, Desca…' },
   { id: 'chip armado', fg: '--accent-ink', bg: '--accent', nota: 'chip en violeta' },
-  { id: 'subtítulo de Rápido', fg: '--ink-2', bg: '--surface', alpha: 0.8, nota: '13 px, opacidad 0,8' },
+  { id: 'subtítulo de Rápido', fg: '--ink-3', bg: '--surface', nota: '«un toque, una bebida», 15 px' },
   { id: 'modificadores del ticket', fg: '--ink-3', bg: '--surface', nota: '«avena · doble», 15 px' },
   { id: 'cabecera del ticket', fg: '--ink', bg: '--surface-2', nota: '«Pedido actual (3)»' },
   { id: 'botón Servir', fg: '--primary-ink', bg: '--primary', nota: 'la acción de la barra' },
