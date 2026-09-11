@@ -1,7 +1,7 @@
 import { render } from 'preact';
 import { registerSW } from 'virtual:pwa-register';
 
-// Self-hosted Archivo, latin subset only: the iPad must boot with no network.
+// Self-hosted Archivo, latin subset only: the app must boot with no network.
 import '@fontsource/archivo/latin-300.css';
 import '@fontsource/archivo/latin-400.css';
 import '@fontsource/archivo/latin-500.css';

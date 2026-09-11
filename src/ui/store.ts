@@ -122,7 +122,7 @@ export async function refrescarAlmacenamiento(): Promise<boolean | null> {
 }
 
 /**
- * Pide a Safari que no tire la base de datos. Sin esto, iPadOS puede vaciarla a
+ * Pide a Safari que no tire la base de datos. Sin esto, iOS y iPadOS pueden vaciarla a
  * los siete días sin usarla, que es justo lo que pasa entre boda y boda.
  */
 export async function pedirAlmacenamientoPersistente(): Promise<boolean | null> {

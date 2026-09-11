@@ -189,8 +189,8 @@ export function Eventos() {
                     busy={busy}
                     onRegister={() => route(`/evento/${event.id}`)}
                     onAnyway={() => {
-                      // «Pausar y abrir esta» no se salta el aviso de carga:
-                      // vuelve a comprobarla con la otra barra ya descartada.
+                      // Dejar la otra barra no se salta el aviso de carga:
+                      // vuelve a comprobarla con la otra ya descartada.
                       if (blocker.kind === 'otra-barra' && !event.stockStart['cafe']) {
                         setBlocker({ kind: 'sin-carga', eventId: event.id });
                         return;
@@ -365,7 +365,7 @@ function BlockerNotice({
         <AlertTriangle size={20} strokeWidth={1.75} class="notice__icon" />
         {blocker.kind === 'sin-carga'
           ? 'Sin carga registrada: la barra de café restante no se mostrará.'
-          : `Ya hay una barra abierta: ${blocker.live.name}`}
+          : `Ya hay una barra abierta: ${blocker.live.name}. Al abrir esta, aquella vuelve al paso 1 y conserva sus pedidos.`}
       </span>
       <div class="row">
         {blocker.kind === 'sin-carga' ? (

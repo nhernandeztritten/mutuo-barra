@@ -63,7 +63,7 @@ function newId(): string {
   return uuid();
 }
 
-/** Asks Safari to keep IndexedDB around; without it iPadOS may evict it after 7 days. */
+/** Asks Safari to keep IndexedDB around; without it iOS may evict it after 7 days. */
 async function requestPersistence(): Promise<boolean | null> {
   const storage = globalThis.navigator?.storage;
   if (!storage || typeof storage.persist !== 'function') return null;
@@ -149,7 +149,7 @@ export async function initDb(database: BarraDb = db): Promise<InitResult> {
   }
 
   // Una base ya sembrada no se vuelve a sembrar, pero sí se le llevan los
-  // cambios de la semilla: si no, el iPad de Nicolas seguiría con «Esp. tonic»
+  // cambios de la semilla: si no, el aparato de Nicolas seguiría con «Esp. tonic»
   // y con el Flat white a 18 g de café.
   if (!seeded && settings.seedVersion < SEED_VERSION) {
     await migrarNombresCortos(database);

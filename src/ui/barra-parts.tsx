@@ -521,7 +521,10 @@ export function TicketPanel({
       </header>
 
       {rapido ? (
-        <p class="ticket__pista">Cada bebida se sirve al tocarla; sus extras salen en la fila de arriba.</p>
+        // Corto a propósito: la fila de extras de arriba ya dice, en el sitio
+        // donde se mira, que el toque sirve y que los extras salen ahí. Repetir
+        // la frase entera aquí era decir dos veces lo mismo en una pantalla.
+        <p class="ticket__pista">Cada bebida se sirve al tocarla.</p>
       ) : (
         <div class={['ticket__list', serving ? 'is-serving' : ''].filter(Boolean).join(' ')}>
             {shown.length === 0 ? (

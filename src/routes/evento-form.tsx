@@ -441,22 +441,33 @@ export function EventoForm() {
         })}
       </div>
 
+      {/* «Se pausa» no: en esta app pausar es otra cosa —el servicio para y el
+          evento sigue abierto—. Lo que le pasa a la otra barra es que vuelve al
+          paso 1, con sus pedidos intactos. Llamar a dos estados por el mismo
+          nombre es la manera más rápida de perder la confianza en el dato. */}
       {otherLive ? (
         <p class="meta">
-          Hay otra barra abierta ({otherLive.name}). Al abrir esta, aquella se pausa y conserva sus
-          pedidos.
+          Hay otra barra abierta ({otherLive.name}). Al abrir esta, aquella vuelve al paso 1,
+          «Preparar», y conserva todos sus pedidos.
         </p>
       ) : null}
 
       <div class="row">
-        <Button variant="primary" disabled={busy} onClick={() => void saveAndBack()}>
-          Guardar
-        </Button>
+        {/* Preparado un evento que ya existe, la acción que toca es abrir la
+            barra (UX-REVISION-1 §B): es el paso 1 del ciclo y el 2 viene
+            detrás. En un evento nuevo ese botón no está y manda «Guardar». */}
         {existing && existing.status === 'planned' ? (
-          <Button disabled={busy} onClick={() => void saveAndOpen()}>
+          <Button variant="primary" disabled={busy} onClick={() => void saveAndOpen()}>
             <Play size={20} strokeWidth={1.75} /> Guardar y abrir barra
           </Button>
         ) : null}
+        <Button
+          variant={existing && existing.status === 'planned' ? 'secondary' : 'primary'}
+          disabled={busy}
+          onClick={() => void saveAndBack()}
+        >
+          Guardar
+        </Button>
         <Button variant="ghost" onClick={() => route('/')}>
           Cancelar
         </Button>

@@ -299,12 +299,10 @@ export function Resultados() {
         </Button>
       </header>
 
-      {vacio ? (
-        <p class="meta">
-          «Exportar todo» está apagado porque no hay ningún evento cerrado todavía.
-        </p>
-      ) : null}
-
+      {/* Sin la línea de ayuda que decía «"Exportar todo" está apagado porque
+          no hay ningún evento cerrado»: lo dicen ya el `title` del botón y el
+          estado vacío de debajo, con más contexto. Tres veces lo mismo en una
+          pantalla es ruido, no ayuda. */}
       {vacio ? (
         <div class="empty">
           <p class="card__title">Todavía no hay eventos cerrados</p>

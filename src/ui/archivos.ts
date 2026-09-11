@@ -1,9 +1,11 @@
 /**
- * Sacar y meter archivos desde el iPad.
+ * Sacar y meter archivos desde el aparato que lleve la barra: puede ser un
+ * iPhone o un iPad, así que aquí no se nombra ninguno.
  *
- * En iPadOS, `navigator.share` con archivos es lo que abre la hoja de Compartir
- * (Archivos, AirDrop, Correo). Si no está —o si el usuario la cancela— se cae a
- * una descarga normal, que es lo que hace el navegador de escritorio.
+ * En iOS y iPadOS, `navigator.share` con archivos es lo que abre la hoja de
+ * Compartir (Archivos, AirDrop, Correo). Si no está —o si quien la usa la
+ * cancela— se cae a una descarga normal, que es lo que hace el navegador de
+ * escritorio.
  */
 
 export interface ArchivoSalida {
