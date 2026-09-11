@@ -53,6 +53,14 @@ Qué cambia:
 - **Barra inferior del pedido**: la de siempre, con el botón diciendo la cuenta entera («Servir 3 bebidas»). El toast sube por encima de ella: lleva «Deshacer», que es un control de verdad.
 - **Nada por debajo de 15 px**: los rótulos de los gráficos, las etiquetas y el número de los pasos suben de 13-14 a 15. Por encima del corte se quedan como estaban.
 
+## Servicio en pausa
+Parar no es cerrar. El evento sigue `live` y lo que se para es el servicio: una boda va en dos turnos y la cena está en medio. El estado se dibuja en **ámbar** (`--warn`), nunca en rojo: no es un error ni un cierre, es un turno que se retoma.
+- **Cabecera de la barra**: donde iba el ritmo de la última hora aparece «En pausa», en una píldora de contorno ámbar.
+- **Tiles apagados**: fondo `--surface-2` y texto `--ink-3`. Se leen, pero no invitan. Un toque no registra nada.
+- **La acción principal pasa a «Reanudar servicio»**, en el sitio exacto del botón de servir. El pedido a medias se conserva y vuelve intacto.
+- **El ritmo dice «en pausa»**, no un número: parado cae solo hasta cero y eso engaña.
+- **Se ofrece** en la hoja «Más» del móvil —separada por su línea y por encima de «Cerrar barra»— y en la tarjeta de la barra abierta de Eventos, que es la vía del iPad.
+
 Detalles de iOS: `100dvh` y nunca `100vh`; `env(safe-area-inset-*)` en cabecera, barra inferior y hojas; todo lo que se escribe a 16 px o más para que Safari no haga zoom al enfocar; `touch-action: manipulation` y sin resaltado de toque.
 
 ## Motion

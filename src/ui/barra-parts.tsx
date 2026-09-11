@@ -407,6 +407,10 @@ export interface TicketPanelProps {
   /** Vacía el ticket y vuelve a «Pedido actual», sin tocar el pedido original. */
   onCancelarEdicion?: () => void;
   serving: boolean;
+  /** Servicio parado: no se sirve, y la acción principal pasa a reanudar. */
+  pausado?: boolean;
+  /** Volver a abrir el servicio. Va en el sitio exacto del botón de servir. */
+  onReanudar?: () => void;
   sheet?: boolean;
   /** Solo la versión desplegada: la ref que atrapa el foco dentro de la hoja. */
   hojaRef?: RefObject<HTMLElement>;
@@ -448,6 +452,8 @@ export function TicketPanel({
   editandoDe = null,
   onCancelarEdicion,
   serving,
+  pausado = false,
+  onReanudar,
   sheet = false,
   hojaRef,
   currentLineId = null,
@@ -591,7 +597,20 @@ export function TicketPanel({
         onVerTodos={onVerTodos}
       />
 
-      {rapido ? null : (
+      {/* En pausa, el botón grande deja de servir y pasa a reanudar, en su
+          mismo sitio: es la única acción que tiene sentido con el servicio
+          parado, y la mano ya sabe dónde está. El pedido a medias no se toca;
+          sigue ahí cuando se vuelva. */}
+      {pausado ? (
+        <div class="ticket__foot">
+          <p class="ticket__pista">
+            El servicio está en pausa. El evento sigue abierto y el pedido se conserva.
+          </p>
+          <Button variant="primary" action onClick={() => onReanudar?.()}>
+            Reanudar servicio
+          </Button>
+        </div>
+      ) : rapido ? null : (
         <div class="ticket__foot">
           <Button variant="ghost" disabled={lines.length === 0} onClick={onUndoLast}>
             <Undo2 size={20} strokeWidth={1.75} /> Deshacer último

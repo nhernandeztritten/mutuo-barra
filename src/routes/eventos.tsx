@@ -6,10 +6,10 @@
  * antes de pedir nada.
  */
 import { useEffect, useState } from 'preact/hooks';
-import { AlertTriangle, CalendarPlus, ChevronRight, Coffee, Play, Smartphone } from 'lucide-preact';
+import { AlertTriangle, CalendarPlus, ChevronRight, Coffee, Pause, Play, Smartphone } from 'lucide-preact';
 import { createEvent, listAllOrders, openEvent } from '../data/repo';
 import type { BarEvent, Order } from '../data/types';
-import { closeStats, eventStats, loadSuggestion } from '../domain/stats';
+import { closeStats, enPausa, eventStats, loadSuggestion } from '../domain/stats';
 import { formatDateLong, formatInt, formatMoney, formatRate } from '../domain/format';
 import { Button } from '../ui/components';
 import { conBase, useIr } from '../ui/navegar';
@@ -21,8 +21,10 @@ import {
   events,
   ingredients,
   liveEvent,
+  pausarServicio,
   plannedEvents,
   products,
+  reanudarServicio,
   refreshEvents,
   settings,
 } from '../ui/store';
@@ -137,6 +139,8 @@ export function Eventos() {
           orders={ordersOf(live.id)}
           onGo={() => route(`/evento/${live.id}`)}
           onClose={() => route(`/evento/${live.id}/cerrar`)}
+          onPausar={() => void pausarServicio(live.id)}
+          onReanudar={() => void reanudarServicio(live.id)}
         />
       ) : null}
 
@@ -269,19 +273,31 @@ function LiveCard({
   orders,
   onGo,
   onClose,
+  onPausar,
+  onReanudar,
 }: {
   event: BarEvent;
   orders: Order[];
   onGo: () => void;
   onClose: () => void;
+  onPausar: () => void;
+  onReanudar: () => void;
 }) {
   const stats = eventStats(event, orders, products.value);
+  const pausado = enPausa(event);
   return (
-    <article class="card card--live">
+    <article class={['card', 'card--live', pausado ? 'card--pausa' : ''].filter(Boolean).join(' ')}>
       <div class="row row--tight">
-        <Coffee size={22} strokeWidth={1.75} color="var(--primary)" />
-        <span class="section-title" style={{ color: 'var(--primary)' }}>
-          Barra abierta
+        {pausado ? (
+          <Pause size={22} strokeWidth={1.75} color="var(--warn)" />
+        ) : (
+          <Coffee size={22} strokeWidth={1.75} color="var(--primary)" />
+        )}
+        <span
+          class="section-title"
+          style={{ color: pausado ? 'var(--warn)' : 'var(--primary)' }}
+        >
+          {pausado ? 'Barra en pausa' : 'Barra abierta'}
         </span>
         {event.isDemo ? <Etiqueta>Ejemplo</Etiqueta> : null}
       </div>
@@ -292,17 +308,40 @@ function LiveCard({
           <span class="stat__label">bebidas servidas</span>
         </div>
         <div class="stat">
-          <span class="stat__value num">{formatRate(stats.lastHourRate)}</span>
+          {/* Parado, el ritmo se desmoronaría solo hasta cero sin que pase
+              nada: decir «en pausa» es más honesto que enseñar ese número. */}
+          <span class={pausado ? 'stat__value' : 'stat__value num'}>
+            {pausado ? 'en pausa' : formatRate(stats.lastHourRate)}
+          </span>
           <span class="stat__label">última hora</span>
         </div>
       </div>
       <div class="row">
-        <Button variant="primary" onClick={onGo}>
-          Seguir sirviendo
-        </Button>
-        <Button onClick={onClose}>Cerrar barra</Button>
+        {pausado ? (
+          <>
+            <Button variant="primary" onClick={onReanudar}>
+              <Play size={20} strokeWidth={1.75} /> Reanudar servicio
+            </Button>
+            <Button onClick={onGo}>Ver la barra</Button>
+            <Button onClick={onClose}>Cerrar barra</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="primary" onClick={onGo}>
+              Seguir sirviendo
+            </Button>
+            <Button onClick={onPausar}>
+              <Pause size={20} strokeWidth={1.75} /> Pausar servicio
+            </Button>
+            <Button onClick={onClose}>Cerrar barra</Button>
+          </>
+        )}
       </div>
-      <p class="meta">Puedes salir y volver; la barra sigue abierta hasta que la cierres.</p>
+      <p class="meta">
+        {pausado
+          ? 'El evento sigue abierto y nada se ha perdido: reanuda cuando vuelva el servicio.'
+          : 'Puedes salir y volver; la barra sigue abierta hasta que la cierres.'}
+      </p>
     </article>
   );
 }

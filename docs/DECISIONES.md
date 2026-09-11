@@ -1221,3 +1221,75 @@ que la acción principal. En móvil el toast se levanta 72 px + safe area.
 Uno en la cabecera y otro debajo del bloque «Cómo funciona», a dos dedos de
 distancia. No daba una salida más, daba una duda. Se queda el de la cabecera,
 que es el que está en todas las pantallas de la sección.
+
+### 100. Pausar el servicio no es cerrar la barra
+
+Hasta ahora la barra solo tenía una salida terminal —«Cerrar barra», con
+recuento— y una blanda, «‹ Eventos», que se va sin que se note que la barra
+sigue abierta. Una boda va en **dos turnos**: café después de la comida, parada
+durante la cena, otra vez en la fiesta. Faltaba parar sin cerrar el evento.
+
+`Event` gana `pausas: Array<{ desde, hasta | null }>`. El `status` **sigue
+siendo `live`**: lo que está parado es el servicio, no el evento. Está en pausa
+si el último tramo tiene `hasta === null`. `repo.pauseService` y
+`repo.resumeService` son idempotentes —parar lo ya parado no abre un tramo de
+cero segundos— y **nada se borra**: cada parada deja su hora de principio y de
+final, que es lo que permite rehacer la cuenta después.
+
+El campo es opcional: un evento anterior a esta fase no lo trae, y no tenerlo
+significa exactamente lo mismo que tenerlo vacío. No hace falta migración.
+
+### 101. En pausa no se puede tocar una bebida, y la acción principal es volver
+
+Con el servicio parado, los tiles salen apagados y un toque no registra nada. No
+es una restricción por gusto: el móvil va en el bolsillo o en una bandeja entre
+turno y turno, y un toque suelto es una bebida que nadie sirvió y que se lleva
+un café del inventario.
+
+Lo que sí se puede seguir haciendo es **mirar**: el Resumen, «Últimos pedidos» y
+el desplegable de cada pedido siguen ahí. Y el pedido a medias que hubiera **no
+se toca**: sigue montado cuando se vuelve.
+
+La acción principal de la pantalla pasa a ser **«Reanudar servicio»**, en el
+sitio exacto del botón de servir —abajo, donde llega el pulgar en el móvil, y al
+pie de la columna del ticket en el iPad—. La mano ya sabe dónde está ese botón;
+mover la acción a otro sitio sería pedirle que aprenda dos.
+
+En la cabecera de la barra, donde iba el ritmo de la última hora, aparece **«En
+pausa»** en ámbar. Ámbar y no rojo: no es un error ni un cierre, es un turno que
+se retoma.
+
+### 102. Estando en pausa, el ritmo dice «en pausa», no un número
+
+El ritmo de la última hora se calcula sobre los últimos 60 minutos. Parado, cae
+solo hasta cero sin que pase nada, y un número que se desmorona es peor que no
+tener número: invita a mirar la máquina. En la cabecera, en la tarjeta de
+Eventos y en el Resumen dice «en pausa». Las franjas de media hora **no se
+tocan**: salen de los pedidos y el hueco se ve solo, que es como tiene que
+verse.
+
+### 103. La duración de la barra descuenta el tiempo parado
+
+`closeStats.durationMinutes` era `closedAt − openedAt`. Con dos turnos eso
+contaba la cena como barra abierta y estropeaba cualquier cuenta de bebidas por
+hora. Ahora resta la suma de los tramos (`minutosDeServicio`), y cuando hubo
+alguna pausa la cifra de Resultados lo dice debajo: «sin 1 h 30 de pausa».
+
+Dos detalles que importan y tienen su test:
+
+- **Un tramo abierto se corta en `closedAt`**, no en «ahora»: cerrar el evento
+  con el servicio parado no puede seguir descontando tiempo para siempre.
+- **En una pausa en curso, la duración deja de crecer.** Es la definición misma
+  de estar parado.
+
+### 104. Pausar se ofrece en la hoja «Más» y en la tarjeta de Eventos
+
+En el móvil vive en la hoja «Más», separada por su propia línea y **por encima**
+de «Cerrar barra»: las dos son salidas, pero solo una es definitiva.
+
+En el iPad la cabecera de la barra no admite un botón más —«Cerrar barra» acaba
+en 1164 px de 1180— así que la vía es la **tarjeta de la barra abierta en
+Eventos**, que gana «Pausar servicio». Parada, esa tarjeta dice «Barra en
+pausa», va en ámbar y ofrece «Reanudar servicio», «Ver la barra» y «Cerrar
+barra». Es además donde Nicolas mira cuando vuelve al teléfono después de un
+rato, así que es el sitio natural.

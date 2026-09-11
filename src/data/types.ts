@@ -170,6 +170,27 @@ export interface Event {
    * anteriores a la fase 8 no lo traen.
    */
   lotes?: { filtro?: number; cold_brew?: number };
+  /**
+   * Tramos en los que el servicio estuvo parado sin cerrar el evento. Una boda
+   * va en dos turnos —café después de la comida, parada durante la cena, otra
+   * vez en la fiesta—, y parar no es cerrar: el `status` sigue siendo `live`.
+   *
+   * El último tramo con `hasta === null` es una pausa **en curso**. Nada se
+   * borra nunca: cada parada y cada reanudación deja su marca, y la duración de
+   * la barra descuenta la suma de los tramos.
+   *
+   * Opcional: los eventos anteriores a la fase 9 no lo traen, y no tenerlo
+   * significa exactamente lo mismo que tenerlo vacío.
+   */
+  pausas?: Pausa[];
+}
+
+/** Un tramo de servicio parado. `hasta` a `null` es «ahora mismo, parado». */
+export interface Pausa {
+  /** ISO datetime en el que se paró. */
+  desde: string;
+  /** ISO datetime en el que se reanudó, o `null` si sigue parado. */
+  hasta: string | null;
 }
 
 /** Alias, because `Event` collides with the DOM global inside UI modules. */

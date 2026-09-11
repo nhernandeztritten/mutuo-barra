@@ -2,7 +2,7 @@
  * Event maths — SPEC.md §2.4 and §4. Pure functions: no Dexie, no DOM.
  * Voided orders are excluded everywhere (append-only model: they still exist).
  */
-import type { Category, Event, Ingredient, Order, Product, StockMap } from '../data/types';
+import type { Category, Event, Ingredient, Order, Pausa, Product, StockMap } from '../data/types';
 import { costOfUsage } from './modifiers';
 
 const MINUTE = 60_000;
@@ -30,6 +30,49 @@ function activeOrders(orders: Order[]): Order[] {
     .filter(isLive)
     .slice()
     .sort((a, b) => Date.parse(a.servedAt) - Date.parse(b.servedAt));
+}
+
+/* ---------------- Pausas del servicio ---------------- */
+
+/** Los tramos parados del evento. No tenerlos es lo mismo que no tener ninguno. */
+export function pausasDe(event: Event): Pausa[] {
+  return event.pausas ?? [];
+}
+
+/** `true` si ahora mismo el servicio está parado: el último tramo sigue abierto. */
+export function enPausa(event: Event): boolean {
+  const pausas = pausasDe(event);
+  return pausas.length > 0 && pausas[pausas.length - 1]!.hasta === null;
+}
+
+/**
+ * Milisegundos que el servicio estuvo parado, hasta `hasta`.
+ *
+ * El tramo abierto cuenta hasta ese instante: en una pausa en curso, la
+ * duración de la barra tiene que dejar de crecer, no seguir sumando el rato que
+ * nadie está sirviendo.
+ */
+export function msEnPausa(event: Event, hasta: Date = new Date()): number {
+  const limite = hasta.getTime();
+  let total = 0;
+  for (const pausa of pausasDe(event)) {
+    const desde = Date.parse(pausa.desde);
+    if (Number.isNaN(desde) || desde > limite) continue;
+    const fin = pausa.hasta === null ? limite : Date.parse(pausa.hasta);
+    if (Number.isNaN(fin)) continue;
+    total += Math.max(0, Math.min(fin, limite) - desde);
+  }
+  return total;
+}
+
+/** Minutos de servicio de verdad: de abrir a cerrar, menos lo que estuvo parado. */
+export function minutosDeServicio(event: Event, hasta: Date = new Date()): number | null {
+  if (!event.openedAt) return null;
+  const fin = event.closedAt ? Date.parse(event.closedAt) : hasta.getTime();
+  const bruto = fin - Date.parse(event.openedAt);
+  if (Number.isNaN(bruto)) return null;
+  const parado = msEnPausa(event, event.closedAt ? new Date(fin) : hasta);
+  return round(Math.max(0, bruto - parado) / MINUTE, 0);
 }
 
 /* ---------------- Consumo ---------------- */
@@ -328,10 +371,11 @@ export function closeStats(event: Event, orders: Order[], ingredients: Ingredien
   const costTheoretical = costOfUsage(theoretical, ingredients);
   const costReal = costOfUsage(real, ingredients);
 
+  // La duración descuenta lo que el servicio estuvo parado: una boda va en dos
+  // turnos y el rato de la cena no es barra abierta. Con `closedAt`, el tramo
+  // abierto que hubiera se corta ahí.
   const durationMinutes =
-    event.openedAt && event.closedAt
-      ? round((Date.parse(event.closedAt) - Date.parse(event.openedAt)) / MINUTE, 0)
-      : null;
+    event.openedAt && event.closedAt ? minutosDeServicio(event, new Date(Date.parse(event.closedAt))) : null;
 
   return {
     served,

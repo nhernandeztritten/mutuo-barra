@@ -8,7 +8,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
 import { listOrders, voidOrder } from '../data/repo';
 import { VOID_EDITADO, type BarEvent, type Ingredient, type Order } from '../data/types';
-import { DRINKS_PER_BARISTA_HOUR, eventConsumption, eventStats } from '../domain/stats';
+import { DRINKS_PER_BARISTA_HOUR, enPausa, eventConsumption, eventStats } from '../domain/stats';
 import {
   formatInt,
   formatMoney,
@@ -99,15 +99,23 @@ export function ResumenContenido({
     showToast('Pedido anulado');
   }
 
+  const parado = enPausa(event);
+
   return (
     <div class="resumen">
       <div class="stat-grid">
         <Cifra value={formatInt(stats.served)} label="bebidas servidas" />
+        {/* Parado, el ritmo caería solo hasta cero sin que pase nada: decirlo
+            es más honesto que enseñar un número que se desmorona. */}
         <Cifra
-          value={formatRate(stats.lastHourRate)}
+          value={parado ? 'en pausa' : formatRate(stats.lastHourRate)}
           label="ritmo última hora"
-          hint={`Techo: ${formatRate(stats.capacity)} con ${formatInt(event.baristas)} baristas`}
-          {...(stats.lastHourRate > stats.capacity ? { state: 'warn' as const } : {})}
+          hint={
+            parado
+              ? 'el servicio está parado; el evento sigue abierto'
+              : `Techo: ${formatRate(stats.capacity)} con ${formatInt(event.baristas)} baristas`
+          }
+          {...(!parado && stats.lastHourRate > stats.capacity ? { state: 'warn' as const } : {})}
         />
         <Cifra value={formatRate(stats.peakRate15)} label="pico (15 min)" />
         <Cifra value={formatMoney(stats.costTheoretical)} label="coste teórico" />

@@ -20,7 +20,7 @@ import {
   type Order,
   type Product,
 } from '../data/types';
-import { eventConsumption, eventStats } from '../domain/stats';
+import { enPausa, eventConsumption, eventStats } from '../domain/stats';
 import { formatInt, formatQty, formatRate, formatTime } from '../domain/format';
 import { Button, HojaAbajo, HojaFila, Sheet, Tile } from '../ui/components';
 import { useIr } from '../ui/navegar';
@@ -46,6 +46,8 @@ import {
   modifierOptions,
   oneTap,
   optionsById,
+  pausarServicio,
+  reanudarServicio,
   setOneTap,
   setTheme,
 } from '../ui/store';
@@ -206,6 +208,14 @@ export function Barra() {
     : null;
   /** Corrigiendo, el modo Rápido queda en pausa: hay que montar y luego servir. */
   const rapido = oneTap.value && editandoId === null;
+  /**
+   * Servicio parado. El evento sigue abierto —una boda va en dos turnos y la
+   * parada de la cena no es el final de la barra—, pero no se puede tocar una
+   * bebida: en el bolsillo o en la bandeja, un toque suelto es una bebida que
+   * nadie sirvió. Lo demás —Resumen, «Últimos pedidos»— se sigue pudiendo ver,
+   * y el pedido a medias que hubiera se conserva tal cual.
+   */
+  const pausado = enPausa(event);
   const stats = eventStats(event, orders, products, now);
   const consumption = eventConsumption(orders);
 
@@ -451,6 +461,9 @@ export function Barra() {
    * siguiente.
    */
   function onTile(product: Product): void {
+    // Con el servicio parado no se registra nada: el botón ya sale apagado,
+    // pero el estado manda sobre el botón.
+    if (pausado) return;
     const { line } = buildLine(product, [], ingredients.value, modifierGroups.value);
     // Corrigiendo un pedido, el toque **no** sirve aunque Rápido esté puesto:
     // la corrección se monta entera y se confirma con «Servir».
@@ -612,6 +625,11 @@ export function Barra() {
       setCurrentLineId(null);
     },
     serving,
+    pausado,
+    onReanudar: () => {
+      void reanudarServicio(event.id);
+      showToast('Servicio reanudado');
+    },
     currentLineId: currentLine?.id ?? null,
     onSelect: (line: TicketLine) => setCurrentLineId(line.id),
     onEdit: (line: TicketLine) => setEditing(line),
@@ -627,7 +645,7 @@ export function Barra() {
 
   return (
     <div class="barra">
-      <header class="barra__header">
+      <header class={['barra__header', pausado ? 'is-pausa' : ''].filter(Boolean).join(' ')}>
         {/* En móvil se queda solo el chevrón: la etiqueta accesible sigue
             diciendo a dónde lleva, que es lo que lee VoiceOver. */}
         <Button class="barra__salir" aria-label="Volver a Eventos" onClick={() => route('/')}>
@@ -649,9 +667,17 @@ export function Barra() {
           <span class="barra__count-label">servidas</span>
         </div>
 
-        <span class="barra__rate num" title="Bebidas de espresso en los últimos 60 minutos">
-          {formatRate(stats.lastHourRate)}
-        </span>
+        {/* En pausa el ritmo caería solo hasta cero sin que pase nada: decirlo
+            es más honesto que enseñar un número que se desmorona. */}
+        {pausado ? (
+          <span class="barra__pausa" title="El servicio está parado; el evento sigue abierto">
+            En pausa
+          </span>
+        ) : (
+          <span class="barra__rate num" title="Bebidas de espresso en los últimos 60 minutos">
+            {formatRate(stats.lastHourRate)}
+          </span>
+        )}
 
         {stockCafe > 0 ? (
           <div class={`meter meter--${meterState}`} title={`Café restante: ${formatQty(remainingCafe, 'g')}`}>
@@ -772,6 +798,7 @@ export function Barra() {
                   label={product.shortName}
                   accent={CATEGORY_COLOR[product.category]}
                   data-cat={product.category}
+                  disabled={pausado}
                   {...(event.mode === 'venta'
                     ? { price: `${product.price.toFixed(2).replace('.', ',')} €` }
                     : {})}
@@ -790,27 +817,44 @@ export function Barra() {
           del de la hoja y quedan dos botones iguales, uno de ellos muerto. */}
       <div class={['ticket-bar', sheetOpen ? 'is-oculta' : ''].filter(Boolean).join(' ')}>
         <button type="button" class="ticket-bar__label" onClick={() => setSheetOpen(true)}>
-          {editando
-            ? `Editando el de ${formatTime(editando.servedAt)}`
-            : rapido
-              ? 'Modo rápido activo'
-              : `Pedido (${formatInt(drinks)})`}
-          {event.mode === 'venta' && drinks > 0
+          {pausado
+            ? `Servicio en pausa${drinks > 0 ? ` · pedido (${formatInt(drinks)}) guardado` : ''}`
+            : editando
+              ? `Editando el de ${formatTime(editando.servedAt)}`
+              : rapido
+                ? 'Modo rápido activo'
+                : `Pedido (${formatInt(drinks)})`}
+          {!pausado && event.mode === 'venta' && drinks > 0
             ? ` · ${ticketTotal(lines).toFixed(2).replace('.', ',')} €`
             : ''}
         </button>
-        {/* En móvil el botón dice la cuenta entera —«Servir 3 bebidas»—: es la
-            acción principal de la pantalla y va donde llega el pulgar. Por
+        {/* En pausa, la acción principal de la pantalla es volver a abrir: va
+            en el sitio del botón de servir, que es donde llega el pulgar.
+            En móvil el botón dice la cuenta entera —«Servir 3 bebidas»—. Por
             encima del corte se queda en «Servir», como estaba. */}
-        <Button variant="primary" action disabled={drinks === 0} onClick={onServeButton}>
-          {drinks === 0
-            ? 'Toca una bebida'
-            : event.mode === 'venta'
-              ? 'Cobrar'
-              : esMovil.value
-                ? `Servir ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`
-                : 'Servir'}
-        </Button>
+        {pausado ? (
+          <Button
+            variant="primary"
+            action
+            class="ticket-bar__reanudar"
+            onClick={() => {
+              void reanudarServicio(event.id);
+              showToast('Servicio reanudado');
+            }}
+          >
+            Reanudar servicio
+          </Button>
+        ) : (
+          <Button variant="primary" action disabled={drinks === 0} onClick={onServeButton}>
+            {drinks === 0
+              ? 'Toca una bebida'
+              : event.mode === 'venta'
+                ? 'Cobrar'
+                : esMovil.value
+                  ? `Servir ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`
+                  : 'Servir'}
+          </Button>
+        )}
       </div>
 
       {sheetOpen ? (
@@ -857,6 +901,22 @@ export function Barra() {
             onClick={() => {
               setMasOpen(false);
               setResumenOpen('todo');
+            }}
+          />
+          <div class="hoja-abajo__sep" />
+          {/* Parar no es cerrar, y por eso va antes de la línea que separa lo
+              terminal: el evento sigue abierto y se reanuda de un toque. */}
+          <HojaFila
+            nombre={pausado ? 'Reanudar servicio' : 'Pausar servicio'}
+            pista={
+              pausado
+                ? 'vuelve a servir donde lo dejaste'
+                : 'el evento sigue abierto; nadie pierde nada'
+            }
+            onClick={() => {
+              setMasOpen(false);
+              void (pausado ? reanudarServicio(event.id) : pausarServicio(event.id));
+              showToast(pausado ? 'Servicio reanudado' : 'Servicio en pausa');
             }}
           />
           <div class="hoja-abajo__sep" />

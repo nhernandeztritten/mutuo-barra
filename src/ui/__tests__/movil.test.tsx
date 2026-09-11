@@ -135,22 +135,34 @@ describe('la cabecera de la barra en móvil', () => {
     await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
 
     const filas = filasDeLaHoja();
-    expect(filas.map((f) => f.nombre)).toEqual(['Rápido', 'Noche', 'Resumen', 'Cerrar barra']);
+    expect(filas.map((f) => f.nombre)).toEqual([
+      'Rápido',
+      'Noche',
+      'Resumen',
+      'Pausar servicio',
+      'Cerrar barra',
+    ]);
     // Cada acción dice qué hace: en la cabecera del iPad no cabía.
     expect(filas[0]?.pista).toBe('cada toque sirve una bebida');
+    expect(filas[3]?.pista).toBe('el evento sigue abierto; nadie pierde nada');
   });
 
-  it('«Cerrar barra» va la última y separada del resto', async () => {
+  it('«Cerrar barra» va la última, y «Pausar servicio» justo antes, cada una con su línea', async () => {
     await setupMovil();
     fireEvent.click(botonMas());
     await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
 
     const hijos = [...(document.querySelector('.hoja-abajo')?.children ?? [])];
-    const separador = hijos.findIndex((el) => el.classList.contains('hoja-abajo__sep'));
+    const separadores = hijos
+      .map((el, i) => (el.classList.contains('hoja-abajo__sep') ? i : -1))
+      .filter((i) => i > -1);
     const cerrar = hijos.findIndex((el) => el.classList.contains('hoja-fila--terminal'));
-    expect(separador).toBeGreaterThan(-1);
-    expect(cerrar).toBe(separador + 1);
+    // Dos líneas: una antes de pausar y otra antes de cerrar. Parar no es
+    // cerrar, y las dos se separan de los interruptores de arriba.
+    expect(separadores).toHaveLength(2);
     expect(cerrar).toBe(hijos.length - 1);
+    expect(cerrar).toBe(separadores[1]! + 1);
+    expect(hijos[separadores[0]! + 1]?.textContent).toContain('Pausar servicio');
   });
 
   it('la hoja es de abajo y se cierra con Escape', async () => {

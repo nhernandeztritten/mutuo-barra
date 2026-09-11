@@ -2253,6 +2253,39 @@
   border-color: var(--ink-3);
 }
 
+/* ---- Servicio en pausa ----
+   El evento sigue abierto; lo que está parado es el servicio. Ámbar y no rojo:
+   no es un error ni un cierre, es un turno que se retoma. */
+
+.barra__pausa {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--h-step);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-pill);
+  color: var(--warn);
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Un tile apagado no es «no existe», es «ahora no»: se lee, pero no invita. */
+.tile:disabled {
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.tile:disabled:active {
+  transform: none;
+}
+
+.card--pausa {
+  border-color: var(--warn);
+}
+
 /* El botón «Más» solo existe en móvil; aquí arriba los cuatro controles caben
    en la cabecera y esconderlos sería un toque de más. */
 .barra__mas {
@@ -2392,6 +2425,14 @@
     min-height: var(--h-step);
     padding-inline: var(--s-3);
     font-size: var(--fs-meta);
+  }
+
+  /* En pausa, la píldora «En pausa» pide sitio y el medidor de café deja de
+     ser lo que se mira: parado no baja. Se va, y su porcentaje sigue en la
+     hoja «Más». Sin esto, «Más» se salía por la derecha. */
+  .barra__header.is-pausa .meter,
+  .barra__header.is-pausa .barra__nostock {
+    display: none;
   }
 
   /* ---- La zona de trabajo ---- */

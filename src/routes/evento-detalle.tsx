@@ -9,7 +9,7 @@ import { useRoute } from 'preact-iso';
 import { Download, RotateCcw } from 'lucide-preact';
 import { exportJson, exportLinesCsv, listOrders, reopenEvent } from '../data/repo';
 import type { Order } from '../data/types';
-import { closeStats, eventStats } from '../domain/stats';
+import { closeStats, eventStats, msEnPausa, pausasDe } from '../domain/stats';
 import {
   formatDateLong,
   formatDecimal,
@@ -72,6 +72,8 @@ export function EventoDetalle() {
 
   const stats = eventStats(event, orders, products.value);
   const close = closeStats(event, orders, ingredients.value);
+  /** Cuántas veces se paró el servicio: si hubo alguna, la duración lo dice. */
+  const pausas = pausasDe(event).length;
 
   const franjas = stats.perHalfHour.map((slot) => ({
     label: formatTime(slot.start),
@@ -157,6 +159,11 @@ export function EventoDetalle() {
         <Cifra
           value={close.durationMinutes === null ? '—' : formatDuration(close.durationMinutes)}
           label="duración de la barra"
+          {...(pausas > 0
+            ? {
+                hint: `sin ${formatDuration(Math.round(msEnPausa(event, new Date(event.closedAt ?? Date.now())) / 60000))} de pausa`,
+              }
+            : {})}
         />
         {event.mode === 'venta' ? (
           <Cifra

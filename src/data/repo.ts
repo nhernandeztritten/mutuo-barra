@@ -168,6 +168,7 @@ export async function createEvent(input: NewEventInput, database: BarraDb = db):
     stockStart: input.stockStart ?? {},
     stockEnd: null,
     lotes: input.lotes ?? {},
+    pausas: [],
     guestsReal: null,
     setupMinutes: null,
     teardownMinutes: null,
@@ -238,6 +239,41 @@ export async function openEvent(id: string, database: BarraDb = db): Promise<Eve
 /** Leaves the bar without closing. Nothing is lost. */
 export async function pauseEvent(id: string, database: BarraDb = db): Promise<Event> {
   return updateEvent(id, { status: 'planned' }, database);
+}
+
+/* ---------------- Pausar y reanudar el servicio ---------------- */
+
+/**
+ * Para el servicio sin cerrar el evento. El `status` sigue siendo `live`: una
+ * boda va en dos turnos y la parada de la cena no es el final de la barra.
+ *
+ * Idempotente: parar lo que ya está parado no abre un tramo nuevo. Si no, dos
+ * toques seguidos dejarían un tramo de cero segundos y el contador de tramos
+ * dejaría de significar «cuántas veces se paró».
+ */
+export async function pauseService(id: string, database: BarraDb = db): Promise<Event> {
+  const current = await database.events.get(id);
+  if (!current) throw new Error(`Evento no encontrado: ${id}`);
+  const pausas = current.pausas ?? [];
+  if (pausas.length > 0 && pausas[pausas.length - 1]!.hasta === null) return current;
+  return updateEvent(id, { pausas: [...pausas, { desde: nowIso(), hasta: null }] }, database);
+}
+
+/**
+ * Reanuda el servicio: cierra el tramo abierto. Nada se borra —el tramo queda
+ * con su hora de principio y de final— porque la duración de la barra lo
+ * descuenta y hay que poder rehacer la cuenta.
+ *
+ * Idempotente: reanudar lo que ya está andando no cambia nada.
+ */
+export async function resumeService(id: string, database: BarraDb = db): Promise<Event> {
+  const current = await database.events.get(id);
+  if (!current) throw new Error(`Evento no encontrado: ${id}`);
+  const pausas = current.pausas ?? [];
+  const ultima = pausas[pausas.length - 1];
+  if (!ultima || ultima.hasta !== null) return current;
+  const cerradas = [...pausas.slice(0, -1), { ...ultima, hasta: nowIso() }];
+  return updateEvent(id, { pausas: cerradas }, database);
 }
 
 export interface CloseEventInput {

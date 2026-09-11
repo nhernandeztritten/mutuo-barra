@@ -14,6 +14,8 @@ import {
   listModifierGroups,
   listModifierOptions,
   listProducts,
+  pauseService,
+  resumeService,
 } from '../data/repo';
 import type {
   BarEvent,
@@ -150,6 +152,21 @@ export const closedEvents = computed(() => events.value.filter((e) => e.status =
 
 export async function refreshEvents(): Promise<void> {
   events.value = await listEvents();
+}
+
+/**
+ * Parar y reanudar el servicio. El evento sigue `live`: lo que cambia es que
+ * ahora mismo no se sirve. Después de escribir se recarga la lista, que es la
+ * regla de este archivo.
+ */
+export async function pausarServicio(id: string): Promise<void> {
+  await pauseService(id);
+  await refreshEvents();
+}
+
+export async function reanudarServicio(id: string): Promise<void> {
+  await resumeService(id);
+  await refreshEvents();
 }
 
 export function eventById(id: string | undefined): BarEvent | undefined {

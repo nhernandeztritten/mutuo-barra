@@ -391,8 +391,8 @@ const hojaMas = await page.evaluate(() => {
 });
 linea(hojaMas.abajo, 'la hoja «Más» sube desde abajo, no se planta en el centro');
 linea(
-  hojaMas.nombres.join(' · ') === 'Rápido · Noche · Resumen · Cerrar barra',
-  `sus cuatro filas, con «Cerrar barra» la última: ${hojaMas.nombres.join(' · ')}`,
+  hojaMas.nombres.join(' · ') === 'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra',
+  `sus cinco filas, con «Cerrar barra» la última: ${hojaMas.nombres.join(' · ')}`,
 );
 linea(
   hojaMas.pistas[0] === 'cada toque sirve una bebida',
@@ -532,6 +532,107 @@ linea(
   'y se quita igual de fácil',
 );
 
+/* ---------- 7 bis. Pausar y reanudar el servicio ---------- */
+
+await page.locator('.barra__mas').click();
+await page.waitForSelector('.hoja-abajo');
+const orden = await page.evaluate(() =>
+  [...document.querySelectorAll('.hoja-abajo .hoja-fila__nombre')].map((el) => el.textContent.trim()),
+);
+linea(
+  orden.join(' · ') === 'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra',
+  `«Pausar servicio» va antes de «Cerrar barra»: ${orden.join(' · ')}`,
+);
+await page.getByRole('button', { name: /^Pausar servicio/ }).click();
+await page.waitForSelector('.barra__pausa');
+await page.waitForTimeout(300);
+
+const pausa = await page.evaluate(() => {
+  const tiles = [...document.querySelectorAll('.tile-grid .tile')];
+  return {
+    cabecera: document.querySelector('.barra__pausa')?.textContent.trim(),
+    ritmo: document.querySelector('.barra__rate') !== null,
+    tilesApagados: tiles.filter((t) => t.disabled).length,
+    total: tiles.length,
+    principal: document.querySelector('.ticket-bar .btn--action')?.textContent.trim(),
+    ultimos: document.querySelector('.ultimos') !== null,
+  };
+});
+linea(pausa.cabecera === 'En pausa', `la cabecera lo dice: «${String(pausa.cabecera)}»`);
+linea(!pausa.ritmo, 'y el ritmo de la última hora deja de enseñar un número que caería solo');
+linea(
+  pausa.tilesApagados === pausa.total,
+  `no se puede tocar ninguna bebida (${String(pausa.tilesApagados)} de ${String(pausa.total)})`,
+);
+linea(
+  pausa.principal === 'Reanudar servicio',
+  `la acción principal pasa a ser «${String(pausa.principal)}», en el sitio de servir`,
+);
+linea(pausa.ultimos, 'y «Últimos pedidos» se sigue pudiendo ver');
+// La cabecera tiene `overflow: hidden`: lo que no quepa se corta sin avisar.
+const cabeceraEnPausa = await page.evaluate(() => {
+  const h = document.querySelector('.barra__header');
+  const caja = h.getBoundingClientRect();
+  return [...h.children]
+    .filter((el) => getComputedStyle(el).display !== 'none')
+    .filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.right > caja.right + 0.5 || r.left < caja.left - 0.5;
+    })
+    .map((el) => el.className.split(' ')[0]);
+});
+linea(
+  cabeceraEnPausa.length === 0,
+  `y nada de la cabecera se corta${cabeceraEnPausa.length ? ` — ${cabeceraEnPausa.join(' | ')}` : ''}`,
+);
+await revisa(page, 'Barra en pausa');
+await captura(page, 'barra-en-pausa');
+
+// En Eventos, la tarjeta lo dice y ofrece reanudar.
+await page.locator('.barra__salir').click();
+await page.waitForSelector('.card--live');
+await page.waitForTimeout(250);
+const tarjeta = await page.evaluate(() => {
+  const card = document.querySelector('.card--live');
+  return {
+    titulo: card.querySelector('.section-title')?.textContent.trim(),
+    enPausa: card.classList.contains('card--pausa'),
+    botones: [...card.querySelectorAll('button')].map((b) => b.textContent.trim()),
+    ritmo: [...card.querySelectorAll('.stat__value')].map((el) => el.textContent.trim()),
+  };
+});
+linea(
+  tarjeta.enPausa && tarjeta.titulo === 'Barra en pausa',
+  `Eventos: la tarjeta dice «${String(tarjeta.titulo)}»`,
+);
+linea(
+  tarjeta.botones.includes('Reanudar servicio') && tarjeta.botones.includes('Cerrar barra'),
+  `con ${tarjeta.botones.join(' · ')}`,
+);
+linea(tarjeta.ritmo.includes('en pausa'), 'y la última hora dice «en pausa», no un número');
+await revisa(page, 'Eventos con la barra en pausa');
+await captura(page, 'eventos-barra-en-pausa');
+
+// Reanudar desde Eventos y volver a la barra.
+await page.getByRole('button', { name: /^Reanudar servicio/ }).click();
+await page.waitForTimeout(400);
+linea(
+  (await page.locator('.card--live .section-title').textContent())?.trim() === 'Barra abierta',
+  'reanudar desde Eventos devuelve la tarjeta a «Barra abierta»',
+);
+await page.getByRole('button', { name: 'Seguir sirviendo' }).click();
+await page.waitForSelector('.tile-grid .tile');
+await page.waitForTimeout(400);
+const vuelta = await page.evaluate(() => ({
+  apagados: [...document.querySelectorAll('.tile-grid .tile')].filter((t) => t.disabled).length,
+  principal: document.querySelector('.ticket-bar .btn--action')?.textContent.trim(),
+}));
+linea(
+  vuelta.apagados === 0 && vuelta.principal !== 'Reanudar servicio',
+  `y las bebidas se vuelven a poder tocar (botón: «${String(vuelta.principal)}»)`,
+);
+await cabeSinDesplazar(page, IPHONE, '402 tras reanudar');
+
 /* ---------- 8. Cerrar barra con recuento ---------- */
 
 await page.locator('.barra__mas').click();
@@ -539,6 +640,7 @@ await page.waitForSelector('.hoja-abajo');
 await page.getByRole('button', { name: /^Cerrar barra/ }).click();
 await page.waitForSelector('.recuento');
 await page.waitForTimeout(250);
+await page.waitForTimeout(200);
 const recuento = await page.evaluate(() => {
   const fila = document.querySelector('.recuento__row');
   const celdas = [...fila.children].filter((el) => el.getBoundingClientRect().height > 0);
@@ -570,6 +672,17 @@ await page.waitForTimeout(600);
 /* ---------- 9. Resultados ---------- */
 
 await page.waitForSelector('.detalle, .stat-grid');
+await page.waitForTimeout(250);
+const duracion = await page.evaluate(() => {
+  const cifra = [...document.querySelectorAll('.stat')].find((s) =>
+    s.textContent?.includes('duración de la barra'),
+  );
+  return cifra?.textContent?.trim() ?? '';
+});
+linea(
+  duracion.includes('de pausa'),
+  `la duración de la barra descuenta la pausa: «${duracion.replace(/\s+/g, ' ')}»`,
+);
 await revisa(page, 'Resultados del evento');
 await captura(page, 'resultados-del-evento');
 
