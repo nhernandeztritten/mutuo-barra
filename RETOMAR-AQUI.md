@@ -53,12 +53,20 @@ npm run capturas   # recorrido completo en navegador real
 **Navegación**: tres entradas (`Eventos · Resultados · Carta y ajustes`) y un ciclo visible de cuatro pasos por evento: **1 Preparar → 2 Servir → 3 Cerrar → 4 Resultados**.
 
 - **Preparar**: datos del evento, carga real con sugerencia por invitados, y bloque **Lotes** (litros de batch/cold brew → gramos de café y agua, que suman a la carga).
-- **Servir (la barra)**: pestañas de categoría con «Todas» por defecto, grid de bebidas, **fila de extras contextual** (tocas la bebida y arriba salen *solo* sus extras), ticket, «Servir», deshacer 8 s, **modo Rápido** (cada toque sirve), modo **Noche**, **Resumen** en hoja lateral, **Últimos pedidos** con desplegar / Repetir / **Editar** / Anular.
+- **Servir (la barra)**: se puede **pausar y reanudar el servicio** sin cerrar el evento (bodas a dos turnos); el tiempo en pausa no cuenta en la duración. pestañas de categoría con «Todas» por defecto, grid de bebidas, **fila de extras contextual** (tocas la bebida y arriba salen *solo* sus extras), ticket, «Servir», deshacer 8 s, **modo Rápido** (cada toque sirve), modo **Noche**, **Resumen** en hoja lateral, **Últimos pedidos** con desplegar / Repetir / **Editar** / Anular.
 - **Cerrar**: recuento de lo que queda («no contado» si no lo rellenas), notas, resultado en vivo.
 - **Resultados**: tabla ordenable entre eventos, comparativas, exportar CSV/JSON e importar (idempotente por uuid).
 - **Carta y ajustes**: editar carta y recetas, insumos y costes, **Métodos y ratios** (espresso 1:2, filtro 1:16, cold brew 1:10, infusión 1:100, matcha 1:80), dispositivo, copia de seguridad.
 
 **Ratios**: la app compara cada receta con su ratio clásico y **avisa**, nunca reescribe (los costes del escandallo están medidos). Destapó que el Flat white no cabe en su vaso y que el té no tenía ingrediente.
+
+## 5 bis. Móvil (11/09)
+
+Corte en **560 px**. En iPhone: menú sin desplazar («Ajustes»), cabecera de una fila con **«Más»** (hoja desde abajo: Rápido, Noche, Resumen, Pausar, Cerrar barra), **grid de 3 columnas** con las 14 bebidas visibles **sin scroll**, y el pedido como barra fija abajo. Medido: holgura +165 px a 402×874 y +72 px con safe areas simuladas.
+
+**Límite conocido**: con **más de 15 bebidas activas** vuelve a haber scroll en el móvil instalado (medido: 18 bebidas → −16 px a 402×781). No ampliar la carta sin volver a medir.
+
+**Sin verificar**: `env(safe-area-inset-*)` reales, `display: standalone` y Safari de verdad. Todo es Chromium con emulación.
 
 ## 6. Decisiones que esperan a Nicolas
 
