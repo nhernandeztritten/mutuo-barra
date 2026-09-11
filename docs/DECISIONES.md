@@ -1337,3 +1337,63 @@ Dos consecuencias de interfaz:
 - **La Tapa sale de «Lo que más se pide cambiar»** del Resumen. Retirada de la
   carta, un «30 % pidió tapa» invita a decidir sobre algo que ya no se puede
   ofrecer. El dato no se pierde: sigue en la línea del pedido y en el CSV.
+
+### 106. El aviso sube arriba cuando hay una hoja abierta
+
+La decisión 98 levantó el aviso por encima de la barra del pedido: «Deshacer» es
+un control de verdad y no puede competir por el sitio del botón de servir. La
+hoja «Más» del móvil sube desde abajo y llega hasta el 86 % de la pantalla, así
+que el aviso volvía a caer encima de una fila —«Pausar servicio»— y un toque ahí
+daba en «Deshacer». Medido con `elementFromPoint`, no deducido.
+
+Con un `[role="dialog"]` en pantalla, el aviso se va al borde de arriba. Arriba
+no estorba: las hojas llenan desde abajo o por el lado, y la franja superior de
+la barra no tiene ningún objetivo táctil en el centro. Va con `:has()`; donde no
+exista, se queda como estaba, que es el comportamiento de siempre.
+
+Lo que **no** se hizo: tirar el aviso al abrir la hoja. Habría sido más simple y
+habría quitado un «Deshacer» vivo sin pedir permiso, que es justo lo que no se
+puede hacer con una bebida mal servida.
+
+### 107. El subtítulo de «Rápido» pasa de 13 a 15 px
+
+`UX-REVISION-1 §C` fijó 13 px para ese subtítulo. `DESIGN.md` dice, más tarde y
+con más motivo, que en la barra nada baja de 15 px: se lee a 60-75 cm, de noche,
+con las manos mojadas. La fase 9 subió a 15 todos los rótulos del móvil y este se
+quedó atrás porque el script de móvil no mide el iPad, y el del iPad no miraba el
+tamaño de letra. Lo encontró la fase 10 al mirar las dos cosas a la vez.
+
+Además llevaba `opacity: .8` encima de `--ink-2`, que bajaba el contraste por
+debajo de lo que el medidor decía. Ahora el color lo pone `--ink-3`, que está
+comprobado: **6,66:1** en claro y **6,19:1** en noche.
+
+El texto se acorta a «**un toque, una bebida**» porque la cabecera del iPad no
+tiene sitio: con «cada toque sirve una bebida» a 15 px, «Cerrar barra» se salía
+de los 1180 px. Es la misma frase que ya usa la hoja «Más» del móvil, así que de
+paso deja de haber dos redacciones del mismo concepto.
+
+### 108. «Pedido actual» también en la barra inferior del móvil
+
+La barra inferior decía «Pedido (3)» y la hoja que ella misma abre, «Pedido
+actual (3)». El mismo objeto con dos nombres a un toque de distancia. Manda
+«Pedido actual», que es el de `SPEC §3.2` y el que lo distingue de «Últimos
+pedidos», la sección que tiene justo debajo.
+
+Se midió antes de cambiarlo, porque el ancho de esa barra es el que es: la
+etiqueta más larga posible —«Pedido actual (3) · 8,40 €», en modo venta— cabe en
+una línea a 375, 393 y 402 px, y la barra sigue midiendo 72 px.
+
+### 109. Abrir otra barra no «pausa» la anterior: la devuelve al paso 1
+
+Dos pantallas decían que al abrir una barra con otra abierta «aquella se pausa».
+No es verdad y, peor, «pausar» ya significa otra cosa exacta desde la fase 9: el
+servicio para y el evento sigue `live`. Lo que hace `openEvent` es devolver la
+otra a `planned` conservando `openedAt` y todos sus pedidos.
+
+Ahora las dos pantallas lo dicen así: «aquella vuelve al paso 1, "Preparar", y
+conserva todos sus pedidos». Un estado, un nombre.
+
+Queda un cabo suelto que no es de copy y está en `UX-REVISION-2`, «Para después
+del evento»: esa barra reaparece en Eventos bajo «Próximos · Paso 1 de 4 · listo
+para abrir», sin decir que ya sirvió noventa cafés. El dato está guardado; la
+portada no lo cuenta.

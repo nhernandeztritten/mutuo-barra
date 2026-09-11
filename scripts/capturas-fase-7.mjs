@@ -193,7 +193,11 @@ await captura(page, 'repetir-desde-la-desplegada');
 await page.locator('.ticket__foot .btn--action').click();
 await page.waitForTimeout(600);
 
-/* ---------- 4. Anular con motivo, y deshacer ---------- */
+/* ---------- 4. Anular de un toque, y deshacer ----------
+   Desde el 07/09/2026 «Anular» no pregunta el motivo: en barra, con cola
+   delante, elegir entre tres costaba más que el error que documentaba. Es un
+   toque y ocho segundos de «Deshacer» (`src/ui/motivos.tsx`). Este script se
+   quedó con los chips de antes y llevaba en rojo desde entonces. */
 
 for (const b of ['Cortado', 'Filtro', 'Cold brew']) {
   await servir(page, [b]);
@@ -203,23 +207,20 @@ await page.waitForTimeout(300);
 const antesDeAnular = await servidas(page);
 const seisFrases = await frases(page);
 await abrir(page, 0);
+const anuladoId = await fila(page, 0).getAttribute('data-pedido');
 await fila(page, 0).locator('.ultimos__anular').click();
 await page.waitForTimeout(250);
 
-const motivos = await page.locator('.ultimos .chip--mini').allTextContents();
 linea(
-  motivos.join(' · ') === 'Error · Devuelto · Otro · Cancelar',
-  `«Anular» pregunta el motivo en línea: ${motivos.join(' · ')}`,
+  (await page.locator('.ultimos .chip--mini').count()) === 0,
+  '«Anular» no pregunta el motivo: un toque y ocho segundos para deshacerlo',
 );
 linea(
   (await page.locator('[role="dialog"]').count()) === 0,
   'y sin ventana emergente, como el Resumen',
 );
-await captura(page, 'anular-chips-de-motivo-en-linea');
-
-const anuladoId = await fila(page, 0).getAttribute('data-pedido');
-await page.locator('.ultimos .chip--mini', { hasText: /^Error$/ }).click();
-await page.waitForTimeout(600);
+await captura(page, 'anular-de-un-toque-sin-preguntar-el-motivo');
+await page.waitForTimeout(400);
 
 const trasAnular = await page.evaluate((id) => ({
   sigue: document.querySelectorAll(`.ultimos__fila[data-pedido="${id}"]`).length,
@@ -237,7 +238,7 @@ linea(
   `el contador de la cabecera baja: ${antesDeAnular} → ${trasAnular.servidas}`,
 );
 linea(
-  (trasAnular.toast ?? '').includes('Pedido anulado') && (trasAnular.toast ?? '').includes('Deshacer'),
+  (trasAnular.toast ?? '').startsWith('Anulado ·') && (trasAnular.toast ?? '').includes('Deshacer'),
   `con su aviso: «${trasAnular.toast}»`,
 );
 await captura(page, 'pedido-anulado-sube-el-siguiente');

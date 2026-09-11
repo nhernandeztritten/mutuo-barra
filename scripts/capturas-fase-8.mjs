@@ -232,7 +232,8 @@ linea(
 // doble» se queda en «Cold brew dobl». No se toca aquí (no es de esta fase),
 // pero queda anotado en DECISIONES como pendiente.
 await captura(page, 'barra-con-la-bebida-nueva');
-await page.getByRole('button', { name: 'Eventos', exact: true }).click();
+// La salida de la barra es su chevrón: en `barMode` el menú de arriba no está.
+await page.getByRole('button', { name: 'Volver a Eventos' }).click();
 await page.waitForSelector('.eventos');
 
 /* ---------- 5. Ratio del filtro a 1:15 y restaurado ---------- */

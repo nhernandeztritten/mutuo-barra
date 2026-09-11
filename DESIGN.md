@@ -30,7 +30,9 @@ Archivo (autoalojada), una sola familia:
 - Tile de producto: 500, 20 px, dos líneas máximo, `text-wrap: balance`.
 - Chip: 500, 17 px. Línea de ticket: 500, 18 px; modificadores 400, 15 px `--ink-3`.
 - Botón principal: 600, 22 px. Cuerpo: 400, 16-17 px, line-height 1,5.
+- Subtítulo de un interruptor: 400, 15 px, `--ink-3`. Sin `opacity`: baja el contraste por debajo de lo medido y el medidor no lo ve.
 - Nunca por debajo de 15 px en la barra; 14 px permitido solo en tablas del panel.
+- Todo lo que se escribe, a 16 px o más: por debajo, Safari hace zoom al enfocar.
 
 ## Espaciado y tamaños
 Escala 4 px. Tiles 96 px de alto mínimo, chips 56 px, botón principal 72 px, filas del ticket 56 px, controles +/−, «Más» y segmentos de leche 44 × 44 con 8 px de separación. Radio 12 px en tiles y chips, 16 px en hojas, 999 en chips-píldora. Bordes 1 px `--line`; sombra solo en hojas y toasts (`0 8px 24px rgb(0 0 0 / .12)`).
@@ -48,10 +50,10 @@ Por debajo de **560 px** (`@media (max-width: 560px)`) la app se dibuja para **u
 Qué cambia:
 - **Menú**: wordmark a 16 px y las tres entradas a 15 px, con «Carta y ajustes» acortado a «**Ajustes**». Las tres caben enteras hasta a 375 px; no hay nada que desplazar.
 - **Cabecera de la barra**: **una sola fila de 56 px** + safe area. De izquierda a derecha: `‹` (solo el chevrón, con `aria-label` «Volver a Eventos»), el nombre del evento truncado con `title`, las bebidas servidas en 24 px tabulares, el medidor de café reducido a una barra de 28 px y su porcentaje, y **«Más»**. El ritmo de la última hora y los cuatro pasos del evento no caben y se van: el ritmo, a la hoja «Más»; los pasos, a las pantallas donde se miran.
-- **«Más»** abre una **hoja desde abajo** (`.hoja-abajo`) con Rápido, Noche, Resumen y —separada por una línea y la última— Cerrar barra. Cada una en una fila de ≥ 56 px con su nombre y una explicación corta. No es un modal centrado: DESIGN.md los prohíbe en el flujo de servir, y en un móvil el centro de la pantalla es justo donde no llega el pulgar.
+- **«Más»** abre una **hoja desde abajo** (`.hoja-abajo`) con Rápido, Noche, Resumen, Pausar servicio y —separada por una línea y la última— Cerrar barra. Con una hoja abierta el toast sube al borde **de arriba**: caía encima de una fila y el toque daba en «Deshacer». Cada una en una fila de ≥ 56 px con su nombre y una explicación corta. No es un modal centrado: DESIGN.md los prohíbe en el flujo de servir, y en un móvil el centro de la pantalla es justo donde no llega el pulgar.
 - **Grid: tres columnas y tiles de 80 px**, texto de 18 px (nunca por debajo de 17) y relleno de 8 px. No es estética: con dos columnas las catorce bebidas piden siete filas y la última se va por debajo de la barra del pedido, y **con la cola delante nadie desplaza una lista para encontrar un cortado**. La carta entera tiene que estar a la vista de una. En pantallas más bajas de 750 px, el tile baja a 72 px y el hueco a 6 px.
 - **Barra inferior del pedido**: la de siempre, con el botón diciendo la cuenta entera («Servir 3 bebidas»). El toast sube por encima de ella: lleva «Deshacer», que es un control de verdad.
-- **Nada por debajo de 15 px**: los rótulos de los gráficos, las etiquetas y el número de los pasos suben de 13-14 a 15. Por encima del corte se quedan como estaban.
+- **Nada por debajo de 15 px**: los rótulos de los gráficos, las etiquetas y el número de los pasos suben de 13-14 a 15. **Tampoco por encima del corte**: el subtítulo de «Rápido» era la última excepción y también está en 15 px, sin `opacity`, desde la revisión 2.
 
 ## Servicio en pausa
 Parar no es cerrar. El evento sigue `live` y lo que se para es el servicio: una boda va en dos turnos y la cena está en medio. El estado se dibuja en **ámbar** (`--warn`), nunca en rojo: no es un error ni un cierre, es un turno que se retoma.
@@ -70,7 +72,7 @@ Ease-out (cubic-bezier(.22,1,.36,1)). Pulsación de tile: scale(.97) 90 ms. Lín
 lucide-preact, trazo 1,75, 22 px en cabecera y 20 px en línea. Siempre con etiqueta de texto salvo +/− y cerrar.
 
 ## Copy
-Castellano llano. Verbos en el botón: «Servir 3 bebidas», «Cobrar 6,20 €», «Cerrar evento», «Deshacer». Sin «¿Estás seguro?»: deshacer en su lugar. Errores con causa y salida: «Sin carga registrada: la barra de café no se mostrará. Registrar carga · Abrir igual».
+Castellano llano. Verbos en el botón: «Servir 3 bebidas», «Cobrar 6,20 €», «Cerrar barra», «Deshacer». **Un concepto, un nombre**: el pedido en curso es «Pedido actual» en las dos pantallas donde sale, y «pausar» es solo el servicio parado con el evento abierto — una barra que se deja para abrir otra «vuelve al paso 1», no «se pausa». Sin «¿Estás seguro?»: deshacer en su lugar. Errores con causa y salida: «Sin carga registrada: la barra de café no se mostrará. Registrar carga · Abrir igual».
 
 ## Prohibido
 Franjas laterales de color, texto degradado, cristal, tarjetas anidadas, emojis como iconos, tiles con abreviaturas de dos letras, modales centrados en el flujo de servir, cifras sin tabular.
