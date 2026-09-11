@@ -17,7 +17,7 @@ import {
   TE_RECETA_ANTERIOR,
 } from '../seed';
 import { applyModifiers } from '../../domain/modifiers';
-import type { Ingredient, Product } from '../types';
+import type { Ingredient, ModifierOption, Order, Product } from '../types';
 
 let n = 0;
 
@@ -79,6 +79,52 @@ async function baseV3(editar: (p: Product) => Product = (p) => p): Promise<Barra
   return db;
 }
 
+/**
+ * Base con la carta de la semilla v4: la que tiene el iPhone de Nicolas la
+ * noche antes de la boda. Es la v5 **con la Tapa todavía dentro**, que es lo
+ * que la migración tiene que retirar sin tocar un solo pedido.
+ */
+const TAPA_V4: ModifierOption = {
+  id: 'extra_tapa', groupId: 'extra', name: 'Tapa', isDefault: false,
+  effects: [{ kind: 'add', ingredientId: 'tapa_6', qty: 1 }],
+  priceDelta: 0, sortOrder: 40,
+};
+
+/** Los `allowedModifierGroups` que tenía cada bebida en la v4. */
+const EXTRAS_V4: Record<string, string[]> = {
+  espresso: ['extra_doble', 'extra_iced', 'extra_tapa'],
+  americano: ['extra_iced', 'extra_tapa'],
+  flat_white: ['extra_iced', 'extra_sirope', 'extra_tapa'],
+  matcha_latte: ['extra_iced', 'extra_tapa'],
+  filtro: ['extra_tapa'],
+  cold_brew: ['extra_tapa'],
+  te: ['extra_tapa'],
+  agua_botella: ['extra_tapa'],
+};
+
+async function baseV4(): Promise<BarraDb> {
+  const db = new BarraDb(`barra-migracion-v4-${++n}`);
+  await db.open();
+
+  const productosV4 = PRODUCTS.map((p) => {
+    const listaV4 = EXTRAS_V4[p.id];
+    if (!listaV4) return p;
+    const sinExtra = p.allowedModifierGroups.filter((a) => a.groupId !== 'extra');
+    return { ...p, allowedModifierGroups: [...sinExtra, { groupId: 'extra', optionIds: listaV4 }] };
+  });
+  // En la v4 las tres tapas se contaban en la carga y en el recuento.
+  const insumosV4 = INGREDIENTS.map((i) =>
+    i.id.startsWith('tapa_') ? { ...i, trackStock: true } : i,
+  );
+
+  await db.ingredients.bulkPut(insumosV4);
+  await db.products.bulkPut(productosV4);
+  await db.modifierGroups.bulkPut(MODIFIER_GROUPS);
+  await db.modifierOptions.bulkPut([...MODIFIER_OPTIONS, TAPA_V4]);
+  await updateSettings({ seedVersion: 4 }, db);
+  return db;
+}
+
 function extras(product: Product): string[] {
   return product.allowedModifierGroups.find((a) => a.groupId === 'extra')?.optionIds ?? [];
 }
@@ -130,7 +176,8 @@ describe('migración de la dosis (v2 → v3)', () => {
     const db = await baseV2();
     await initDb(db);
     const flat = (await db.products.get('flat_white'))!;
-    expect(extras(flat).sort()).toEqual(['extra_iced', 'extra_sirope', 'extra_tapa']);
+    // La Tapa se fue con la v5 en la misma pasada: quedan sus dos extras.
+    expect(extras(flat).sort()).toEqual(['extra_iced', 'extra_sirope']);
     // Y sigue admitiendo leche y café.
     expect(flat.allowedModifierGroups.map((a) => a.groupId).sort()).toEqual(['cafe', 'extra', 'leche']);
     db.close();
@@ -166,12 +213,12 @@ describe('migración de la dosis (v2 → v3)', () => {
     db.close();
   });
 
-  it('deja la base en la versión 3 y no repite la migración al siguiente arranque', async () => {
+  it('deja la base en la versión de la semilla y no repite la migración', async () => {
     const db = await baseV2();
     await initDb(db);
     const settings = await db.settings.get('app');
     expect(settings?.seedVersion).toBe(SEED_VERSION);
-    expect(SEED_VERSION).toBe(4);
+    expect(SEED_VERSION).toBe(5);
 
     // Segundo arranque con la receta ya editada por Nicolas después de migrar:
     // no vuelve a pisarla porque la versión ya está al día.
@@ -281,10 +328,10 @@ describe('migración de métodos y volúmenes (v3 → v4)', () => {
     db.close();
   });
 
-  it('deja la base en la versión 4 y no repite la migración al siguiente arranque', async () => {
+  it('deja la base en la versión de la semilla y no repite la migración', async () => {
     const db = await baseV3();
     await initDb(db);
-    expect((await db.settings.get('app'))?.seedVersion).toBe(4);
+    expect((await db.settings.get('app'))?.seedVersion).toBe(SEED_VERSION);
 
     const te = (await db.products.get('te'))!;
     await db.products.put({ ...te, recipe: te.recipe.filter((r) => r.ingredientId !== 'te_hoja') });
@@ -297,6 +344,113 @@ describe('migración de métodos y volúmenes (v3 → v4)', () => {
     const db = new BarraDb(`barra-ratios-${++n}`);
     const { settings } = await initDb(db);
     expect(settings.ratios).toEqual({});
+    db.close();
+  });
+});
+
+describe('migración de la Tapa (v4 → v5)', () => {
+  /** Un pedido servido con tapa, congelado tal y como lo guardó la barra. */
+  function pedidoConTapa(): Order {
+    return {
+      id: 'ord-tapa',
+      eventId: 'ev-viejo',
+      createdAt: '2026-09-05T18:10:00.000Z',
+      servedAt: '2026-09-05T18:10:00.000Z',
+      deviceId: 'dev-1',
+      mode: 'incluido',
+      lines: [
+        {
+          id: 'l1',
+          productId: 'cortado',
+          productName: 'Cortado',
+          modifiers: [{ groupId: 'extra', optionId: 'extra_tapa', label: 'Tapa' }],
+          qty: 2,
+          unitPrice: 2.2,
+          unitCost: 0.7868,
+          usage: { cafe: 18, leche: 120, vaso_6: 1, menaje: 1, tapa_6: 1 },
+          note: '',
+        },
+      ],
+      subtotal: 4.4,
+      tip: 0,
+      total: 4.4,
+      payment: null,
+      cashGiven: null,
+      voidedAt: null,
+      voidReason: '',
+      note: '',
+    };
+  }
+
+  it('la opción desaparece de la base y ninguna bebida la admite', async () => {
+    const db = await baseV4();
+    await initDb(db);
+
+    expect(await db.modifierOptions.get('extra_tapa')).toBeUndefined();
+    for (const p of await db.products.toArray()) {
+      for (const a of p.allowedModifierGroups) {
+        expect(a.optionIds ?? []).not.toContain('extra_tapa');
+      }
+    }
+    db.close();
+  });
+
+  it('una bebida que solo admitía Tapa se queda sin el grupo, no con un grupo vacío', async () => {
+    const db = await baseV4();
+    await initDb(db);
+    for (const id of ['filtro', 'cold_brew', 'te', 'agua_botella']) {
+      expect((await db.products.get(id))!.allowedModifierGroups).toEqual([]);
+    }
+    // Y las que tenían más de un extra conservan los demás.
+    expect(extras((await db.products.get('espresso'))!)).toEqual(['extra_doble', 'extra_iced']);
+    expect(extras((await db.products.get('flat_white'))!)).toEqual(['extra_iced', 'extra_sirope']);
+    db.close();
+  });
+
+  it('los tres insumos de tapa siguen existiendo, pero dejan de contarse', async () => {
+    const db = await baseV4();
+    await initDb(db);
+    for (const id of ['tapa_6', 'tapa_10', 'tapa_fria']) {
+      const ing = await db.ingredients.get(id);
+      expect(ing).toBeDefined();
+      expect(ing?.trackStock).toBe(false);
+      // El coste medido no se toca: si vuelven, vuelven con su cifra.
+      expect(ing?.costPerUnit).toBeGreaterThan(0);
+    }
+    db.close();
+  });
+
+  it('un pedido servido con tapa no se toca: línea, coste y etiqueta siguen', async () => {
+    const db = await baseV4();
+    await db.orders.put(pedidoConTapa());
+    await initDb(db);
+
+    const guardado = (await db.orders.get('ord-tapa'))!;
+    expect(guardado).toEqual(pedidoConTapa());
+    expect(guardado.lines[0]!.usage['tapa_6']).toBe(1);
+    expect(guardado.lines[0]!.modifiers[0]!.label).toBe('Tapa');
+    db.close();
+  });
+
+  it('deja la base en la versión 5 y no repite la migración', async () => {
+    const db = await baseV4();
+    await initDb(db);
+    expect((await db.settings.get('app'))?.seedVersion).toBe(5);
+    expect(SEED_VERSION).toBe(5);
+
+    // Segundo arranque: si Nicolas se inventara una tapa nueva a mano, la
+    // migración ya no corre y no se la pisa.
+    await db.modifierOptions.put({ ...TAPA_V4, id: 'extra_tapa_nueva', name: 'Tapa (nueva)' });
+    await initDb(db);
+    expect(await db.modifierOptions.get('extra_tapa_nueva')).toBeDefined();
+    db.close();
+  });
+
+  it('la carta nueva tampoco la trae: 8 opciones, no 9', async () => {
+    const db = new BarraDb(`barra-sin-tapa-${++n}`);
+    await initDb(db);
+    expect(await db.modifierOptions.count()).toBe(8);
+    expect(await db.modifierOptions.get('extra_tapa')).toBeUndefined();
     db.close();
   });
 });

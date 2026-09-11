@@ -1,6 +1,7 @@
 /**
- * IndexedDB through Dexie. Everything the bar needs lives here: the iPad works
- * with the network off, so this is the only source of truth during an event.
+ * IndexedDB through Dexie. Everything the bar needs lives here: the device
+ * works with the network off, so this is the only source of truth during an
+ * event.
  */
 import Dexie, { type Table } from 'dexie';
 import {
@@ -13,6 +14,8 @@ import {
   PRODUCTS,
   SEED_VERSION,
   SHORTNAME_MIGRATIONS,
+  TAPA_INGREDIENTS,
+  TAPA_OPTION_ID,
   TE_HOJA_QTY,
   TE_RECETA_ANTERIOR,
 } from './seed';
@@ -152,6 +155,9 @@ export async function initDb(database: BarraDb = db): Promise<InitResult> {
     await migrarNombresCortos(database);
     await migrarDosisDeCafe(database);
     await migrarMetodosYVolumenes(database);
+    // La última: trabaja sobre el estado final, después de que las anteriores
+    // hayan podido materializar listas de opciones que todavía traían la tapa.
+    await migrarSinTapa(database);
   }
 
   const persisted = await requestPersistence();
@@ -279,6 +285,59 @@ async function migrarMetodosYVolumenes(database: BarraDb): Promise<void> {
       ...te,
       recipe: [{ ingredientId: 'te_hoja', qty: TE_HOJA_QTY }, ...te.recipe],
     });
+  }
+}
+
+/**
+ * Semilla v5: la **Tapa** desaparece de la carta (decisión de Nicolas del
+ * 11/09/2026).
+ *
+ * Tres cosas, en este orden:
+ *
+ * 1. Se quita `extra_tapa` de los `allowedModifierGroups` de todas las bebidas.
+ *    Si la lista de opciones de `extra` se queda vacía, el grupo entero deja de
+ *    declararse: un grupo sin opciones no pinta nada y solo confunde al leer la
+ *    carta en Ajustes.
+ * 2. Se borra la fila de la opción. Es lo único que se borra.
+ * 3. Los tres insumos de tapa pasan a `trackStock: false` —siguen existiendo en
+ *    Ajustes → Insumos— para que no pidan un número en la carga ni en el
+ *    recuento del cierre.
+ *
+ * Lo que **no** toca: ni un pedido. Una línea servida con tapa conserva su
+ * receta, su coste y su etiqueta congelados, y la tapa sigue sumando en el
+ * consumo de aquel evento. La historia no se reescribe.
+ */
+async function migrarSinTapa(database: BarraDb): Promise<void> {
+  const products = await database.products.toArray();
+  for (const product of products) {
+    let cambiado = false;
+    const allowedModifierGroups = [];
+    for (const allowance of product.allowedModifierGroups) {
+      if (allowance.optionIds === undefined) {
+        // Admite todas las del grupo: borrada la opción, ya no la admite.
+        allowedModifierGroups.push(allowance);
+        continue;
+      }
+      if (!allowance.optionIds.includes(TAPA_OPTION_ID)) {
+        allowedModifierGroups.push(allowance);
+        continue;
+      }
+      cambiado = true;
+      const optionIds = allowance.optionIds.filter((id) => id !== TAPA_OPTION_ID);
+      if (optionIds.length > 0) allowedModifierGroups.push({ ...allowance, optionIds });
+    }
+    if (cambiado) await database.products.put({ ...product, allowedModifierGroups });
+  }
+
+  if (await database.modifierOptions.get(TAPA_OPTION_ID)) {
+    await database.modifierOptions.delete(TAPA_OPTION_ID);
+  }
+
+  for (const id of TAPA_INGREDIENTS) {
+    const ingredient = await database.ingredients.get(id);
+    if (ingredient && ingredient.trackStock) {
+      await database.ingredients.put({ ...ingredient, trackStock: false });
+    }
   }
 }
 

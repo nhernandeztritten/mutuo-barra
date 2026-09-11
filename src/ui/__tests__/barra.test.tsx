@@ -229,7 +229,6 @@ describe('la fila de extras es de la última bebida tocada', () => {
       'Doble',
       'Iced',
       'Sirope',
-      'Tapa',
     ]);
     // La leche es un segmento de opción única con «Vaca» marcada de salida.
     expect(document.querySelectorAll('.seg .seg__opt')).toHaveLength(3);
@@ -264,10 +263,10 @@ describe('la fila de extras es de la última bebida tocada', () => {
   it('volver a tocar el extra lo quita', async () => {
     await setupBar();
     fireEvent.click(tile('Latte'));
-    fireEvent.click(extra('Tapa'));
-    await waitFor(() => expect(rows()[0]?.textContent).toContain('tapa'));
-    fireEvent.click(extra('Tapa'));
-    await waitFor(() => expect(rows()[0]?.textContent).not.toContain('tapa'));
+    fireEvent.click(extra('Sirope'));
+    await waitFor(() => expect(rows()[0]?.textContent).toContain('sirope'));
+    fireEvent.click(extra('Sirope'));
+    await waitFor(() => expect(rows()[0]?.textContent).not.toContain('sirope'));
   });
 
   it('«Vaca» devuelve la línea a la leche normal sin dejar etiqueta', async () => {
@@ -284,11 +283,11 @@ describe('la fila de extras es de la última bebida tocada', () => {
 });
 
 describe('un extra que no aplica ya no se enseña', () => {
-  it('el Espresso solo ofrece Desca, Doble, Iced y Tapa', async () => {
+  it('el Espresso solo ofrece Desca, Doble e Iced', async () => {
     await setupBar();
     fireEvent.click(tile('Espresso'));
     await waitFor(() => expect(bebidaDeLaFila()).toBe('Espresso'));
-    expect(extrasVisibles()).toEqual(['Desca', 'Doble', 'Iced', 'Tapa']);
+    expect(extrasVisibles()).toEqual(['Desca', 'Doble', 'Iced']);
     expect(document.querySelector('.seg')).toBeNull();
   });
 
@@ -296,12 +295,20 @@ describe('un extra que no aplica ya no se enseña', () => {
     await setupBar();
     fireEvent.click(tile('Americano'));
     await waitFor(() => expect(bebidaDeLaFila()).toBe('Americano'));
-    expect(extrasVisibles()).toEqual(['Desca', 'Iced', 'Tapa']);
+    expect(extrasVisibles()).toEqual(['Desca', 'Iced']);
 
     fireEvent.click(tile('Flat white'));
     await waitFor(() => expect(bebidaDeLaFila()).toBe('Flat white'));
     expect(extrasVisibles()).not.toContain('Doble');
-    expect(extrasVisibles()).toEqual(['Vaca', 'Avena', 'Sin lactosa', 'Desca', 'Iced', 'Sirope', 'Tapa']);
+    expect(extrasVisibles()).toEqual(['Vaca', 'Avena', 'Sin lactosa', 'Desca', 'Iced', 'Sirope']);
+  });
+
+  it('una bebida sin ningún modificador lo dice: «sin extras»', async () => {
+    await setupBar();
+    fireEvent.click(tile('Filtro'));
+    await waitFor(() => expect(bebidaDeLaFila()).toBe('Filtro'));
+    expect(extrasVisibles()).toEqual([]);
+    expect(document.querySelector('.extras .extras__pista')?.textContent).toBe('· sin extras');
   });
 
   it('ya no hay nada que sacudir: la fila no ofrece extras imposibles', async () => {

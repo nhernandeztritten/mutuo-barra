@@ -75,8 +75,8 @@ describe('agrupación de líneas', () => {
   });
 
   it('agrupa aunque los chips se hayan tocado en distinto orden', () => {
-    add('cortado', 'leche_avena', 'extra_tapa');
-    add('cortado', 'extra_tapa', 'leche_avena');
+    add('cortado', 'leche_avena', 'extra_sirope');
+    add('cortado', 'extra_sirope', 'leche_avena');
     expect(ticket.value).toHaveLength(1);
     expect(ticket.value[0]?.qty).toBe(2);
   });
@@ -270,18 +270,18 @@ describe('encender y apagar un extra', () => {
   });
 
   it('elegir la opción por defecto deja el grupo sin nada marcado', () => {
-    const conAvena = ['leche_avena', 'extra_tapa'];
+    const conAvena = ['leche_avena', 'extra_sirope'];
     expect(toggleOption(conAvena, opt('leche_vaca'), MODIFIER_GROUPS, MODIFIER_OPTIONS)).toEqual([
-      'extra_tapa',
+      'extra_sirope',
     ]);
   });
 
   it('un grupo múltiple acumula, y el segundo toque quita', () => {
     const uno = toggleOption([], opt('extra_iced'), MODIFIER_GROUPS, MODIFIER_OPTIONS);
-    const dos = toggleOption(uno, opt('extra_tapa'), MODIFIER_GROUPS, MODIFIER_OPTIONS);
-    expect(dos).toEqual(['extra_iced', 'extra_tapa']);
+    const dos = toggleOption(uno, opt('extra_sirope'), MODIFIER_GROUPS, MODIFIER_OPTIONS);
+    expect(dos).toEqual(['extra_iced', 'extra_sirope']);
     expect(toggleOption(dos, opt('extra_iced'), MODIFIER_GROUPS, MODIFIER_OPTIONS)).toEqual([
-      'extra_tapa',
+      'extra_sirope',
     ]);
   });
 });

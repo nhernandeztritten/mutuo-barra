@@ -129,6 +129,10 @@ export function ExtrasRow({
   return (
     <div class="extras" role="group" aria-label={`Extras de ${actual.productName}`}>
       <span class="extras__bebida">{actual.productName}</span>
+      {/* Cuatro bebidas se quedaron sin ningún modificador al retirarse la
+          Tapa. Una fila con el nombre y nada más se lee como algo que todavía
+          está cargando; decirlo cierra la pregunta de un vistazo. */}
+      {bloques.length === 0 ? <span class="extras__pista">· sin extras</span> : null}
       {/* Va pegado al nombre y no al final: la fila se desplaza a lo ancho y
           cualquier cosa detrás del último extra se sale de la vista. */}
       {ayuda ? <span class="extras__ayuda">· {ayuda}</span> : null}

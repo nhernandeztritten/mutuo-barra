@@ -147,8 +147,8 @@ describe('la frase de un pedido', () => {
   });
 
   it('encadena varios modificadores de la misma bebida', () => {
-    const pedido = alMinuto('a', 11, line('latte', 1, 'leche_avena', 'extra_tapa'));
-    expect(frasePedido(pedido)).toBe('Latte · avena · tapa');
+    const pedido = alMinuto('a', 11, line('latte', 1, 'leche_avena', 'extra_sirope'));
+    expect(frasePedido(pedido)).toBe('Latte · avena · sirope');
   });
 
   it('separa el nombre de los modificadores para poder apagarlos en pantalla', () => {

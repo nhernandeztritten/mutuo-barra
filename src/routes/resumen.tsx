@@ -37,8 +37,15 @@ const COLOR_LECHE = {
   sin_lactosa: 'var(--cat-especiales)',
 } as const;
 
-/** Modificadores que interesa seguir, en el orden del informe. */
-const MODS_SEGUIDOS = ['cafe_descafeinado', 'extra_iced', 'extra_doble', 'extra_tapa'];
+/**
+ * Modificadores que interesa seguir, en el orden del informe.
+ *
+ * La Tapa salió de la lista con la semilla v5: retirada de la carta, un «30 %
+ * pidió tapa» en «lo que más se pide cambiar» invita a decidir sobre algo que
+ * ya no se puede ofrecer. El dato no se pierde —sigue en la línea congelada del
+ * pedido y en la exportación CSV—, solo deja de encabezar un informe.
+ */
+const MODS_SEGUIDOS = ['cafe_descafeinado', 'extra_iced', 'extra_doble'];
 
 export function ResumenContenido({
   event,

@@ -1293,3 +1293,47 @@ Eventos**, que gana «Pausar servicio». Parada, esa tarjeta dice «Barra en
 pausa», va en ámbar y ofrece «Reanudar servicio», «Ver la barra» y «Cerrar
 barra». Es además donde Nicolas mira cuando vuelve al teléfono después de un
 rato, así que es el sitio natural.
+
+### 105. La Tapa sale de la carta (semilla v5)
+
+Nicolas, 11/09/2026: «quita lo de la tapa». No se usaba en barra y ocupaba un
+sitio en la fila de extras de nueve de las catorce bebidas, cuatro de las cuales
+—Filtro, Cold brew, Té y Agua— **no admitían nada más**: su fila entera era un
+chip que nadie tocaba.
+
+Qué se hace y qué no:
+
+- **La opción se borra.** `extra_tapa` desaparece de la semilla y de los
+  `allowedModifierGroups` de todas las bebidas. Una lista de `extra` que se
+  queda vacía pierde el grupo entero, no se queda como un grupo sin opciones:
+  un grupo que no ofrece nada no es un grupo, y en Ajustes se leería como una
+  carta rota.
+- **Los tres insumos no se borran**, pasan a `trackStock: false`. Es lo
+  contrario de un capricho: `tapa_6`, `tapa_10` y `tapa_fria` llevan un coste
+  **medido** del escandallo (0,044 €, 0,057 € y 0,121 €) y ese número costó
+  medirlo. Borrarlos sería tirarlo; con `trackStock: false` siguen en Ajustes →
+  Insumos —si Mutuo las recupera, vuelven con su cifra— pero dejan de pedir un
+  número en la carga y en el recuento del cierre, que es lo que ensuciaba.
+- **Ni un pedido se toca.** Una línea servida con tapa guarda su receta, su
+  coste y su etiqueta congelados, y la tapa sigue sumando en el consumo de aquel
+  evento. La historia no se reescribe: es la regla de la app desde la fase 1.
+- **El código de la tapa se va con ella.** El efecto `lid` —el que elegía la
+  tapa según el vaso que Iced hubiera dejado— sale de `ModifierEffect` y del
+  `switch` de `applyModifiers`. Era el único que lo usaba.
+
+El efecto lateral que sí hubo que resolver: **una copia de seguridad anterior
+devolvía la Tapa a la carta**. `importJson` solo mete las filas del catálogo que
+faltan, y `extra_tapa` faltaría; las tres bebidas que admiten el grupo `extra`
+entero (Cortado, Cappuccino, Latte) volverían a ofrecerla, ahora como un chip
+que se toca y no hace nada, porque el efecto ya no existe. La importación
+descarta las opciones cuyo efecto esta versión no sabe aplicar
+(`esOpcionAplicable`). Los pedidos de esa copia sí entran enteros: su receta va
+congelada y no depende de la opción.
+
+Dos consecuencias de interfaz:
+
+- **«Filtro · sin extras».** Con la fila de extras enseñando solo el nombre y
+  nada más, se lee como algo que está cargando. Decirlo cierra la pregunta.
+- **La Tapa sale de «Lo que más se pide cambiar»** del Resumen. Retirada de la
+  carta, un «30 % pidió tapa» invita a decidir sobre algo que ya no se puede
+  ofrecer. El dato no se pierde: sigue en la línea del pedido y en el CSV.

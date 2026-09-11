@@ -3,7 +3,7 @@
  *
  * Modifiers run over the base recipe in the order leche → cafe → extra, and
  * inside a group by `sortOrder`. That ordering is what makes «Descafeinado +
- * Doble» add 18 g of decaf, and «Iced + Tapa» pick the cold lid.
+ * Doble» add 18 g of decaf instead of 18 g of regular coffee.
  *
  * The result is frozen into the order line: editing the menu later never
  * rewrites history.
@@ -40,6 +40,21 @@ export interface AppliedRecipe {
 
 /** Fallback ranking when no `ModifierGroup[]` is supplied. */
 const DEFAULT_GROUP_RANK: Record<string, number> = { leche: 0, cafe: 1, extra: 2 };
+
+/**
+ * Los efectos que esta versión sabe aplicar. Tiene que ir a la par del `switch`
+ * de `applyOption`.
+ *
+ * Lo usa la importación de una copia de seguridad: una opción con un efecto que
+ * ya no existe —la `lid` de la Tapa, retirada en la semilla v5— entraría en la
+ * carta como un chip que se puede tocar y que no hace nada. Mejor no meterla.
+ */
+const EFECTOS_CONOCIDOS = new Set(['none', 'replace', 'add', 'doubleCoffee', 'iced']);
+
+/** Si esta versión sabe aplicar todos los efectos de la opción. */
+export function esOpcionAplicable(option: Pick<ModifierOption, 'effects'>): boolean {
+  return option.effects.every((e) => EFECTOS_CONOCIDOS.has(e.kind));
+}
 
 function round(value: number, decimals: number): number {
   const f = 10 ** decimals;
@@ -106,16 +121,6 @@ function applyOption(usage: StockMap, option: ModifierOption): boolean {
         delete usage[from];
         addQty(usage, effect.cupTo, cups);
         addQty(usage, effect.iceIngredientId, effect.iceQty);
-        changed = true;
-        break;
-      }
-      case 'lid': {
-        // Runs last inside `extra`, so it sees the cup Iced may have swapped.
-        const cupId = Object.keys(effect.byCup).find((id) => (usage[id] ?? 0) > 0);
-        if (cupId === undefined) break;
-        const lidId = effect.byCup[cupId];
-        if (lidId === undefined) break;
-        addQty(usage, lidId, usage[cupId] ?? 1);
         changed = true;
         break;
       }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { apply } from './fixtures';
+import { apply, INGREDIENTS, MODIFIER_OPTIONS, PRODUCTS } from './fixtures';
+import { esOpcionAplicable } from '../modifiers';
 
 /** Tolerance of the escandallo: ±0,005 €. */
 const CENT = 0.005;
@@ -54,17 +55,16 @@ describe('doble dosis del Americano y el Flat white (07/09/2026)', () => {
   });
 
   it('el Flat white conserva sus otros extras y su leche', () => {
-    const r = apply('flat_white', 'leche_avena', 'extra_sirope', 'extra_tapa');
+    const r = apply('flat_white', 'leche_avena', 'extra_sirope');
     expect(r.ignored).toHaveLength(0);
     expect(r.usage['avena']).toBe(120);
     expect(r.usage['sirope']).toBe(10);
-    expect(r.usage['tapa_6']).toBe(1);
   });
 
-  it('el Americano conserva Iced y Tapa, y el descafeinado dobla también', () => {
-    const iced = apply('americano', 'extra_iced', 'extra_tapa');
+  it('el Americano conserva Iced, y el descafeinado dobla también', () => {
+    const iced = apply('americano', 'extra_iced');
     expect(iced.ignored).toHaveLength(0);
-    expect(iced.usage['tapa_fria']).toBe(1);
+    expect(iced.usage['vaso_frio']).toBe(1);
     expect(apply('americano', 'cafe_descafeinado').usage['cafe_desca']).toBe(36);
   });
 });
@@ -157,9 +157,9 @@ describe('extra · Doble', () => {
     expect(r.unitCost).toBeCloseTo(1.2842, 4);
   });
 
-  it('se ignora en un Filtro: la opción no está admitida', () => {
+  it('se ignora en un Filtro: sin la Tapa, el Filtro ya no admite el grupo', () => {
     const r = apply('filtro', 'extra_doble');
-    expect(r.ignored[0]).toMatchObject({ optionId: 'extra_doble', reason: 'opcion-no-admitida' });
+    expect(r.ignored[0]).toMatchObject({ optionId: 'extra_doble', reason: 'grupo-no-admitido' });
     expect(r.usage['cafe']).toBe(12);
     expect(r.unitPrice).toBe(2.8);
   });
@@ -180,42 +180,48 @@ describe('extra · Iced', () => {
     expect(r.usage['hielo']).toBe(120);
   });
 
-  it('se ignora en un Cold brew: ya viene frío y no lo admite', () => {
+  it('se ignora en un Cold brew: ya viene frío y no admite ningún extra', () => {
     const r = apply('cold_brew', 'extra_iced');
-    expect(r.ignored[0]?.reason).toBe('opcion-no-admitida');
+    expect(r.ignored[0]?.reason).toBe('grupo-no-admitido');
     expect(r.usage['hielo']).toBe(120);
   });
 });
 
-describe('extra · Tapa', () => {
-  it('elige la tapa de 6 oz', () => {
-    expect(apply('cortado', 'extra_tapa').usage['tapa_6']).toBe(1);
+describe('la Tapa ya no existe (semilla v5)', () => {
+  it('no queda ninguna opción de tapa en la carta', () => {
+    expect(MODIFIER_OPTIONS.find((o) => o.id === 'extra_tapa')).toBeUndefined();
+    expect(MODIFIER_OPTIONS.some((o) => o.name.toLowerCase().includes('tapa'))).toBe(false);
   });
 
-  it('elige la tapa de 10 oz', () => {
-    const r = apply('latte', 'extra_tapa');
-    expect(r.usage['tapa_10']).toBe(1);
-    expect(r.usage['tapa_6']).toBeUndefined();
+  it('ninguna bebida la admite ya', () => {
+    for (const product of PRODUCTS) {
+      for (const allowance of product.allowedModifierGroups) {
+        expect(allowance.optionIds ?? []).not.toContain('extra_tapa');
+      }
+    }
   });
 
-  it('con Iced elige la tapa fría, no la del vaso original', () => {
-    const r = apply('latte', 'extra_iced', 'extra_tapa');
-    expect(r.usage['tapa_fria']).toBe(1);
-    expect(r.usage['tapa_10']).toBeUndefined();
+  it('las cuatro bebidas que solo admitían Tapa se quedan sin modificadores', () => {
+    for (const id of ['filtro', 'cold_brew', 'te', 'agua_botella']) {
+      expect(PRODUCTS.find((p) => p.id === id)?.allowedModifierGroups).toEqual([]);
+    }
   });
 
-  it('con Iced pedido después de Tapa el resultado es el mismo', () => {
-    const r = apply('latte', 'extra_tapa', 'extra_iced');
-    expect(r.usage['tapa_fria']).toBe(1);
-    expect(r.usage['tapa_10']).toBeUndefined();
+  it('una opción con el efecto `lid` de antes ya no se sabe aplicar', () => {
+    // Es lo que impide que una copia de seguridad vieja la devuelva a la carta.
+    const vieja = {
+      effects: [{ kind: 'lid', byCup: { vaso_6: 'tapa_6' } }],
+    } as unknown as Parameters<typeof esOpcionAplicable>[0];
+    expect(esOpcionAplicable(vieja)).toBe(false);
+    for (const o of MODIFIER_OPTIONS) expect(esOpcionAplicable(o)).toBe(true);
   });
 
-  it('en un Cold brew pone la tapa fría', () => {
-    expect(apply('cold_brew', 'extra_tapa').usage['tapa_fria']).toBe(1);
-  });
-
-  it('no cambia el precio', () => {
-    expect(apply('te', 'extra_tapa').unitPrice).toBe(2);
+  it('los tres insumos de tapa siguen existiendo, pero ya no se cuentan', () => {
+    for (const id of ['tapa_6', 'tapa_10', 'tapa_fria']) {
+      const ing = INGREDIENTS.find((i) => i.id === id);
+      expect(ing).toBeDefined();
+      expect(ing?.trackStock).toBe(false);
+    }
   });
 });
 
@@ -235,8 +241,8 @@ describe('extra · Sirope', () => {
 
 describe('combinaciones y etiquetas', () => {
   it('las etiquetas salen en orden de aplicación leche → cafe → extra', () => {
-    const r = apply('cortado', 'extra_tapa', 'leche_avena', 'cafe_descafeinado');
-    expect(r.labels).toEqual(['Avena', 'Descafeinado', 'Tapa']);
+    const r = apply('cortado', 'extra_sirope', 'leche_avena', 'cafe_descafeinado');
+    expect(r.labels).toEqual(['Avena', 'Descafeinado', 'Sirope']);
   });
 
   it('el pedido completo suma todos los deltas', () => {
@@ -249,10 +255,16 @@ describe('combinaciones y etiquetas', () => {
   });
 
   it('un modificador ignorado no suma precio ni etiqueta', () => {
-    const r = apply('filtro', 'leche_avena', 'extra_doble', 'extra_tapa');
+    // El Filtro se quedó sin ningún modificador al irse la Tapa: los tres se
+    // ignoran, el precio no se mueve y no hay ni una etiqueta.
+    const r = apply('filtro', 'leche_avena', 'extra_doble', 'extra_sirope');
     expect(r.unitPrice).toBe(2.8);
-    expect(r.labels).toEqual(['Tapa']);
-    expect(r.ignored.map((i) => i.optionId)).toEqual(['leche_avena', 'extra_doble']);
+    expect(r.labels).toEqual([]);
+    expect(r.ignored.map((i) => i.optionId)).toEqual([
+      'leche_avena',
+      'extra_doble',
+      'extra_sirope',
+    ]);
   });
 
   it('el Matcha no admite Doble', () => {

@@ -32,9 +32,9 @@ Materia prima o consumible con coste unitario. Todo coste **con IVA incluido** (
 | vaso_6 | Vaso 6 oz | ud | ud | 0,062 € | escandallo |
 | vaso_10 | Vaso 10 oz | ud | ud | 0,097 € | escandallo |
 | vaso_frio | Vaso frío 425 ml | ud | ud | 0,142 € | escandallo |
-| tapa_6 | Tapa 6 oz | ud | ud | 0,044 € | escandallo |
-| tapa_10 | Tapa 10 oz | ud | ud | 0,057 € | escandallo |
-| tapa_fria | Tapa vaso frío | ud | ud | 0,121 € | escandallo |
+| tapa_6 | Tapa 6 oz | ud | ud | 0,044 € | escandallo · **no se cuenta** (v5) |
+| tapa_10 | Tapa 10 oz | ud | ud | 0,057 € | escandallo · **no se cuenta** (v5) |
+| tapa_fria | Tapa vaso frío | ud | ud | 0,121 € | escandallo · **no se cuenta** (v5) |
 | menaje | Servilleta + removedor + azúcar | ud | ud | 0,031 € | escandallo (0,014+0,007+0,010) |
 | te_hoja | Hoja de té / infusión | g | g | 0 € | SIN COSTEAR (añadido 07/09/2026) |
 | tonica | Tónica | ml | L | 0 € | SIN COSTEAR |
@@ -95,9 +95,10 @@ Cambian la receta y opcionalmente el precio. Se agrupan; un grupo `single` admit
 | extra | multi | Doble | +18 g del café que lleve (normal o desca) | +0,80 |
 | extra | multi | Iced | sustituye vaso_6/vaso_10 por `vaso_frio`, añade hielo 120 g | +0,30 |
 | extra | multi | Sirope | + sirope 10 ml | +0,40 |
-| extra | multi | Tapa | + tapa del tamaño del vaso (tapa_6 / tapa_10 / tapa_fria) | — |
 
-`allowedModifierGroups`: bebidas con leche → leche, cafe, extra · **Flat white → leche, cafe, extra (Iced, Sirope, Tapa): ya es doble** · Espresso → cafe, extra (Doble, Iced, Tapa) · **Americano → cafe, extra (Iced, Tapa): ya es doble** · Filtro → extra (Tapa) · Cold brew → extra (Tapa) · Espresso tonic → cafe, extra (Doble) · Matcha → leche, extra (Iced, Tapa) · Cremaet/Carajillo → cafe · Té/Agua → extra (Tapa).
+**La Tapa se retiró el 11/09/2026** (semilla v5, decisión de Nicolas). Los tres insumos de tapa siguen en el catálogo con su coste medido, pero con `trackStock: false`: no se cargan ni se cuentan. Los pedidos servidos con tapa conservan su línea congelada.
+
+`allowedModifierGroups`: bebidas con leche → leche, cafe, extra · **Flat white → leche, cafe, extra (Iced, Sirope): ya es doble** · Espresso → cafe, extra (Doble, Iced) · **Americano → cafe, extra (Iced): ya es doble** · Espresso tonic → cafe, extra (Doble) · Matcha → leche, extra (Iced) · Cremaet/Carajillo → cafe · **Filtro, Cold brew, Té y Agua → ninguno** (solo admitían Tapa).
 
 Regla de aplicación: los modificadores se aplican sobre la receta base en orden `leche → cafe → extra`, y el resultado (receta final + precio final) **se congela en la línea del pedido**. Editar la carta después no reescribe la historia.
 
@@ -200,7 +201,7 @@ Layout horizontal (1180 × 820 referencia iPad 10.ª gen; también 1024 × 768 y
 ├───────────────────────────────────────────────┬──────────────────────────────┤
 │ Extras de la última bebida 56 px:             │ Pedido actual (3)            │
 │   Latte · [Vaca|Avena|Sin lactosa] Desca      │ ─ Cortado · avena     1 [−+] │
-│   Doble Iced Sirope Tapa                      │ ─ Latte               2 [−+] │
+│   Doble Iced Sirope                           │ ─ Latte               2 [−+] │
 │ Leyenda de categorías 48 px                   ├──────────────────────────────┤
 │ Grid de tiles (auto-fit, min 150 px, alto 96) │ Últimos pedidos   Ver todos  │ 48 px
 │   [Cortado] [Flat white] [Cappuccino] [Latte] │ 09:11 Latte · avena [Repetir]│

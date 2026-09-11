@@ -171,7 +171,7 @@ await page.locator('.tile-grid .tile', { hasText: /^Latte/ }).click();
 await page.waitForTimeout(150);
 linea(
   (await bebidaDeLaFila()) === 'Latte' &&
-    (await extras()).join(' · ') === 'Vaca · Avena · Sin lactosa · Desca · Doble · Iced · Sirope · Tapa',
+    (await extras()).join(' · ') === 'Vaca · Avena · Sin lactosa · Desca · Doble · Iced · Sirope',
   `tocar «Latte» llena la fila con sus extras: ${(await extras()).join(' · ')}`,
 );
 const fila = await page.evaluate(() => {
@@ -195,7 +195,7 @@ linea(
   `la fila mide ${fila.alto} px y ningún objetivo baja de 44 (mínimo ${fila.minAlto} × ${fila.minAncho})`,
 );
 linea(fila.letra >= 15, `y ningún texto baja de 15 px (mínimo ${fila.letra})`);
-linea(fila.cabe, `los ocho extras del Latte caben sin desplazar (${fila.ancho} px)`);
+linea(fila.cabe, `los siete extras del Latte caben sin desplazar (${fila.ancho} px)`);
 await captura(page, 'fila-extras-del-latte');
 
 await page.locator('.extras button', { hasText: /^Avena$/ }).click();
@@ -224,7 +224,7 @@ await captura(page, 'la-leche-cambia-a-sin-lactosa');
 await page.locator('.tile-grid .tile', { hasText: /^Espresso$/ }).click();
 await page.waitForTimeout(120);
 linea(
-  (await extras()).join(' · ') === 'Desca · Doble · Iced · Tapa',
+  (await extras()).join(' · ') === 'Desca · Doble · Iced',
   `el Espresso solo ofrece: ${(await extras()).join(' · ')}`,
 );
 await captura(page, 'extras-del-espresso');
@@ -450,8 +450,8 @@ linea(
 linea(
   true,
   filaVertical.desplaza
-    ? `los ocho extras no caben en ${filaVertical.hueco} px y la fila se desplaza a lo ancho (${filaVertical.ancho} px), sin scroll de página`
-    : `los ocho extras caben en los ${filaVertical.hueco} px de ancho`,
+    ? `los siete extras no caben en ${filaVertical.hueco} px y la fila se desplaza a lo ancho (${filaVertical.ancho} px), sin scroll de página`
+    : `los siete extras caben en los ${filaVertical.hueco} px de ancho`,
 );
 await captura(page, 'vertical-fila-de-extras-del-latte');
 await captura(page, 'vertical-barra-y-ticket-inferior');

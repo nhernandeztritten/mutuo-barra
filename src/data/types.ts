@@ -60,8 +60,8 @@ export interface RecipeItem {
 
 /**
  * A modifier group the product accepts. `optionIds` narrows the group to a
- * subset of its options (SPEC §2.3: Espresso admits `extra` but only Doble,
- * Iced and Tapa). Omitted means every option of the group is allowed.
+ * subset of its options (SPEC §2.3: Espresso admits `extra` but only Doble and
+ * Iced). Omitted means every option of the group is allowed.
  */
 export interface AllowedModifierGroup {
   groupId: string;
@@ -101,8 +101,8 @@ export interface ModifierGroup {
 
 /**
  * Effects a modifier applies over the base recipe. Applied in the order
- * leche → cafe → extra, and within a group by `sortOrder`, so `lid` always
- * sees the final cup chosen by `iced`.
+ * leche → cafe → extra, and within a group by `sortOrder`, so an effect always
+ * sees what the previous ones left behind.
  */
 export type ModifierEffect =
   /** Default option: changes nothing. */
@@ -114,9 +114,7 @@ export type ModifierEffect =
   /** Add more of whichever coffee the drink already carries (normal or desca). */
   | { kind: 'doubleCoffee'; qty: number; candidates: string[] }
   /** Swap the hot cup for the cold one and add ice. */
-  | { kind: 'iced'; cupFrom: string[]; cupTo: string; iceIngredientId: string; iceQty: number }
-  /** Add the lid matching the final cup. */
-  | { kind: 'lid'; byCup: Record<string, string> };
+  | { kind: 'iced'; cupFrom: string[]; cupTo: string; iceIngredientId: string; iceQty: number };
 
 export interface ModifierOption {
   id: string;

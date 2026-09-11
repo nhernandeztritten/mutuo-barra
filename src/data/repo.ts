@@ -5,6 +5,7 @@
  */
 import { APP_VERSION, db, getSettings, type BarraDb } from './db';
 import { closeStats, eventConsumption } from '../domain/stats';
+import { esOpcionAplicable } from '../domain/modifiers';
 import { uuid } from './uuid';
 import type {
   Event,
@@ -509,11 +510,17 @@ export async function importJson(payload: unknown, database: BarraDb = db): Prom
       database.orders,
     ],
     async () => {
+      // Una copia de una versión anterior puede traer opciones cuyo efecto esta
+      // versión ya no sabe aplicar —la Tapa, retirada en la semilla v5—. Entrarían
+      // en la carta como un chip que se toca y no hace nada, así que se quedan
+      // fuera. Los pedidos que las llevaban sí entran: su receta va congelada.
+      const opcionesAplicables = (data.modifierOptions ?? []).filter(esOpcionAplicable);
+
       const catalogTables = [
         [database.ingredients, data.ingredients ?? []],
         [database.products, data.products ?? []],
         [database.modifierGroups, data.modifierGroups ?? []],
-        [database.modifierOptions, data.modifierOptions ?? []],
+        [database.modifierOptions, opcionesAplicables],
       ] as const;
 
       for (const [table, rows] of catalogTables) {

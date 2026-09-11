@@ -6,7 +6,7 @@
 import type { Ingredient, Metodo, ModifierGroup, ModifierOption, Product } from './types';
 
 /** Bump when the seed content changes so `initDb` can migrate. */
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 
 /**
  * Cambios de la semilla que hay que llevar a una base ya sembrada. Solo se
@@ -109,6 +109,27 @@ export const TE_RECETA_ANTERIOR = [
 ];
 export const TE_HOJA_QTY = 2;
 
+/**
+ * v5 (11/09/2026, decisión de Nicolas: «quita lo de la tapa»). El modificador
+ * **Tapa** desaparece de la carta: no se usaba en barra y ensuciaba la fila de
+ * extras de nueve bebidas.
+ *
+ * Qué hace la migración y qué **no** hace:
+ *
+ * - Borra la opción `extra_tapa` y la quita de los `allowedModifierGroups` de
+ *   todas las bebidas. Una lista de `extra` que se quede vacía deja de declarar
+ *   el grupo: un grupo sin opciones no es un grupo.
+ * - Los tres insumos de tapa **no se borran** —siguen en Ajustes → Insumos por
+ *   si Mutuo los recupera— pero pasan a `trackStock: false`, para que no pidan
+ *   un número en la carga ni en el recuento del cierre.
+ * - **No toca ni un pedido.** Una línea servida con tapa guarda su receta, su
+ *   coste y su etiqueta congelados: la historia no se reescribe.
+ */
+export const TAPA_OPTION_ID = 'extra_tapa';
+
+/** Los insumos de tapa que dejan de contarse. Siguen existiendo. */
+export const TAPA_INGREDIENTS = ['tapa_6', 'tapa_10', 'tapa_fria'];
+
 export const INGREDIENTS: Ingredient[] = [
   // --- Cafés ---
   { id: 'cafe', name: 'Café', unit: 'g', stockUnit: 'kg', stockFactor: 1000, costPerUnit: 0.0297, costSource: 'medido', trackStock: true, sortOrder: 10 },
@@ -120,13 +141,14 @@ export const INGREDIENTS: Ingredient[] = [
   { id: 'agua', name: 'Agua filtrada', unit: 'ml', stockUnit: 'L', stockFactor: 1000, costPerUnit: 0.00038, costSource: 'estimado', trackStock: false, sortOrder: 60 },
   { id: 'hielo', name: 'Hielo', unit: 'g', stockUnit: 'kg', stockFactor: 1000, costPerUnit: 0.00035, costSource: 'medido', trackStock: true, sortOrder: 70 },
   { id: 'matcha', name: 'Matcha', unit: 'g', stockUnit: 'g', stockFactor: 1, costPerUnit: 0.0908, costSource: 'medido', trackStock: true, sortOrder: 80 },
-  // --- Vasos y tapas (`capacityMl`: lo que cabe dentro, para avisar de que algo no cabe) ---
+  // --- Vasos (`capacityMl`: lo que cabe dentro, para avisar de que algo no cabe) ---
+  // Las tapas siguen aquí por si vuelven, pero ya no se cuentan (semilla v5).
   { id: 'vaso_6', name: 'Vaso 6 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.062, costSource: 'medido', trackStock: true, sortOrder: 90, capacityMl: 180 },
   { id: 'vaso_10', name: 'Vaso 10 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.097, costSource: 'medido', trackStock: true, sortOrder: 100, capacityMl: 300 },
   { id: 'vaso_frio', name: 'Vaso frío 425 ml', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.142, costSource: 'medido', trackStock: true, sortOrder: 110, capacityMl: 425 },
-  { id: 'tapa_6', name: 'Tapa 6 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.044, costSource: 'medido', trackStock: true, sortOrder: 120 },
-  { id: 'tapa_10', name: 'Tapa 10 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.057, costSource: 'medido', trackStock: true, sortOrder: 130 },
-  { id: 'tapa_fria', name: 'Tapa vaso frío', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.121, costSource: 'medido', trackStock: true, sortOrder: 140 },
+  { id: 'tapa_6', name: 'Tapa 6 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.044, costSource: 'medido', trackStock: false, sortOrder: 120 },
+  { id: 'tapa_10', name: 'Tapa 10 oz', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.057, costSource: 'medido', trackStock: false, sortOrder: 130 },
+  { id: 'tapa_fria', name: 'Tapa vaso frío', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.121, costSource: 'medido', trackStock: false, sortOrder: 140 },
   // --- Menaje ---
   { id: 'menaje', name: 'Servilleta + removedor + azúcar', unit: 'ud', stockUnit: 'ud', stockFactor: 1, costPerUnit: 0.031, costSource: 'medido', trackStock: false, sortOrder: 150 },
   // --- Sin costear: Nicolas los rellena en Ajustes ---
@@ -142,15 +164,12 @@ export const INGREDIENTS: Ingredient[] = [
 /** Every recipe carries one `menaje`. */
 const MENAJE = { ingredientId: 'menaje', qty: 1 };
 
-/** `extra` narrowed to the options a product actually admits (SPEC §2.3). */
-const EXTRA_TAPA = { groupId: 'extra', optionIds: ['extra_tapa'] };
-
 export const PRODUCTS: Product[] = [
   {
     id: 'espresso', name: 'Espresso', shortName: 'Espresso', category: 'Espresso', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 18 }, { ingredientId: 'vaso_6', qty: 1 }, MENAJE],
     price: 2.0, priceProvisional: true,
-    allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_doble', 'extra_iced', 'extra_tapa'] }],
+    allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_doble', 'extra_iced'] }],
     active: true, sortOrder: 10, method: 'espresso', servingMl: 36,
   },
   {
@@ -159,7 +178,7 @@ export const PRODUCTS: Product[] = [
     id: 'americano', name: 'Americano', shortName: 'Americano', category: 'Espresso', via: 'grupo',
     recipe: [{ ingredientId: 'cafe', qty: 36 }, { ingredientId: 'agua', qty: 150 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.5, priceProvisional: true,
-    allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_iced', 'extra_tapa'] }],
+    allowedModifierGroups: [{ groupId: 'cafe' }, { groupId: 'extra', optionIds: ['extra_iced'] }],
     active: true, sortOrder: 20, method: 'espresso', servingMl: 222,
   },
   {
@@ -177,7 +196,7 @@ export const PRODUCTS: Product[] = [
     allowedModifierGroups: [
       { groupId: 'leche' },
       { groupId: 'cafe' },
-      { groupId: 'extra', optionIds: ['extra_iced', 'extra_sirope', 'extra_tapa'] },
+      { groupId: 'extra', optionIds: ['extra_iced', 'extra_sirope'] },
     ],
     active: true, sortOrder: 40, method: 'espresso', servingMl: 192,
   },
@@ -199,14 +218,14 @@ export const PRODUCTS: Product[] = [
     id: 'filtro', name: 'Filtro', shortName: 'Filtro', category: 'Filtro', via: 'lote_caliente',
     recipe: [{ ingredientId: 'cafe', qty: 12 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.8, priceProvisional: true,
-    allowedModifierGroups: [EXTRA_TAPA],
+    allowedModifierGroups: [],
     active: true, sortOrder: 70, method: 'filtro', servingMl: 200,
   },
   {
     id: 'cold_brew', name: 'Cold brew', shortName: 'Cold brew', category: 'Fríos', via: 'lote_frio',
     recipe: [{ ingredientId: 'cafe', qty: 12.5 }, { ingredientId: 'hielo', qty: 120 }, { ingredientId: 'vaso_frio', qty: 1 }, MENAJE],
     price: 3.5, priceProvisional: true,
-    allowedModifierGroups: [EXTRA_TAPA],
+    allowedModifierGroups: [],
     active: true, sortOrder: 80, method: 'cold_brew', servingMl: 125,
   },
   {
@@ -220,7 +239,7 @@ export const PRODUCTS: Product[] = [
     id: 'matcha_latte', name: 'Matcha latte', shortName: 'Matcha latte', category: 'Fríos', via: 'lote_frio',
     recipe: [{ ingredientId: 'matcha', qty: 2.5 }, { ingredientId: 'leche', qty: 200 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 3.8, priceProvisional: true,
-    allowedModifierGroups: [{ groupId: 'leche' }, { groupId: 'extra', optionIds: ['extra_iced', 'extra_tapa'] }],
+    allowedModifierGroups: [{ groupId: 'leche' }, { groupId: 'extra', optionIds: ['extra_iced'] }],
     active: true, sortOrder: 100, method: 'batido', servingMl: 200,
   },
   {
@@ -241,14 +260,14 @@ export const PRODUCTS: Product[] = [
     id: 'te', name: 'Té / infusión', shortName: 'Té / infusión', category: 'Otros', via: 'lote_caliente',
     recipe: [{ ingredientId: 'te_hoja', qty: 2 }, { ingredientId: 'agua', qty: 200 }, { ingredientId: 'vaso_10', qty: 1 }, MENAJE],
     price: 2.0, priceProvisional: true,
-    allowedModifierGroups: [EXTRA_TAPA],
+    allowedModifierGroups: [],
     active: true, sortOrder: 130, method: 'infusion', servingMl: 200,
   },
   {
     id: 'agua_botella', name: 'Agua', shortName: 'Agua', category: 'Otros', via: 'envasado',
     recipe: [{ ingredientId: 'vaso_10', qty: 1 }, { ingredientId: 'agua', qty: 250 }, MENAJE],
     price: 1.0, priceProvisional: true,
-    allowedModifierGroups: [EXTRA_TAPA],
+    allowedModifierGroups: [],
     active: true, sortOrder: 140, method: 'sin_extraccion', servingMl: 250,
   },
 ];
@@ -270,8 +289,6 @@ export const MODIFIER_OPTIONS: ModifierOption[] = [
   { id: 'extra_doble', groupId: 'extra', name: 'Doble', isDefault: false, effects: [{ kind: 'doubleCoffee', qty: 18, candidates: ['cafe', 'cafe_desca'] }], priceDelta: 0.8, sortOrder: 10 },
   { id: 'extra_iced', groupId: 'extra', name: 'Iced', isDefault: false, effects: [{ kind: 'iced', cupFrom: ['vaso_6', 'vaso_10'], cupTo: 'vaso_frio', iceIngredientId: 'hielo', iceQty: 120 }], priceDelta: 0.3, sortOrder: 20 },
   { id: 'extra_sirope', groupId: 'extra', name: 'Sirope', isDefault: false, effects: [{ kind: 'add', ingredientId: 'sirope', qty: 10 }], priceDelta: 0.4, sortOrder: 30 },
-  // Last on purpose: the lid must see the cup Iced may have swapped.
-  { id: 'extra_tapa', groupId: 'extra', name: 'Tapa', isDefault: false, effects: [{ kind: 'lid', byCup: { vaso_6: 'tapa_6', vaso_10: 'tapa_10', vaso_frio: 'tapa_fria' } }], priceDelta: 0, sortOrder: 40 },
 ];
 
 /** Category order for the bar tabs. */

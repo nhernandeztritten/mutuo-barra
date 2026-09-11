@@ -22,6 +22,7 @@ import {
 import { INGREDIENTS, MODIFIER_GROUPS, MODIFIER_OPTIONS, PRODUCTS, SEED_VERSION } from '../seed';
 import { applyModifiers } from '../../domain/modifiers';
 import type { NewOrderLine } from '../repo';
+import type { ModifierOption } from '../types';
 
 let n = 0;
 let db: BarraDb;
@@ -60,7 +61,7 @@ describe('initDb', () => {
     expect(await db.ingredients.count()).toBe(20);
     expect(await db.products.count()).toBe(14);
     expect(await db.modifierGroups.count()).toBe(3);
-    expect(await db.modifierOptions.count()).toBe(9);
+    expect(await db.modifierOptions.count()).toBe(8);
   });
 
   it('guarda deviceId y seedVersion', async () => {
@@ -345,7 +346,7 @@ describe('exportar e importar', () => {
     const first = await importJson(backup, target);
     expect(first.events.added).toBe(1);
     expect(first.orders.added).toBe(1);
-    expect(first.catalog.added).toBe(20 + 14 + 3 + 9);
+    expect(first.catalog.added).toBe(20 + 14 + 3 + 8);
 
     const second = await importJson(backup, target);
     expect(second.events.added).toBe(0);
@@ -356,6 +357,29 @@ describe('exportar e importar', () => {
     expect(await target.events.count()).toBe(1);
     expect(await target.orders.count()).toBe(1);
     expect(await target.products.count()).toBe(14);
+    await target.delete();
+  });
+
+  it('una copia vieja no devuelve la Tapa a la carta', async () => {
+    const backup = await exportJson(db);
+    // Lo que traería una copia hecha antes de la semilla v5.
+    backup.data.modifierOptions = [
+      ...backup.data.modifierOptions,
+      {
+        id: 'extra_tapa', groupId: 'extra', name: 'Tapa', isDefault: false,
+        effects: [{ kind: 'lid', byCup: { vaso_6: 'tapa_6' } }],
+        priceDelta: 0, sortOrder: 40,
+      } as unknown as ModifierOption,
+    ];
+
+    const target = new BarraDb(`barra-test-import-tapa-${++n}`);
+    await target.open();
+    await importJson(backup, target);
+
+    // El resto del catálogo sí entra; la opción con un efecto que esta versión
+    // no sabe aplicar, no: sería un chip que se toca y no hace nada.
+    expect(await target.modifierOptions.get('extra_tapa')).toBeUndefined();
+    expect(await target.modifierOptions.count()).toBe(8);
     await target.delete();
   });
 
