@@ -1,6 +1,6 @@
 # Mutuo · Barra — punto de partida para retomar
 
-**Última sesión**: 11/09/2026 · **Evento real**: boda del 12/09/2026 (Nicolas la usa en su **iPhone 17 Pro**, no lleva iPad)
+**Última sesión**: 11/09/2026 (auditoría UX 2 y retirada de la Tapa) · **Evento real**: boda del 12/09/2026 (Nicolas la usa en su **iPhone 17 Pro**, no lleva iPad)
 **Qué leer**: este archivo entero. Con esto se continúa sin conocer la conversación anterior.
 
 ---
@@ -31,6 +31,7 @@ Lo que Square no sabe: qué llevabas cargado, cuánto queda y cuánto costó de 
 | `docs/SPEC.md` | Dominio, carta, modificadores, cálculos, pantallas |
 | `DESIGN.md` | Paleta violeta de Mutuo, tamaños táctiles, motion, **prohibiciones** |
 | `docs/UX-REVISION-1.md` | Por qué la navegación es como es. **Leer antes de tocarla** |
+| `docs/UX-REVISION-2.md` | Auditoría de coherencia del 11/09: los 18 hallazgos, qué se arregló y **qué se dejó para después del evento** |
 | `docs/DECISIONES.md` | 90+ decisiones fechadas. Respetarlas o discutirlas, no ignorarlas |
 | `docs/capturas/fase-*/` | Capturas de verificación de cada fase |
 
@@ -43,9 +44,11 @@ Vite + Preact + TypeScript + `@preact/signals` + Dexie (IndexedDB) + `vite-plugi
 ```
 npm run dev        # 5173, con --host
 npm run preview    # 4173, la build, con --host
-npm test           # 350 tests
+npm test           # 389 tests
 npm run typecheck
-npm run capturas   # recorrido completo en navegador real
+npm run capturas            # recorrido completo en navegador real (1180 y 820)
+npm run capturas:movil      # el iPhone: 402, 393 y 375
+npm run capturas:auditoria  # la fase 10: 402 × 874 + los dos giros del iPad
 ```
 
 ## 5. Qué hace la app (estado a 11/09)
@@ -53,7 +56,7 @@ npm run capturas   # recorrido completo en navegador real
 **Navegación**: tres entradas (`Eventos · Resultados · Carta y ajustes`) y un ciclo visible de cuatro pasos por evento: **1 Preparar → 2 Servir → 3 Cerrar → 4 Resultados**.
 
 - **Preparar**: datos del evento, carga real con sugerencia por invitados, y bloque **Lotes** (litros de batch/cold brew → gramos de café y agua, que suman a la carga).
-- **Servir (la barra)**: se puede **pausar y reanudar el servicio** sin cerrar el evento (bodas a dos turnos); el tiempo en pausa no cuenta en la duración. pestañas de categoría con «Todas» por defecto, grid de bebidas, **fila de extras contextual** (tocas la bebida y arriba salen *solo* sus extras), ticket, «Servir», deshacer 8 s, **modo Rápido** (cada toque sirve), modo **Noche**, **Resumen** en hoja lateral, **Últimos pedidos** con desplegar / Repetir / **Editar** / Anular.
+- **Servir (la barra)**: sin la **Tapa** (decisión del 11/09: se retiró de la carta; los tres insumos siguen en Ajustes sin contarse, y los pedidos viejos conservan su línea). Se puede **pausar y reanudar el servicio** sin cerrar el evento (bodas a dos turnos); el tiempo en pausa no cuenta en la duración. pestañas de categoría con «Todas» por defecto, grid de bebidas, **fila de extras contextual** (tocas la bebida y arriba salen *solo* sus extras), ticket, «Servir», deshacer 8 s, **modo Rápido** (cada toque sirve), modo **Noche**, **Resumen** en hoja lateral, **Últimos pedidos** con desplegar / Repetir / **Editar** / Anular.
 - **Cerrar**: recuento de lo que queda («no contado» si no lo rellenas), notas, resultado en vivo.
 - **Resultados**: tabla ordenable entre eventos, comparativas, exportar CSV/JSON e importar (idempotente por uuid).
 - **Carta y ajustes**: editar carta y recetas, insumos y costes, **Métodos y ratios** (espresso 1:2, filtro 1:16, cold brew 1:10, infusión 1:100, matcha 1:80), dispositivo, copia de seguridad.
@@ -84,6 +87,7 @@ Corte en **560 px**. En iPhone: menú sin desplazar («Ajustes»), cabecera de u
 - **`launch.json` del navegador integrado** se busca en `~/Projects/.claude/`, no en el del proyecto.
 - **Nicolas rechaza en bloque una interfaz con jerga interna**: ningún botón puede llevar a una pantalla vacía, ninguna etiqueta puede decir «Fase 3» ni «placeholder».
 - **Nada de ventanas emergentes centradas en la barra.** Hojas laterales o desde abajo, sí.
+- **La cabecera de la barra no cabe a 1024 × 768** («Cerrar barra» acaba en 1108 px de 1024). Viene de antes; está en `UX-REVISION-2`, «Para después del evento». A 1180 × 820 cabe con 16 px de sobra.
 - **Los tests del escandallo son intocables**: si una cifra cambia, se ha roto algo (Cortado 0,7428 €, Latte con avena 1,1444 €, Flat white 1,277 €, Americano 1,254 €).
 - **Verificar en navegador, no solo en tests.** Varios fallos reales (medidor que no pintaba, ritmo a 0/h, toasts apilados) solo se vieron en capturas.
 
