@@ -196,6 +196,82 @@ export function Sheet({
   );
 }
 
+/**
+ * Hoja que sube desde abajo. Es el idioma de iOS y, sobre todo, no es un modal
+ * centrado: DESIGN.md los prohíbe en el flujo de servir porque tapan la mano y
+ * obligan a apuntar al medio de la pantalla. Aquí todo queda a la altura del
+ * pulgar y se cierra tocando fuera, con Escape o con «Cerrar».
+ */
+export function HojaAbajo({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ComponentChildren;
+}) {
+  const ref = useHoja<HTMLElement>(onClose);
+  return (
+    <>
+      <div class="sheet-backdrop" onClick={onClose} />
+      <aside
+        ref={ref}
+        class="hoja-abajo"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <header class="hoja-abajo__head">
+          <h2 class="sheet__title">{title}</h2>
+          <span class="spacer" />
+          <Button variant="ghost" onClick={onClose} aria-label="Cerrar">
+            <X size={22} strokeWidth={1.75} />
+          </Button>
+        </header>
+        {children}
+      </aside>
+    </>
+  );
+}
+
+/**
+ * Una fila de la hoja: 56 px, el nombre y debajo qué hace. Con `estado` es un
+ * interruptor —«Rápido», «Noche»— y con él vacío, una acción.
+ */
+export function HojaFila({
+  nombre,
+  pista,
+  estado,
+  puesto,
+  tono,
+  onClick,
+}: {
+  nombre: string;
+  pista: string;
+  /** Lo que se lee a la derecha en un interruptor: «Puesto» / «Quitado». */
+  estado?: string | undefined;
+  puesto?: boolean | undefined;
+  /** `terminal` para la única salida que cierra el evento. Contorno, no relleno. */
+  tono?: 'terminal' | undefined;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      class={['hoja-fila', tono ? `hoja-fila--${tono}` : ''].filter(Boolean).join(' ')}
+      {...(puesto === undefined ? {} : { 'aria-pressed': puesto })}
+      onClick={onClick}
+    >
+      <span class="hoja-fila__texto">
+        <span class="hoja-fila__nombre">{nombre}</span>
+        <span class="hoja-fila__pista">{pista}</span>
+      </span>
+      {estado ? <span class="hoja-fila__estado">{estado}</span> : null}
+    </button>
+  );
+}
+
 /** Mount once in the shell. */
 export function ToastHost() {
   return (

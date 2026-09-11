@@ -12,7 +12,7 @@ import { METODOS, RATIOS_CLASICOS, ratiosEfectivos, revisarReceta } from '../dom
 import { Button } from '../ui/components';
 import { useIr } from '../ui/navegar';
 import { guardarArchivo, nombreConFecha } from '../ui/archivos';
-import { PASOS_INSTALACION, estaInstalada } from '../ui/instalacion';
+import { PASOS_INSTALACION, estaInstalada, esteDispositivo } from '../ui/instalacion';
 import { ComoFunciona, Etiqueta } from '../ui/piezas';
 import { showToast } from '../ui/toast';
 import {
@@ -135,16 +135,16 @@ export function Ajustes() {
         <h2 class="section-title">Dispositivo</h2>
         <div class="form__grid">
           <label class="field" for="aj-nombre">
-            <span class="field__label">Nombre de este iPad</span>
+            <span class="field__label">Nombre de este dispositivo</span>
             <input
               id="aj-nombre"
               class="input"
               value={nombre}
-              placeholder="iPad de la barra"
+              placeholder="Barra de Mutuo"
               onInput={(e) => setNombre((e.currentTarget as HTMLInputElement).value)}
-              onBlur={() => void setDeviceName(nombre.trim() || 'iPad de la barra')}
+              onBlur={() => void setDeviceName(nombre.trim() || 'Barra de Mutuo')}
             />
-            <span class="meta">Queda grabado en cada pedido, para cuando haya dos iPads.</span>
+            <span class="meta">Queda grabado en cada pedido, para cuando sirvan dos a la vez.</span>
           </label>
 
           <div class="field">
@@ -198,7 +198,7 @@ export function Ajustes() {
       </div>
 
       <div class="form__block" id="instalar">
-        <h2 class="section-title">Instalar en el iPad</h2>
+        <h2 class="section-title">Instalar en {esteDispositivo()}</h2>
         <div class="card">
           <div class="row">
             <Smartphone size={22} strokeWidth={1.75} />
@@ -214,7 +214,7 @@ export function Ajustes() {
           </div>
           <p class="meta">
             {instalada
-              ? 'La app arranca a pantalla completa y iPadOS deja de tratar sus datos como desechables.'
+              ? 'La app arranca a pantalla completa y el sistema deja de tratar sus datos como desechables.'
               : 'Sin instalar, Safari puede borrar los datos de la app tras siete días sin abrirla, que es lo que pasa entre un evento y el siguiente.'}
           </p>
           <ol class="como__list">
@@ -228,7 +228,7 @@ export function Ajustes() {
             ))}
           </ol>
           <p class="meta">
-            La primera vez hace falta internet. Después funciona con el iPad en modo avión.
+            La primera vez hace falta internet. Después funciona en modo avión.
           </p>
         </div>
       </div>

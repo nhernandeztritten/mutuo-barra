@@ -10,7 +10,7 @@ import { signal } from '@preact/signals';
 import { LocationProvider, Route, Router, useLocation, useRoute } from 'preact-iso';
 import { initDb } from './data/db';
 import { ToastHost } from './ui/components';
-import { barMode } from './ui/layout';
+import { barMode, esMovil, observarMovil } from './ui/layout';
 import { conBase, sinBase, useIr } from './ui/navegar';
 import { bootstrap, eventById, ready } from './ui/store';
 import { Ajustes } from './routes/ajustes';
@@ -54,10 +54,13 @@ function Nav() {
   // desde la raíz, viva la app donde viva.
   const path = sinBase(useLocation().path);
 
+  // En un móvil «Carta y ajustes» no cabe: con las tres enteras la barra se
+  // sale por la derecha a 402 px y hay que desplazarla para ver la última, que
+  // es tanto como esconderla. «Ajustes» dice lo mismo y cabe hasta a 375 px.
   const links = [
     { href: '/', label: 'Eventos', match: '/' },
     { href: '/resultados', label: 'Resultados', match: '/resultados' },
-    { href: '/ajustes', label: 'Carta y ajustes', match: '/ajustes' },
+    { href: '/ajustes', label: esMovil.value ? 'Ajustes' : 'Carta y ajustes', match: '/ajustes' },
   ];
 
   // Un evento es parte de «Eventos»: la sección no se apaga al entrar en uno.
@@ -98,6 +101,10 @@ function UpdateBanner() {
 const bootError = signal<string | null>(null);
 
 export function App() {
+  // El ancho manda en dos textos y en dónde viven los interruptores de la
+  // barra. Se engancha una vez y se suelta al desmontar.
+  useEffect(() => observarMovil(), []);
+
   useEffect(() => {
     void (async () => {
       try {

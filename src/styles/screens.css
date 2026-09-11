@@ -2140,3 +2140,414 @@
     text-align: start;
   }
 }
+
+/* ================= Hoja de abajo (bottom sheet) =================
+   Sube desde el borde inferior, no se planta en el centro: DESIGN.md prohíbe
+   los modales centrados en el flujo de servir, y en un móvil el centro de la
+   pantalla es justo donde no llega el pulgar. */
+
+.hoja-abajo {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-height: 86dvh;
+  overflow-y: auto;
+  padding: var(--s-4);
+  padding-block-end: max(var(--s-4), env(safe-area-inset-bottom));
+  padding-inline: max(var(--s-4), env(safe-area-inset-left)) max(var(--s-4), env(safe-area-inset-right));
+  background: var(--surface);
+  border-start-start-radius: var(--r-sheet);
+  border-start-end-radius: var(--r-sheet);
+  box-shadow: var(--shadow-sheet);
+  /* Fotograma propio: el de la hoja del ticket vive dentro de una consulta de
+     medios y fuera de ella no existe. */
+  animation: hoja-arriba var(--t-enter) var(--ease);
+}
+
+@keyframes hoja-arriba {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.hoja-abajo__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.hoja-abajo__dato {
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
+}
+
+.hoja-abajo__sep {
+  height: 1px;
+  margin-block: var(--s-2);
+  background: var(--line);
+}
+
+/* Cada acción en su fila: el nombre y, debajo, qué hace. 56 px como mínimo,
+   que es la medida de chip de DESIGN.md; con las dos líneas salen 65. */
+.hoja-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: var(--h-chip);
+  padding: var(--s-2) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: start;
+  transition: background-color var(--t-press) var(--ease);
+}
+
+.hoja-fila:active {
+  background: var(--bg);
+}
+
+.hoja-fila__texto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.hoja-fila__nombre {
+  font-size: var(--fs-row);
+  font-weight: 600;
+}
+
+.hoja-fila__pista {
+  font-size: var(--fs-meta);
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.hoja-fila__estado {
+  margin-inline-start: auto;
+  flex: none;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.hoja-fila[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.hoja-fila[aria-pressed='true'] .hoja-fila__estado {
+  color: var(--accent-text);
+}
+
+/* «Cerrar barra»: contorno, nunca relleno, igual que en la cabecera del iPad. */
+.hoja-fila--terminal {
+  border-color: var(--ink-3);
+}
+
+/* El botón «Más» solo existe en móvil; aquí arriba los cuatro controles caben
+   en la cabecera y esconderlos sería un toque de más. */
+.barra__mas {
+  display: none;
+}
+
+/* ================= Móvil (≤ 560 px): un iPhone detrás de la barra =================
+
+   Todo lo de esta sección vale **solo** por debajo del corte. El iPad está en
+   1180 × 820 y en 820 × 1180, los dos por encima, así que su disposición no
+   entra aquí y no cambia. Va al final del archivo a propósito: gana a las
+   reglas de `(max-width: 999px), (orientation: portrait)`, que son las del
+   iPad en vertical.
+
+   Vertical es el modo de verdad: nadie gira el móvil detrás de una barra con
+   una jarra en la mano. En horizontal todo esto sigue siendo usable, pero no
+   está optimizado para ahí. */
+
+@media (max-width: 560px) {
+  /* Lo que solo se lee de 561 px para arriba: el rótulo del botón de volver,
+     los gramos del medidor. */
+  .solo-ancho {
+    display: none;
+  }
+
+  /* ---- Tiles de 80 px: entran diez bebidas en pantalla en vez de seis ---- */
+  :root {
+    --h-tile: 80px;
+  }
+
+  /* ---- Menú ---- */
+
+  .navbar {
+    gap: var(--s-1);
+    min-height: 56px;
+    padding-inline: max(var(--s-2), env(safe-area-inset-left)) max(var(--s-2), env(safe-area-inset-right));
+    /* Red de seguridad, no la solución: con «Ajustes» las tres entradas caben
+       enteras hasta a 375 px y no hay nada que desplazar. */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .navbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navbar__brand {
+    flex: none;
+    margin-inline-end: var(--s-2);
+    font-size: 16px;
+  }
+
+  .navlink {
+    flex: none;
+    padding: 0 var(--s-3);
+    font-size: var(--fs-meta);
+  }
+
+  .shell__main {
+    padding: var(--s-4);
+    padding-inline: max(var(--s-4), env(safe-area-inset-left)) max(var(--s-4), env(safe-area-inset-right));
+    padding-block-end: max(var(--s-6), env(safe-area-inset-bottom));
+  }
+
+  /* ---- Cabecera de la barra: una sola fila de 56 px ---- */
+
+  .barra__header {
+    flex-wrap: nowrap;
+    gap: var(--s-2);
+    min-height: 56px;
+    padding-block: 0;
+    padding-block-start: env(safe-area-inset-top);
+    padding-inline: max(var(--s-2), env(safe-area-inset-left)) max(var(--s-2), env(safe-area-inset-right));
+    /* Nada se sale ni se desplaza: lo que no cabe está en la hoja «Más». */
+    overflow: hidden;
+  }
+
+  .barra__salir {
+    min-width: var(--h-step);
+    padding-inline: var(--s-2);
+  }
+
+  .barra__ident {
+    flex: 1 1 auto;
+    min-width: 48px;
+    max-width: none;
+  }
+
+  /* Los cuatro pasos no caben en una fila de 56 px. Siguen en Preparar, en
+     Cerrar y en Resultados, que es donde se mira dónde estás. */
+  .barra__ident .pasos,
+  .barra__ident .pasos-linea {
+    display: none;
+  }
+
+  .barra__event {
+    min-width: 0;
+    font-size: var(--fs-meta);
+  }
+
+  .barra__count {
+    flex: none;
+    gap: var(--s-1);
+  }
+
+  .barra__count-value {
+    font-size: 24px;
+  }
+
+  /* El ritmo de la última hora pasa a la hoja «Más»: en la cabecera no cabe y
+     no es lo que se mira mientras se sirve. */
+  .barra__rate {
+    display: none;
+  }
+
+  .barra__actions {
+    display: none;
+  }
+
+  .meter {
+    flex: none;
+    gap: var(--s-1);
+  }
+
+  /* Barra corta: el color sigue diciendo ámbar < 25 % y rojo < 10 %. */
+  .meter__track {
+    width: 28px;
+  }
+
+  .barra__nostock {
+    flex: none;
+  }
+
+  .barra__mas {
+    display: inline-flex;
+    flex: none;
+    min-height: var(--h-step);
+    padding-inline: var(--s-3);
+    font-size: var(--fs-meta);
+  }
+
+  /* ---- La zona de trabajo ---- */
+
+  .barra__work {
+    gap: var(--s-2);
+    padding: var(--s-3);
+    padding-inline: max(var(--s-3), env(safe-area-inset-left)) max(var(--s-3), env(safe-area-inset-right));
+    /* El hueco de la barra inferior fija, más la franja del indicador. */
+    padding-block-end: calc(var(--h-action) + var(--s-3) + env(safe-area-inset-bottom));
+  }
+
+  /* Que el nombre de la bebida no se coma la fila de extras. */
+  .extras__bebida {
+    max-width: 38vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* **Tres** columnas, y esto no es estética: con dos, las catorce bebidas
+     piden siete filas y la última se va por debajo de la barra del pedido. Con
+     la cola delante nadie desplaza una lista para encontrar un cortado, así
+     que la carta entera tiene que estar a la vista de una.
+
+     La cuenta a 402 × 874 con las safe areas del iPhone 17 Pro instalado
+     (59 arriba, 34 abajo): 59 + 56 de cabecera + 12 + 56 de extras + 8 + 44 de
+     pestañas + 8 + 72 de barra del pedido + 12 + 34 = 361 px ocupados, y
+     quedan 513 para el grid. Cinco filas de 80 con 8 de hueco son 432. Entra,
+     y con sitio de sobra para un iPhone más bajo. */
+  .tile-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--s-2);
+  }
+
+  /* Con 80 px de alto el nombre se centra: pegado abajo, como en el tile de
+     96, dejaba media casilla vacía arriba. El relleno baja a 8 px porque en
+     una columna de 120 px cada píxel es una letra: así «Cappuccino» —la
+     palabra más larga que no se puede partir— cabe entera sin abreviar. */
+  .tile {
+    justify-content: center;
+    padding: var(--s-2);
+    font-size: 18px;
+  }
+
+  .tile__dot {
+    top: 6px;
+    right: 6px;
+  }
+
+  .tile__price {
+    font-size: var(--fs-meta);
+  }
+
+  /* El toast lleva «Deshacer», que es un control de verdad: no puede caer
+     encima de la barra inferior ni del botón de servir. */
+  .toast-layer {
+    inset-block-end: calc(var(--h-action) + var(--s-3) + env(safe-area-inset-bottom));
+  }
+
+  /* ---- Barra inferior del pedido y su hoja ---- */
+
+  .ticket-bar {
+    gap: var(--s-2);
+    padding-inline: max(var(--s-3), env(safe-area-inset-left)) max(var(--s-3), env(safe-area-inset-right));
+  }
+
+  .ticket-bar .btn--action {
+    flex: none;
+  }
+
+  /* Casi toda la pantalla: dentro van las líneas, «Últimos pedidos» y el botón
+     grande de servir, y cada caja hace su propio scroll. `dvh` y no `vh`: con
+     `vh`, Safari cuenta una barra de herramientas que a veces no está. */
+  .ticket--sheet {
+    max-height: 86dvh;
+  }
+
+  /* El nombre de una línea es lo que la convierte en la bebida actual: 44 px
+     de alto como cualquier otro objetivo táctil. */
+  .ticket__name {
+    min-height: var(--h-step);
+    justify-content: center;
+  }
+
+  /* ---- Formularios y tablas a una columna ---- */
+
+  .form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tabla-wrap {
+    /* La tabla se desplaza aquí dentro, nunca la página. */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Nada por debajo de 15 px en un móvil: estos dos venían de 13, que en el
+     iPad a 60 cm se lee y en la mano, a la intemperie y de noche, no. Arriba
+     del corte se quedan como estaban. */
+  .stat__hint {
+    font-size: var(--fs-meta);
+  }
+
+  .pasos__num {
+    width: 26px;
+    height: 26px;
+    font-size: var(--fs-meta);
+  }
+
+  /* Los rótulos de los gráficos y las etiquetas suben de 13-14 a 15: en un
+     iPad a 60 cm se leen, en la mano y a las once de la noche no. */
+  .grafico svg text {
+    font-size: 15px;
+  }
+
+  .barras__label,
+  .barras__valor,
+  .etiqueta,
+  .tabla__arrow {
+    font-size: var(--fs-meta);
+  }
+
+  /* El nombre del evento en la tabla de Resultados es un enlace, y un enlace
+     de 15 px de alto no se acierta con el dedo. */
+  .tabla a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--h-step);
+  }
+
+  /* Un enlace dentro de una frase mide lo que mide su texto: 16 px de alto.
+     Con el dedo eso no se acierta, así que en móvil se le da la altura de
+     objetivo táctil sin sacarlo de la frase. */
+  .meta a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--h-step);
+  }
+}
+
+/* ---- Pantallas de móvil bajas (un iPhone SE, 667 px) ----
+   En 874 px de alto las cinco filas de 80 entran con holgura; en 667 faltan
+   42 px. El orden para recuperarlos lo fija el propio problema: primero el
+   alto del tile —72 sigue muy por encima de los 44 de objetivo táctil— y
+   después el hueco entre tiles. El texto no se toca: sigue en 18 px. */
+
+@media (max-width: 560px) and (max-height: 750px) {
+  :root {
+    --h-tile: 72px;
+  }
+
+  .tile-grid {
+    gap: 6px;
+  }
+
+  .barra__work {
+    gap: 6px;
+  }
+}

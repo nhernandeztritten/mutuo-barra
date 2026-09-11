@@ -87,7 +87,7 @@ export async function getSettings(database: BarraDb = db): Promise<Settings> {
   const fresh: Settings = {
     id: 'app',
     deviceId: newId(),
-    deviceName: 'iPad de la barra',
+    deviceName: 'Barra de Mutuo',
     seedVersion: 0,
     theme: 'light',
     persistentStorage: null,

@@ -1101,3 +1101,123 @@ recién migrada y comprueba que salen idénticos.
   real (12 g × 16), no de la que pide el ratio. Es lo honesto —es el agua que
   consume de verdad—, pero si al leerlo confunde junto a los «200 ml piden
   12,5 g» de la misma línea, se cambia en una línea.
+
+## Fase 9 — la app en un iPhone (11/09/2026)
+
+Contexto: la boda del 12/09 se sirve desde el **iPhone 17 Pro** de Nicolas, no
+desde el iPad. La app estaba hecha para 1180 px.
+
+### 92. El punto de corte es 560 px, y por encima no se toca nada
+
+`@media (max-width: 560px)`. El iPad está en 1180 × 820 y en 820 × 1180, los dos
+por encima, así que ni una regla del móvil le llega. La sección va **al final**
+de `screens.css` a propósito: así gana a las de `(max-width: 999px),
+(orientation: portrait)`, que son las del iPad en vertical.
+
+Casi todo se resuelve con CSS. Solo tres cosas necesitan saber el ancho desde
+JavaScript, y para eso está la señal `esMovil` de `ui/layout.ts`: el texto de la
+tercera entrada del menú, el del botón de servir y qué controles se dibujan. Sin
+`matchMedia` —en las pruebas— contesta que no, así que los 350 tests de antes
+siguen viendo la disposición de siempre.
+
+### 93. «Carta y ajustes» se acorta a «Ajustes», y no hay scroll en el menú
+
+Se probaron las dos vías del encargo. Con las tres entradas enteras, el menú
+mide 424 px y a 402 se sale por la derecha: habría que desplazarlo para ver la
+última, que es tanto como esconderla. Con «Ajustes», y bajando el wordmark a
+16 px y las entradas a 15, cabe entero **a 375 px**. Se queda el `overflow-x` de
+red de seguridad, pero no hace falta.
+
+### 94. La cabecera de la barra, una fila de 56 px, y lo demás en una hoja de abajo
+
+En vertical la cabecera se partía en dos filas y medía 222 px de una pantalla de
+874: una cuarta parte para lo que no se toca. Ahora es una franja de 57 px con lo
+único que se mira mientras se sirve —volver, el nombre, las servidas y el café— y
+los cuatro controles restantes viven en **«Más»**, una hoja que sube desde abajo.
+
+Hoja de abajo y no modal centrado: `DESIGN.md` los prohíbe en el flujo de servir,
+y además en un móvil el centro de la pantalla es justo donde no llega el pulgar.
+Cada acción en una fila de ≥ 56 px con su nombre y una línea de explicación
+—«Rápido — cada toque sirve una bebida»—, que es sitio que en la cabecera del
+iPad no había. «Cerrar barra» va la última, detrás de una línea de separación.
+
+Lo que se cae de la cabecera no se pierde: el ritmo de la última hora se lee
+dentro de la hoja «Más», y los cuatro pasos del evento siguen en Preparar, en
+Cerrar y en Resultados, que es donde alguien se pregunta dónde está.
+
+### 95. Tres columnas y tiles de 80 px: la carta entera de una, sin desplazar
+
+Nicolas lo probó y lo dijo claro: «tengo que scrollear y en el flujo de trabajo
+eso no sirve». Es un requisito duro, no una preferencia: con seis personas
+delante nadie desplaza una lista para encontrar un cortado.
+
+La cuenta a 402 × 874, con las safe areas del iPhone 17 Pro instalado (59 arriba,
+34 abajo): 59 + 56 de cabecera + 12 + 56 de extras + 8 + 44 de pestañas + 8 + 72
+de barra del pedido + 12 + 34 = **361 px ocupados**, y quedan **513 para el
+grid**. Con dos columnas, catorce bebidas son siete filas: 7 × 96 + 6 × 12 = 744.
+No entra ni de lejos. Con **tres columnas y tiles de 80** son cinco filas:
+5 × 80 + 4 × 8 = **432**. Entra, y sobran 81 px.
+
+Medido en el navegador (holgura = hueco del grid − lo que mide el grid):
+
+| Ancho × alto | Columnas | Tile | Holgura | ¿Se desplaza? |
+|---|---|---|---|---|
+| 402 × 874 | 3 | 80 px | **+165 px** | no |
+| 393 × 852 | 3 | 80 px | **+143 px** | no |
+| 375 × 667 | 3 | 72 px | **+10 px** | no |
+| 402 × 781 (safe areas simuladas) | 3 | 80 px | **+72 px** | no |
+| 393 × 759 (safe areas simuladas) | 3 | 80 px | **+50 px** | no |
+| 375 × 647 (SE con barra de estado) | 3 | 72 px | **−10 px** | el grid, 10 px |
+
+El texto **no baja de 17 px**: se queda en 18, y el relleno del tile baja de
+12/16 a 8 para que «Cappuccino» —la palabra más larga que no se puede partir—
+quepa entera en una columna de 113 px. Ningún nombre se recorta en ninguno de
+los seis tamaños; «Espresso tonic» y «Matcha latte» se parten en dos líneas con
+`text-wrap: balance`, que es lo que ya hacían.
+
+En pantallas más bajas de 750 px (un iPhone SE prestado) el tile baja a 72 px y
+el hueco entre tiles a 6, que es el orden de palancas acordado. Ese hueco de 6 px
+es lo único de toda la app por debajo del mínimo de 8: se queda porque son dos
+tiles de 113 × 72 —no dos controles pequeños— y porque la alternativa era
+desplazar. **En un SE con la barra de estado (647 px útiles) faltan 10 px y el
+grid se desplaza**; en el 17 Pro y en el iPhone base no.
+
+### 96. Nada por debajo de 15 px, también fuera de la barra
+
+`DESIGN.md` decía «nunca por debajo de 15 px en la barra; 14 solo en tablas del
+panel». En un iPad a 60 cm eso se sostiene; en la mano, a la intemperie y de
+noche, no. En móvil suben a 15: los rótulos de los gráficos (14), las etiquetas
+tipo «Sin proteger» (13), el número de los cuatro pasos (13), la pista de una
+cifra del resumen (13) y la flecha de ordenar una tabla (11). Por encima del
+corte se quedan como estaban. Las celdas de las tablas de Resultados siguen en
+14, que es lo que `DESIGN.md` permite.
+
+Lo mismo con los objetivos táctiles: el enlace «Carta y ajustes» dentro de una
+frase medía 98 × 16, y el nombre del evento en la tabla de Resultados 107 × 15.
+En móvil los dos pasan a 44 px de alto sin salirse de su frase ni de su celda.
+
+### 97. El copy nombra el aparato que tienes delante
+
+`ui/instalacion.ts` sabe ahora si esto es un iPhone, un iPad o algo que no puede
+saber, y lo dice: «Instala la app en **este iPhone**», «Instalar en **este
+iPad**». El iPad tiene dos caminos porque desde iPadOS 13 Safari se presenta
+como un Mac; lo delata que un Mac de verdad no tiene cinco puntos de contacto.
+Si no hay manera de saberlo, «este dispositivo»: inventarse un nombre para la
+pantalla que alguien tiene en la mano es peor que no decirlo.
+
+De paso, el campo «Nombre de este iPad» pasa a «Nombre de este dispositivo» y el
+valor por defecto de una instalación nueva deja de ser «iPad de la barra» para
+ser «Barra de Mutuo». Los que ya están guardados no se tocan.
+
+### 98. El toast sube por encima de la barra del pedido
+
+En vertical, el aviso «3 bebidas servidas · Deshacer» caía justo encima de la
+barra inferior y tapaba el botón de servir. «Deshacer» es un control de verdad,
+con ocho segundos de vida y consecuencias; no puede competir por el mismo sitio
+que la acción principal. En móvil el toast se levanta 72 px + safe area.
+
+### 99. El estado vacío de Eventos tenía dos «Nuevo evento»
+
+Uno en la cabecera y otro debajo del bloque «Cómo funciona», a dos dedos de
+distancia. No daba una salida más, daba una duda. Se queda el de la cabecera,
+que es el que está en todas las pantallas de la sección.

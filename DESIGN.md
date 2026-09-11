@@ -42,6 +42,19 @@ Encima del grid, 56 px, la misma altura y el mismo sitio que ocupaban los chips.
 Horizontal ≥ 1000 px: dos columnas `minmax(0, 1fr) 360px`, cabecera 64 px, sin scroll de página. Vertical o < 1000 px: una columna, ticket como barra inferior de 72 px que se despliega en hoja.
 Safe areas: `padding: env(safe-area-inset-*)` en cabecera y barra inferior.
 
+## Móvil: el punto de corte es 560 px
+Por debajo de **560 px** (`@media (max-width: 560px)`) la app se dibuja para **una mano**, no para un iPad en su soporte. El iPad está en 1180 × 820 y en 820 × 1180, los dos por encima del corte, así que su disposición no cambia. **Vertical es el modo real**: nadie gira el móvil detrás de una barra con una jarra en la mano; horizontal tiene que ser usable, pero no está optimizado.
+
+Qué cambia:
+- **Menú**: wordmark a 16 px y las tres entradas a 15 px, con «Carta y ajustes» acortado a «**Ajustes**». Las tres caben enteras hasta a 375 px; no hay nada que desplazar.
+- **Cabecera de la barra**: **una sola fila de 56 px** + safe area. De izquierda a derecha: `‹` (solo el chevrón, con `aria-label` «Volver a Eventos»), el nombre del evento truncado con `title`, las bebidas servidas en 24 px tabulares, el medidor de café reducido a una barra de 28 px y su porcentaje, y **«Más»**. El ritmo de la última hora y los cuatro pasos del evento no caben y se van: el ritmo, a la hoja «Más»; los pasos, a las pantallas donde se miran.
+- **«Más»** abre una **hoja desde abajo** (`.hoja-abajo`) con Rápido, Noche, Resumen y —separada por una línea y la última— Cerrar barra. Cada una en una fila de ≥ 56 px con su nombre y una explicación corta. No es un modal centrado: DESIGN.md los prohíbe en el flujo de servir, y en un móvil el centro de la pantalla es justo donde no llega el pulgar.
+- **Grid: tres columnas y tiles de 80 px**, texto de 18 px (nunca por debajo de 17) y relleno de 8 px. No es estética: con dos columnas las catorce bebidas piden siete filas y la última se va por debajo de la barra del pedido, y **con la cola delante nadie desplaza una lista para encontrar un cortado**. La carta entera tiene que estar a la vista de una. En pantallas más bajas de 750 px, el tile baja a 72 px y el hueco a 6 px.
+- **Barra inferior del pedido**: la de siempre, con el botón diciendo la cuenta entera («Servir 3 bebidas»). El toast sube por encima de ella: lleva «Deshacer», que es un control de verdad.
+- **Nada por debajo de 15 px**: los rótulos de los gráficos, las etiquetas y el número de los pasos suben de 13-14 a 15. Por encima del corte se quedan como estaban.
+
+Detalles de iOS: `100dvh` y nunca `100vh`; `env(safe-area-inset-*)` en cabecera, barra inferior y hojas; todo lo que se escribe a 16 px o más para que Safari no haga zoom al enfocar; `touch-action: manipulation` y sin resaltado de toque.
+
 ## Motion
 Ease-out (cubic-bezier(.22,1,.36,1)). Pulsación de tile: scale(.97) 90 ms. Línea nueva en el ticket: aparece con translateY(6px)→0 y opacidad, 160 ms. Servir: el ticket se desvanece 180 ms y el contador de cabecera hace un «tick» de escala 1→1,08→1 en 240 ms. Toast entra desde abajo 200 ms, sale 140 ms. `prefers-reduced-motion`: todo pasa a fundido de 120 ms o instantáneo.
 

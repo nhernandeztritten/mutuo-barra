@@ -22,7 +22,7 @@ import {
 } from '../data/types';
 import { eventConsumption, eventStats } from '../domain/stats';
 import { formatInt, formatQty, formatRate, formatTime } from '../domain/format';
-import { Button, Sheet, Tile } from '../ui/components';
+import { Button, HojaAbajo, HojaFila, Sheet, Tile } from '../ui/components';
 import { useIr } from '../ui/navegar';
 import { clearToasts, showToast, TOAST_ACTION_MS } from '../ui/toast';
 import {
@@ -71,7 +71,7 @@ import {
   undoLast,
   type TicketLine,
 } from '../ui/ticket';
-import { barMode } from '../ui/layout';
+import { barMode, esMovil } from '../ui/layout';
 
 const SERVE_FADE_MS = 180;
 
@@ -111,6 +111,11 @@ export function Barra() {
   const [sheetOpen, setSheetOpen] = useState(false);
   /** La hoja de Resumen. `'pedidos'` la abre directamente en su lista de pedidos. */
   const [resumenOpen, setResumenOpen] = useState<'todo' | 'pedidos' | null>(null);
+  /**
+   * La hoja «Más» del móvil. En un iPhone no caben en la cabecera los cuatro
+   * controles que no son servir; aquí abajo sí, y con sitio para explicarlos.
+   */
+  const [masOpen, setMasOpen] = useState(false);
   /** El pedido que se acaba de repetir, para el fundido de su fila. */
   const [repetido, setRepetido] = useState<string | null>(null);
   /** La fila de «Últimos pedidos» desplegada. Solo una a la vez. */
@@ -623,8 +628,11 @@ export function Barra() {
   return (
     <div class="barra">
       <header class="barra__header">
-        <Button class="barra__salir" onClick={() => route('/')}>
-          <ChevronLeft size={20} strokeWidth={1.75} /> Eventos
+        {/* En móvil se queda solo el chevrón: la etiqueta accesible sigue
+            diciendo a dónde lleva, que es lo que lee VoiceOver. */}
+        <Button class="barra__salir" aria-label="Volver a Eventos" onClick={() => route('/')}>
+          <ChevronLeft size={20} strokeWidth={1.75} />
+          <span class="solo-ancho">Eventos</span>
         </Button>
 
         <div class="barra__ident">
@@ -653,8 +661,12 @@ export function Barra() {
                 style={{ '--pct': Math.max(0, Math.min(100, cafePct)) / 100 }}
               />
             </span>
+            {/* En móvil el medidor se queda en la barra corta y el porcentaje:
+                los gramos no caben en una cabecera de una sola fila y el
+                `title` los sigue diciendo. */}
             <span class="meter__value num">
-              {formatQty(remainingCafe, 'g')} · {Math.round(cafePct)} %
+              <span class="solo-ancho">{`${formatQty(remainingCafe, 'g')} · `}</span>
+              {`${String(Math.round(cafePct))} %`}
             </span>
           </div>
         ) : (
@@ -700,6 +712,12 @@ export function Barra() {
             Cerrar barra
           </Button>
         </div>
+
+        {/* Solo en móvil (lo esconde el CSS por encima de 560 px): lo que no
+            cabe en una cabecera de una fila vive en una hoja de abajo. */}
+        <Button class="barra__mas" aria-haspopup="dialog" onClick={() => setMasOpen(true)}>
+          Más
+        </Button>
       </header>
 
       <div class="barra__cols">
@@ -781,8 +799,17 @@ export function Barra() {
             ? ` · ${ticketTotal(lines).toFixed(2).replace('.', ',')} €`
             : ''}
         </button>
+        {/* En móvil el botón dice la cuenta entera —«Servir 3 bebidas»—: es la
+            acción principal de la pantalla y va donde llega el pulgar. Por
+            encima del corte se queda en «Servir», como estaba. */}
         <Button variant="primary" action disabled={drinks === 0} onClick={onServeButton}>
-          {drinks === 0 ? 'Toca una bebida' : event.mode === 'venta' ? 'Cobrar' : 'Servir'}
+          {drinks === 0
+            ? 'Toca una bebida'
+            : event.mode === 'venta'
+              ? 'Cobrar'
+              : esMovil.value
+                ? `Servir ${formatInt(drinks)} ${drinks === 1 ? 'bebida' : 'bebidas'}`
+                : 'Servir'}
         </Button>
       </div>
 
@@ -791,6 +818,58 @@ export function Barra() {
           <div class="sheet-backdrop" onClick={() => setSheetOpen(false)} />
           <TicketHoja {...ticketProps} onCollapse={() => setSheetOpen(false)} />
         </>
+      ) : null}
+
+      {/* La hoja «Más» del móvil: cada acción en su fila, con su nombre y qué
+          hace. «Cerrar barra» va la última y separada, que es la única de las
+          cuatro que termina el evento. */}
+      {masOpen ? (
+        <HojaAbajo title="Más" onClose={() => setMasOpen(false)}>
+          <p class="hoja-abajo__dato">
+            <span class="num">{formatRate(stats.lastHourRate)}</span> en la última hora
+            {stockCafe > 0 ? (
+              <>
+                {' · café '}
+                <span class="num">{formatQty(remainingCafe, 'g')}</span>
+              </>
+            ) : null}
+          </p>
+          <HojaFila
+            nombre="Rápido"
+            pista="cada toque sirve una bebida"
+            estado={oneTap.value ? 'Puesto' : 'Quitado'}
+            puesto={oneTap.value}
+            onClick={() => {
+              setQuickEdit(null);
+              void setOneTap(!oneTap.value);
+            }}
+          />
+          <HojaFila
+            nombre="Noche"
+            pista="pantalla oscura cuando deslumbra"
+            estado={theme.value === 'night' ? 'Puesto' : 'Quitado'}
+            puesto={theme.value === 'night'}
+            onClick={() => void setTheme(theme.value === 'night' ? 'light' : 'night')}
+          />
+          <HojaFila
+            nombre="Resumen"
+            pista="bebidas, insumos y todos los pedidos"
+            onClick={() => {
+              setMasOpen(false);
+              setResumenOpen('todo');
+            }}
+          />
+          <div class="hoja-abajo__sep" />
+          <HojaFila
+            nombre="Cerrar barra"
+            pista="recuento de lo que queda y resultados"
+            tono="terminal"
+            onClick={() => {
+              setMasOpen(false);
+              route(`/evento/${event.id}/cerrar`);
+            }}
+          />
+        </HojaAbajo>
       ) : null}
 
       {resumenOpen ? (

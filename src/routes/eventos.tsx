@@ -13,7 +13,7 @@ import { closeStats, eventStats, loadSuggestion } from '../domain/stats';
 import { formatDateLong, formatInt, formatMoney, formatRate } from '../domain/format';
 import { Button } from '../ui/components';
 import { conBase, useIr } from '../ui/navegar';
-import { estaInstalada } from '../ui/instalacion';
+import { estaInstalada, esteDispositivo } from '../ui/instalacion';
 import { ComoFunciona, Etiqueta } from '../ui/piezas';
 import {
   closedEvents,
@@ -114,10 +114,9 @@ export function Eventos() {
       {isEmpty ? (
         <>
           <ComoFunciona />
+          {/* «Nuevo evento» ya está arriba, en la cabecera: repetirlo a dos
+              dedos de distancia no daba una salida más, daba una duda. */}
           <div class="row">
-            <Button variant="primary" onClick={() => route('/evento/nuevo')}>
-              <CalendarPlus size={20} strokeWidth={1.75} /> Nuevo evento
-            </Button>
             <Button disabled={busy} onClick={() => void createDemo()}>
               Probar con un ejemplo
             </Button>
@@ -248,8 +247,8 @@ function AvisoInstalacion({ onComo, onDismiss }: { onComo: () => void; onDismiss
     <div class="instalar">
       <span class="instalar__texto">
         <Smartphone size={20} strokeWidth={1.75} class="instalar__icono" />
-        Instala la app en el iPad para usarla sin internet: en Safari, Compartir → Añadir a
-        pantalla de inicio.
+        Instala la app en {esteDispositivo()} para usarla sin internet: en Safari, Compartir →
+        Añadir a pantalla de inicio.
       </span>
       <div class="row">
         <Button onClick={onComo}>Cómo hacerlo</Button>
@@ -263,7 +262,7 @@ function AvisoInstalacion({ onComo, onDismiss }: { onComo: () => void; onDismiss
 
 /**
  * La barra abierta manda en la portada: es el único estado en el que hay algo
- * que se está perdiendo si nadie mira el iPad.
+ * que se está perdiendo si nadie mira la pantalla.
  */
 function LiveCard({
   event,
