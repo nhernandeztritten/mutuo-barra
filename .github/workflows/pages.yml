@@ -12,7 +12,7 @@ name: Publicar en GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/v1-barra]
   workflow_dispatch:
 
 permissions:
