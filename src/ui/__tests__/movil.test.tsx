@@ -206,10 +206,46 @@ describe('la barra inferior del pedido', () => {
     expect(document.querySelector('.ticket-bar .btn--action')?.textContent).toBe('Servir 2 bebidas');
   });
 
-  it('vacía invita a empezar, sin cifras que no existen', async () => {
+  it('vacía y sin nada servido lo dice, sin cifras que no existen', async () => {
     await setupMovil();
-    expect(barraInferior()).toContain('Pedido actual (0)');
+    // «Pedido actual (0)» no decía nada que el botón de al lado no dijera ya.
+    expect(barraInferior()).toContain('Sin pedidos todavía');
+    expect(barraInferior()).not.toContain('(0)');
     expect(document.querySelector('.ticket-bar .btn--action')?.textContent).toBe('Toca una bebida');
+  });
+
+  it('con el pedido vacío enseña el último servido, y tocarlo lo abre desplegado', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(barraInferior()).toContain('Pedido actual (1)'));
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.ticket-bar .btn--action')!);
+
+    // Servido el pedido, la barra pasa a contar el último en vez de un «(0)».
+    await waitFor(() => expect(barraInferior()).toContain('Último'));
+    expect(barraInferior()).toContain('Cortado');
+    expect(document.querySelector('.ticket-bar__cuando')?.textContent).toMatch(
+      /^Último · \d{2}:\d{2} · $/,
+    );
+
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.ticket-bar__label')!);
+    await waitFor(() => expect(document.querySelector('.ticket--sheet')).not.toBeNull());
+    // Abierta directamente en «Últimos pedidos», con ese pedido desplegado.
+    const fila = document.querySelector('.ticket--sheet .ultimos__fila');
+    expect(fila?.classList.contains('is-abierta')).toBe(true);
+    expect(fila?.querySelector('.ultimos__cabeza')?.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('el contador de servidas abre el histórico de pedidos', async () => {
+    await setupMovil();
+    const contador = document.querySelector<HTMLButtonElement>('.barra__count');
+    expect(contador?.tagName).toBe('BUTTON');
+    expect(contador?.getAttribute('aria-label')).toBe('Ver el histórico de bebidas servidas');
+
+    fireEvent.click(contador!);
+    await waitFor(() =>
+      expect(document.querySelector('[role="dialog"][aria-label="Resumen"]')).not.toBeNull(),
+    );
+    expect(document.querySelector('#resumen-pedidos')).not.toBeNull();
   });
 
   it('al desplegarla, la hoja del pedido lleva dentro «Últimos pedidos»', async () => {

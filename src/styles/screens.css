@@ -319,11 +319,31 @@
   text-overflow: ellipsis;
 }
 
+/* La cifra de servidas es un botón: abre el histórico de pedidos. Se sigue
+   leyendo como una cifra —sin borde ni relleno— pero mide 44 px y responde al
+   toque, que es lo que la distingue de un rótulo muerto. */
 .barra__count {
   display: flex;
   align-items: baseline;
   gap: var(--s-2);
   white-space: nowrap;
+  min-height: var(--h-step);
+  /* El relleno da aire al fondo de la pulsación, y el margen negativo lo
+     devuelve: la cabecera tiene que ocupar exactamente lo que ocupaba, porque
+     a 1024 × 768 ya no cabe entera (UX-REVISION-2, «Para después del evento»)
+     y esto no puede empeorar esa medida ni un píxel. */
+  padding-inline: var(--s-2);
+  margin-inline: calc(var(--s-2) * -1);
+  border: 0;
+  border-radius: var(--r-chip);
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  transition: background-color var(--t-press) var(--ease);
+}
+
+.barra__count:active {
+  background: var(--bg);
 }
 
 .barra__count-value {
@@ -1073,6 +1093,15 @@
     font-size: var(--fs-row);
     font-weight: 600;
     text-align: start;
+  }
+
+  /* Una línea con puntos suspensivos: un pedido de cinco bebidas no puede
+     empujar al botón de servir fuera de la pantalla. */
+  .ticket-bar__texto {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .ticket-bar .btn--action {
@@ -2631,6 +2660,18 @@
 
   .ticket-bar .btn--action {
     flex: none;
+  }
+
+  /* Con el pedido vacío, la barra enseña el último pedido servido. Es un dato,
+     no el nombre de lo que hay dentro: baja a 16 px y a peso normal, y se corta
+     con puntos suspensivos antes que empujar al botón de servir. */
+  .ticket-bar__label.is-ultimo {
+    font-size: var(--fs-body);
+    font-weight: 500;
+  }
+
+  .ticket-bar__cuando {
+    color: var(--ink-3);
   }
 
   /* Casi toda la pantalla: dentro van las líneas, «Últimos pedidos» y el botón

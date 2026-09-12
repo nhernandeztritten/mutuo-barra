@@ -581,6 +581,13 @@ export function Barra() {
 
   const editingProduct = editing ? products.find((p) => p.id === editing.productId) : undefined;
   const drinks = ticketDrinks(lines);
+  /**
+   * El último pedido servido, que en el móvil ocupa la barra de abajo mientras
+   * el pedido actual está vacío: es lo que el barista se pregunta cuando
+   * levanta la cabeza, y ahí no hacía falta un «(0)».
+   */
+  const ultimo = ultimos[0] ?? null;
+  const verUltimo = esMovil.value && !pausado && !editando && !rapido && drinks === 0;
 
   /**
    * Servir (o cobrar). Corrigiendo en modo venta y con el **mismo total**, no
@@ -660,12 +667,21 @@ export function Barra() {
           <Pasos eventId={event.id} status={event.status} compact />
         </div>
 
-        <div class="barra__count">
+        {/* La cifra es tocable: abre el Resumen en su lista de pedidos, que es
+            el histórico entero con su «Anular». Sigue leyéndose como una cifra
+            —no como un botón— pero mide 44 px y responde al toque: quien mira
+            el número es justo quien quiere saber qué hay detrás. */}
+        <button
+          type="button"
+          class="barra__count"
+          aria-label="Ver el histórico de bebidas servidas"
+          onClick={() => setResumenOpen('pedidos')}
+        >
           <span class={['barra__count-value', 'num', tick ? 'is-tick' : ''].filter(Boolean).join(' ')}>
             {formatInt(stats.served)}
           </span>
           <span class="barra__count-label">servidas</span>
-        </div>
+        </button>
 
         {/* En pausa el ritmo caería solo hasta cero sin que pase nada: decirlo
             es más honesto que enseñar un número que se desmorona. */}
@@ -837,20 +853,44 @@ export function Barra() {
           Con la hoja abierta se esconde: si no, su «Servir» asoma por detrás
           del de la hoja y quedan dos botones iguales, uno de ellos muerto. */}
       <div class={['ticket-bar', sheetOpen ? 'is-oculta' : ''].filter(Boolean).join(' ')}>
-        <button type="button" class="ticket-bar__label" onClick={() => setSheetOpen(true)}>
-          {pausado
-            ? `Servicio en pausa${drinks > 0 ? ` · pedido (${formatInt(drinks)}) guardado` : ''}`
-            : editando
-              ? `Editando el de ${formatTime(editando.servedAt)}`
-              : rapido
-                ? 'Modo rápido activo'
-                : // El mismo nombre que en la cabecera del ticket que abre: era
-                  // la misma cosa llamada de dos maneras en dos pantallas, y
-                  // «actual» es justo lo que la distingue de «Últimos pedidos».
-                  `Pedido actual (${formatInt(drinks)})`}
-          {!pausado && event.mode === 'venta' && drinks > 0
-            ? ` · ${ticketTotal(lines).toFixed(2).replace('.', ',')} €`
-            : ''}
+        <button
+          type="button"
+          class={['ticket-bar__label', verUltimo ? 'is-ultimo' : ''].filter(Boolean).join(' ')}
+          onClick={() => {
+            // Tocando el último pedido, la hoja se abre con ese pedido ya
+            // desplegado: «Últimos pedidos» lo desplaza a la vista al montarse.
+            if (verUltimo && ultimo) setAbierto(ultimo.id);
+            setSheetOpen(true);
+          }}
+        >
+          <span class="ticket-bar__texto">
+            {pausado ? (
+              `Servicio en pausa${drinks > 0 ? ` · pedido (${formatInt(drinks)}) guardado` : ''}`
+            ) : editando ? (
+              `Editando el de ${formatTime(editando.servedAt)}`
+            ) : rapido ? (
+              'Modo rápido activo'
+            ) : verUltimo ? (
+              // Con el pedido vacío, «Pedido actual (0)» no dice nada que el
+              // botón de al lado no diga ya. En su sitio, lo último servido.
+              ultimo ? (
+                <>
+                  <span class="ticket-bar__cuando">Último · {formatTime(ultimo.servedAt)} · </span>
+                  {fraseDePartes(ultimo.partes)}
+                </>
+              ) : (
+                'Sin pedidos todavía'
+              )
+            ) : (
+              // El mismo nombre que en la cabecera del ticket que abre: era la
+              // misma cosa llamada de dos maneras en dos pantallas, y «actual»
+              // es justo lo que la distingue de «Últimos pedidos».
+              `Pedido actual (${formatInt(drinks)})`
+            )}
+            {!pausado && event.mode === 'venta' && drinks > 0
+              ? ` · ${ticketTotal(lines).toFixed(2).replace('.', ',')} €`
+              : ''}
+          </span>
         </button>
         {/* En pausa, la acción principal de la pantalla es volver a abrir: va
             en el sitio del botón de servir, que es donde llega el pulgar.
