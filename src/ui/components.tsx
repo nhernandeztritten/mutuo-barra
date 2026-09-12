@@ -5,6 +5,7 @@
 import type { ComponentChildren, JSX, RefObject } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { X } from 'lucide-preact';
+import { esMovil } from './layout';
 import { dismissToast, toasts } from './toast';
 
 type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -80,6 +81,106 @@ export function Field({ label, numeric = false, hint, id, class: cls, ...rest }:
 const ENFOCABLES =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/** Cuánto hay que arrastrar una hoja hacia abajo para que se cierre. */
+export const ARRASTRE_CIERRE = 80;
+
+/** Lo que hay que mover el dedo antes de que un toque pase a ser un arrastre. */
+const ARRASTRE_MARGEN = 12;
+
+/**
+ * `true` si nada entre el elemento tocado y la hoja está desplazado.
+ *
+ * Es la regla que deja convivir el gesto con el scroll interno: con la lista a
+ * medio desplazar, el dedo desplaza; solo cuando el contenido está arriba del
+ * todo el gesto pasa a ser «cerrar».
+ */
+function scrollArriba(desde: Element | null, hasta: HTMLElement): boolean {
+  let el: Element | null = desde;
+  while (el) {
+    if (el instanceof HTMLElement && el.scrollTop > 0) return false;
+    if (el === hasta) return true;
+    el = el.parentElement;
+  }
+  return true;
+}
+
+/**
+ * Deslizar la hoja hacia abajo para cerrarla, en el móvil.
+ *
+ * Nicolas: «al apretar en servidas, te lleva al histórico de pedidos, pero
+ * cuesta para volver atrás». El gesto es el segundo camino de salida —el
+ * primero es la «X», que desde esta fase ya no se va nunca de la pantalla— y es
+ * el que la mano intenta sola en un iPhone.
+ *
+ * Con `prefers-reduced-motion` la hoja no sigue al dedo: se cierra al soltar si
+ * el recorrido pasó del umbral, y nada se mueve por el camino.
+ */
+function engancharArrastre(caja: HTMLElement, cerrar: () => void): () => void {
+  const sinMovimiento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let inicio: number | null = null;
+  let recorrido = 0;
+  let arrastrando = false;
+  let puntero: number | null = null;
+
+  function soltar(): void {
+    caja.classList.remove('is-arrastrando');
+    caja.style.transform = '';
+    // jsdom no implementa la captura de puntero; en el navegador sí, y es lo
+    // que evita que el arrastre acabe pulsando el botón donde empezó.
+    if (puntero !== null && caja.hasPointerCapture?.(puntero)) caja.releasePointerCapture(puntero);
+    inicio = null;
+    recorrido = 0;
+    arrastrando = false;
+    puntero = null;
+  }
+
+  function alBajar(e: PointerEvent): void {
+    if (!e.isPrimary) return;
+    const objetivo = e.target instanceof Element ? e.target : null;
+    // Desde el asa y desde la cabecera se arrastra siempre: son el tirador.
+    const tirador = objetivo?.closest('.hoja__asa, .hoja__cabecera') != null;
+    if (!tirador && !scrollArriba(objetivo, caja)) return;
+    inicio = e.clientY;
+    recorrido = 0;
+    arrastrando = false;
+    puntero = e.pointerId;
+  }
+
+  function alMover(e: PointerEvent): void {
+    if (inicio === null) return;
+    recorrido = e.clientY - inicio;
+    if (!arrastrando) {
+      // Hacia arriba no se arrastra: eso es desplazar, y el gesto se abandona.
+      if (recorrido < -ARRASTRE_MARGEN) {
+        inicio = null;
+        return;
+      }
+      if (recorrido < ARRASTRE_MARGEN) return;
+      arrastrando = true;
+      caja.classList.add('is-arrastrando');
+      caja.setPointerCapture?.(e.pointerId);
+    }
+    if (!sinMovimiento) caja.style.transform = `translateY(${String(Math.round(recorrido))}px)`;
+  }
+
+  function alSoltar(): void {
+    const cierra = arrastrando && recorrido > ARRASTRE_CIERRE;
+    soltar();
+    if (cierra) cerrar();
+  }
+
+  caja.addEventListener('pointerdown', alBajar);
+  caja.addEventListener('pointermove', alMover);
+  caja.addEventListener('pointerup', alSoltar);
+  caja.addEventListener('pointercancel', soltar);
+  return () => {
+    caja.removeEventListener('pointerdown', alBajar);
+    caja.removeEventListener('pointermove', alMover);
+    caja.removeEventListener('pointerup', alSoltar);
+    caja.removeEventListener('pointercancel', soltar);
+  };
+}
+
 /**
  * Comportamiento de diálogo para una hoja: foco dentro al abrir, Tab que da la
  * vuelta sin salirse, Escape que cierra y el foco devuelto a donde estaba.
@@ -112,17 +213,34 @@ export function useHoja<T extends HTMLElement>(
       ...(ref.current?.querySelectorAll<HTMLElement>(ENFOCABLES) ?? []),
     ];
 
-    const ancla = anclaId ? ref.current?.querySelector<HTMLElement>(`#${anclaId}`) : null;
+    const caja = ref.current;
+    const cabecera = caja?.querySelector<HTMLElement>('.hoja__cabecera') ?? null;
+
+    const ancla = anclaId ? caja?.querySelector<HTMLElement>(`#${anclaId}`) : null;
     if (ancla) {
       // El foco y el scroll tienen que ir al mismo sitio: si se enfocara la
       // cabecera y se desplazara el ancla, un lector de pantalla leería una
       // cosa y la pantalla enseñaría otra.
       ancla.focus({ preventScroll: true });
+      // La cabecera va pegada arriba: sin este margen, el ancla se desplaza
+      // justo debajo de ella y sus primeras líneas quedan tapadas.
+      if (cabecera) ancla.style.scrollMarginBlockStart = `${String(cabecera.offsetHeight)}px`;
       const suave = !matchMedia('(prefers-reduced-motion: reduce)').matches;
       ancla.scrollIntoView({ behavior: suave ? 'smooth' : 'auto', block: 'start' });
     } else {
       enfocables()[0]?.focus();
     }
+
+    // La línea de la cabecera solo cuando hay algo desplazado debajo: sin
+    // contenido escondido no separa nada y es una raya de más.
+    const alDesplazar = (): void => {
+      cabecera?.classList.toggle('is-desplazada', (caja?.scrollTop ?? 0) > 1);
+    };
+    caja?.addEventListener('scroll', alDesplazar, { passive: true });
+
+    // El gesto de cerrar es del móvil: en el iPad la hoja entra por el lado y
+    // hay ratón, teclado y sitio de sobra para la «X».
+    const soltarArrastre = caja && esMovil.value ? engancharArrastre(caja, () => cerrar.current()) : null;
 
     function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') {
@@ -150,11 +268,21 @@ export function useHoja<T extends HTMLElement>(
     document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('keydown', onKey, true);
+      caja?.removeEventListener('scroll', alDesplazar);
+      soltarArrastre?.();
       if (previo && document.contains(previo)) previo.focus();
     };
   }, []);
 
   return ref;
+}
+
+/**
+ * El asa de la hoja: la barra corta de 4 px que todo el mundo reconoce como
+ * «esto se arrastra». Solo se dibuja en el móvil, que es donde hay gesto.
+ */
+export function Asa() {
+  return <span class="hoja__asa" aria-hidden="true" />;
 }
 
 /** Side sheet, never a centred modal in the serving flow. */
@@ -184,8 +312,13 @@ export function Sheet({
         aria-modal="true"
         aria-label={title}
       >
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Pegada arriba: el título y la «X» no se van de la pantalla se haya
+            desplazado lo que se haya desplazado. Antes, abriendo el Resumen por
+            el ancla de «Pedidos», la única salida quedaba fuera de la vista. */}
+        <header class="hoja__cabecera sheet__head">
+          <Asa />
           <h2 class="sheet__title">{title}</h2>
+          <span class="spacer" />
           <Button variant="ghost" onClick={onClose} aria-label="Cerrar">
             <X size={22} strokeWidth={1.75} />
           </Button>
@@ -222,7 +355,8 @@ export function HojaAbajo({
         aria-modal="true"
         aria-label={title}
       >
-        <header class="hoja-abajo__head">
+        <header class="hoja__cabecera hoja-abajo__head">
+          <Asa />
           <h2 class="sheet__title">{title}</h2>
           <span class="spacer" />
           <Button variant="ghost" onClick={onClose} aria-label="Cerrar">

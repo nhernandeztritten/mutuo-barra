@@ -14,7 +14,7 @@ import { LocationProvider, Route, Router } from 'preact-iso';
 import { initDb, resetDb } from '../../data/db';
 import { createEvent, openEvent } from '../../data/repo';
 import { Barra } from '../../routes/barra';
-import { ToastHost } from '../components';
+import { ARRASTRE_CIERRE, ToastHost } from '../components';
 import { dispositivo, esteDispositivo } from '../instalacion';
 import { esMovil, MOVIL_MAX, observarMovil } from '../layout';
 import { MANTENER_MS } from '../mantener';
@@ -265,6 +265,123 @@ describe('la barra inferior del pedido', () => {
     expect(hoja?.textContent).toContain('Deshacer último');
     // El botón grande, el último de la hoja: no se mueve nunca de sitio.
     expect(hoja?.querySelector('.ticket__foot .btn--action')?.textContent).toBe('Servir 1 bebida');
+  });
+});
+
+describe('salir de una hoja', () => {
+  /**
+   * jsdom no tiene `PointerEvent` —ni `fireEvent.pointerDown` llega a
+   * despacharlo—, así que el gesto se manda a mano. En el navegador de verdad
+   * lo comprueba `scripts/capturas-fase-12.mjs` arrastrando con el ratón.
+   */
+  function puntero(el: Element, tipo: string, clientY: number): void {
+    const evento = new Event(tipo, { bubbles: true, cancelable: true });
+    Object.assign(evento, { pointerId: 1, isPrimary: true, clientY });
+    el.dispatchEvent(evento);
+  }
+
+  /** Arrastra la hoja hacia abajo `px` píxeles desde su cabecera y suelta. */
+  function arrastrar(hoja: Element, px: number, desde?: Element): void {
+    const agarre = desde ?? hoja.querySelector('.hoja__cabecera') ?? hoja;
+    puntero(agarre, 'pointerdown', 120);
+    puntero(agarre, 'pointermove', 120 + px);
+    puntero(agarre, 'pointerup', 120 + px);
+  }
+
+  it('el umbral de cierre son 80 px', () => {
+    expect(ARRASTRE_CIERRE).toBe(80);
+  });
+
+  it('la cabecera lleva el título y la «X», y va marcada como pegada', async () => {
+    await setupMovil();
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+
+    const cabecera = document.querySelector('.hoja-abajo .hoja__cabecera');
+    expect(cabecera).not.toBeNull();
+    expect(cabecera?.querySelector('.sheet__title')?.textContent).toBe('Más');
+    expect(cabecera?.querySelector('[aria-label="Cerrar"]')).not.toBeNull();
+    // El asa, el indicador de que se arrastra. En el iPad el CSS lo esconde.
+    expect(cabecera?.querySelector('.hoja__asa')).not.toBeNull();
+  });
+
+  it('el histórico se abre por los pedidos y su «X» sigue en la cabecera', async () => {
+    await setupMovil();
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.barra__count')!);
+    await waitFor(() =>
+      expect(document.querySelector('[role="dialog"][aria-label="Resumen"]')).not.toBeNull(),
+    );
+    const hoja = document.querySelector('[role="dialog"][aria-label="Resumen"]')!;
+    const cabecera = hoja.querySelector('.hoja__cabecera');
+    expect(cabecera?.querySelector('[aria-label="Cerrar"]')).not.toBeNull();
+    // Abierta por el ancla, y con sitio reservado para la cabecera pegada.
+    expect(document.querySelector<HTMLElement>('#resumen-pedidos')?.style.scrollMarginBlockStart)
+      .toMatch(/px$/);
+  });
+
+  it('deslizar hacia abajo más del umbral la cierra', async () => {
+    await setupMovil();
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+
+    arrastrar(document.querySelector('.hoja-abajo')!, ARRASTRE_CIERRE + 20);
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).toBeNull());
+  });
+
+  it('deslizar de menos la devuelve a su sitio, sin cerrarla', async () => {
+    await setupMovil();
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+
+    const hoja = document.querySelector<HTMLElement>('.hoja-abajo')!;
+    arrastrar(hoja, 40);
+    expect(document.querySelector('.hoja-abajo')).not.toBeNull();
+    expect(hoja.style.transform).toBe('');
+    expect(hoja.classList.contains('is-arrastrando')).toBe(false);
+  });
+
+  it('con la lista desplazada, el gesto desplaza: no cierra nada', async () => {
+    await setupMovil();
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+
+    const hoja = document.querySelector<HTMLElement>('.hoja-abajo')!;
+    const fila = hoja.querySelector('.hoja-fila')!;
+    // La hoja está desplazada: lo que toca ahora es seguir desplazando.
+    Object.defineProperty(hoja, 'scrollTop', { configurable: true, value: 60 });
+    arrastrar(hoja, 200, fila);
+    expect(document.querySelector('.hoja-abajo')).not.toBeNull();
+  });
+
+  it('en el iPad no se engancha ningún gesto: la hoja se queda donde está', async () => {
+    await setupMovil();
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+    // La hoja ya montada en móvil sí lo tiene; lo que se comprueba es que una
+    // hoja montada con la señal apagada no reacciona al arrastre.
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.hoja-abajo [aria-label="Cerrar"]')!);
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).toBeNull());
+
+    esMovil.value = false;
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.barra__count')!);
+    await waitFor(() =>
+      expect(document.querySelector('[role="dialog"][aria-label="Resumen"]')).not.toBeNull(),
+    );
+    arrastrar(document.querySelector('[role="dialog"][aria-label="Resumen"]')!, 200);
+    expect(document.querySelector('[role="dialog"][aria-label="Resumen"]')).not.toBeNull();
+  });
+
+  it('Escape y el fondo siguen cerrando', async () => {
+    await setupMovil();
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).toBeNull());
+
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+    fireEvent.click(document.querySelector<HTMLElement>('.sheet-backdrop')!);
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).toBeNull());
   });
 });
 

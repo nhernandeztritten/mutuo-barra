@@ -330,15 +330,21 @@ table {
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
-  padding: var(--s-6);
-  padding-block-start: calc(var(--s-6) + env(safe-area-inset-top));
+  /* El relleno vive en variables porque la cabecera pegada necesita las mismas
+     medidas con el signo cambiado: ver `.hoja__cabecera`. */
+  --hoja-arriba: calc(var(--s-6) + env(safe-area-inset-top));
+  --hoja-izq: var(--s-6);
+  --hoja-der: calc(var(--s-6) + env(safe-area-inset-right));
+  padding-block-start: var(--hoja-arriba);
   padding-block-end: calc(var(--s-6) + env(safe-area-inset-bottom));
-  padding-inline-end: calc(var(--s-6) + env(safe-area-inset-right));
+  padding-inline: var(--hoja-izq) var(--hoja-der);
   background: var(--surface);
   border-start-start-radius: var(--r-sheet);
   border-end-start-radius: var(--r-sheet);
   box-shadow: var(--shadow-sheet);
   overflow-y: auto;
+  /* El arrastre para cerrar necesita que el rebote no se lleve el gesto. */
+  overscroll-behavior: contain;
   animation: sheet-in var(--t-enter) var(--ease);
 }
 
@@ -352,6 +358,62 @@ table {
 .sheet__title {
   font-size: 24px;
   font-weight: 600;
+}
+
+/* ---------- Cabecera pegada de una hoja ----------
+
+   Antes, abriendo el Resumen por el ancla de «Pedidos», la hoja entraba ya
+   desplazada y **el título y la «X» quedaban fuera de la pantalla**: la única
+   salida a la vista no existía y había que adivinar que se volvía desplazando
+   hacia arriba. Ahora la cabecera se queda pegada arriba, se haya desplazado lo
+   que se haya desplazado.
+
+   El margen negativo y el relleno del mismo tamaño son lo que hace que, pegada,
+   tape también el relleno de la hoja: sin eso el contenido se cuela por encima
+   del título, que es peor que no tener cabecera pegada. */
+.hoja__cabecera {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: var(--surface);
+  margin-block-start: calc(var(--hoja-arriba) * -1);
+  padding-block-start: var(--hoja-arriba);
+  padding-block-end: var(--s-3);
+  margin-inline: calc(var(--hoja-izq) * -1) calc(var(--hoja-der) * -1);
+  padding-inline: var(--hoja-izq) var(--hoja-der);
+}
+
+/* La línea solo cuando hay algo escondido debajo. Va en `box-shadow` y no en
+   `border`: un borde que aparece y desaparece mueve la hoja un píxel. */
+.hoja__cabecera.is-desplazada {
+  box-shadow: 0 1px 0 var(--line);
+}
+
+/* El asa: la barra corta que dice «esto se arrastra». Solo en el móvil, que es
+   donde hay gesto; en el iPad la hoja entra por el lado y no se arrastra. */
+.hoja__asa {
+  display: none;
+}
+
+/* Arrastrando, la hoja sigue al dedo sin transición: la transición es para la
+   vuelta a su sitio cuando el recorrido no llega al umbral. */
+.sheet,
+.hoja-abajo,
+.ticket--sheet {
+  transition: transform var(--t-enter) var(--ease);
+  /* El navegador se queda con el desplazamiento vertical, que es lo que tiene
+     que seguir funcionando dentro de la hoja; el gesto de cerrar solo entra
+     cuando ya no queda nada que desplazar. */
+  touch-action: pan-y;
+}
+
+.sheet.is-arrastrando,
+.hoja-abajo.is-arrastrando,
+.ticket--sheet.is-arrastrando {
+  transition: none;
 }
 
 /* ---------- Toast ---------- */

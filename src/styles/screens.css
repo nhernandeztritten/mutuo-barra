@@ -1111,6 +1111,14 @@
     font-size: var(--fs-row);
   }
 
+  /* La cabecera del ticket, pegada arriba: dentro de la hoja hay tres cajas que
+     se desplazan y la salida no puede depender de ninguna. */
+  .ticket--sheet .ticket__head {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+  }
+
   /* Desplegada: el ticket completo como hoja inferior. */
   .ticket--sheet {
     position: fixed;
@@ -2215,9 +2223,16 @@
   gap: var(--s-2);
   max-height: 86dvh;
   overflow-y: auto;
-  padding: var(--s-4);
+  overscroll-behavior: contain;
+  /* En variables, igual que en `.sheet`: la cabecera pegada necesita las mismas
+     medidas en negativo para taparlo todo al desplazar. */
+  /* 20 px y no 16: encima del título va el asa, y sin ese respiro se tocan. */
+  --hoja-arriba: var(--s-5);
+  --hoja-izq: max(var(--s-4), env(safe-area-inset-left));
+  --hoja-der: max(var(--s-4), env(safe-area-inset-right));
+  padding-block-start: var(--hoja-arriba);
   padding-block-end: max(var(--s-4), env(safe-area-inset-bottom));
-  padding-inline: max(var(--s-4), env(safe-area-inset-left)) max(var(--s-4), env(safe-area-inset-right));
+  padding-inline: var(--hoja-izq) var(--hoja-der);
   background: var(--surface);
   border-start-start-radius: var(--r-sheet);
   border-start-end-radius: var(--r-sheet);
@@ -2235,9 +2250,7 @@
 }
 
 .hoja-abajo__head {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  padding-block-end: var(--s-2);
 }
 
 .hoja-abajo__dato {
@@ -2887,6 +2900,30 @@
     font-weight: 700;
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+
+  /* ---- El asa de las hojas ----
+
+     La barra corta de 4 px que todo el mundo reconoce como «esto se arrastra».
+     Va dentro de la cabecera —que está pegada arriba— para que no se vaya con
+     el desplazamiento, y en absoluto para no robarle alto a la hoja. */
+  .hoja__asa {
+    display: block;
+    position: absolute;
+    inset-block-start: 6px;
+    inset-inline-start: 50%;
+    width: 36px;
+    height: 4px;
+    margin-inline-start: -18px;
+    border-radius: var(--r-pill);
+    background: var(--line);
+    /* Desde el asa se arrastra siempre, sin pelear con el desplazamiento. */
+    touch-action: none;
+  }
+
+  /* Sitio para el asa encima del título de la hoja del pedido. */
+  .ticket--sheet .ticket__head {
+    padding-block-start: var(--s-2);
   }
 
   /* ---- Barra inferior del pedido y su hoja ---- */

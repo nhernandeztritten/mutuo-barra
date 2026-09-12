@@ -15,7 +15,7 @@ import type {
   PaymentMethod,
   Product,
 } from '../data/types';
-import { Button, Chip, Sheet, useHoja } from './components';
+import { Asa, Button, Chip, Sheet, useHoja } from './components';
 import { CHIP_LABEL, PAGO_LABEL } from './etiquetas';
 import { esMovil } from './layout';
 import { VOID_MANUAL } from './motivos';
@@ -569,6 +569,12 @@ export function TicketPanel({
               ? 'Modo rápido activo'
               : `Pedido actual (${formatInt(drinks)})`}
         </span>
+        {/* El asa solo en la hoja: en la columna del iPad no hay nada que
+            arrastrar. Es el indicador que la mano ya reconoce. Va **detrás**
+            del título y no delante: está posicionada en absoluto, así que el
+            orden no se ve, y delante se colaba en el primer `span` de la
+            cabecera, que es por donde la busca `capturas:auditoria`. */}
+        {sheet ? <Asa /> : null}
         {editando ? (
           <>
             <span class="spacer" />
