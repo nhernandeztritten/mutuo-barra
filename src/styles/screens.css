@@ -492,6 +492,20 @@
   white-space: nowrap;
 }
 
+/* El rótulo y el salto de línea son de la disposición de móvil. Por encima del
+   corte la fila es la de siempre y ninguno de los dos se dibuja. */
+.extras-zona {
+  display: contents;
+}
+
+.extras__rotulo {
+  display: none;
+}
+
+.extras__salto {
+  display: none;
+}
+
 /* Grupo de opción única (la leche): un solo control, tres objetivos de 56 px. */
 .seg {
   display: inline-flex;
@@ -2461,11 +2475,76 @@
     padding-block-end: calc(var(--h-action) + var(--s-3) + env(safe-area-inset-bottom));
   }
 
-  /* Que el nombre de la bebida no se coma la fila de extras. */
-  .extras__bebida {
-    max-width: 38vw;
+  /* ---- Extras: todos a la vista, en dos filas, sin desplazar a lo ancho ----
+
+     Nicolas: «debería poder ver todas las opciones arriba de una». Con el
+     nombre de la bebida delante y siete extras detrás, la fila medía más de
+     402 px y había que arrastrarla para llegar a «Sirope». Un extra al que hay
+     que desplazarse, con la cola delante, es un extra que no se pone.
+
+     Dos cambios: el nombre sale de la fila y pasa a un rótulo de una línea
+     encima, y los extras envuelven en dos filas de 44 px —la leche arriba, que
+     es lo que más se pide, y Desca · Doble · Iced · Sirope debajo—.
+     Coste vertical medido: 18 + 4 + 44 + 8 + 44 = 118 px contra los 56 de la
+     fila de antes. */
+  .extras-zona {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    min-width: 0;
+  }
+
+  .extras__rotulo {
+    display: block;
+    font-size: var(--fs-meta);
+    line-height: 1.2;
+    color: var(--ink-3);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* El nombre de la bebida, dentro del rótulo, es lo único que se lee en tinta:
+     es el contexto de los extras de debajo. */
+  .extras__rotulo .extras__bebida {
+    padding-inline-end: 0;
+    font-size: var(--fs-meta);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .extras--envuelta {
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    min-height: 0;
+    overflow-x: visible;
+  }
+
+  /* Chips de 44 px, no de 56: dos filas a 56 costarían 24 px más de alto y el
+     grid de tres columnas se queda sin ellos. 44 sigue siendo el objetivo
+     táctil de DESIGN.md. */
+  .extras--envuelta .chip {
+    min-height: var(--h-step);
+    padding-inline: var(--s-4);
+    font-size: var(--fs-body);
+  }
+
+  .extras--envuelta .seg {
+    height: var(--h-step);
+  }
+
+  .extras--envuelta .seg__opt {
+    min-width: 48px;
+    padding: 0 var(--s-4);
+    font-size: var(--fs-body);
+  }
+
+  /* Ancho completo y alto cero: obliga a que la leche se quede sola en la
+     primera fila, sin depender de cuánto mida cada palabra. */
+  .extras__salto {
+    display: block;
+    flex: 0 0 100%;
+    height: 0;
   }
 
   /* **Tres** columnas, y esto no es estética: con dos, las catorce bebidas

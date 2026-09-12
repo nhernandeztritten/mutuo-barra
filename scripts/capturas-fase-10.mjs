@@ -224,8 +224,15 @@ linea(/^Café restante: .+ % de la carga$/.test(medidor), `el medidor de café d
 // Una bebida sin ningún modificador lo dice.
 await page.locator('.tile-grid .tile', { hasText: /^Filtro/ }).click();
 await page.waitForTimeout(150);
-const sinExtras = await page.evaluate(() => document.querySelector('.extras')?.textContent?.trim() ?? '');
-linea(sinExtras === 'Filtro· sin extras', `una bebida sin extras lo dice: «${sinExtras}»`);
+// En móvil el nombre de la bebida vive en el rótulo de encima (fase 11); por
+// encima del corte sigue dentro de la fila.
+const sinExtras = await page.evaluate(
+  () =>
+    document.querySelector('.extras__rotulo')?.textContent?.trim() ??
+    document.querySelector('.extras')?.textContent?.trim() ??
+    '',
+);
+linea(sinExtras === 'Filtro · sin extras', `una bebida sin extras lo dice: «${sinExtras}»`);
 await captura(page, 'filtro-sin-extras-en-la-fila-de-arriba');
 
 // Y la Tapa no está en ningún sitio.

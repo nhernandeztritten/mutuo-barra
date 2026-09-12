@@ -2,7 +2,7 @@
  * Piezas de la barra: ticket, hoja lateral de una línea y hoja de cobro.
  * Separadas de `routes/barra.tsx` para que cada archivo se lea de una sentada.
  */
-import type { RefObject } from 'preact';
+import type { ComponentChildren, RefObject } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Minus, Plus, Undo2 } from 'lucide-preact';
 import { applyModifiers } from '../domain/modifiers';
@@ -17,6 +17,7 @@ import type {
 } from '../data/types';
 import { Button, Chip, Sheet, useHoja } from './components';
 import { CHIP_LABEL, PAGO_LABEL } from './etiquetas';
+import { esMovil } from './layout';
 import { VOID_MANUAL } from './motivos';
 import { fraseDePartes, haceTexto, type UltimoPedido } from './ultimos';
 import {
@@ -89,13 +90,23 @@ export interface ExtrasRowProps {
 }
 
 /**
- * La fila de 56 px, ahora **postfija y contextual**: enseña los extras de la
- * última bebida tocada, no un prefijo que armar antes.
+ * Los extras de la bebida actual: **postfijos y contextuales**, los de la
+ * última bebida tocada y no un prefijo que armar antes.
  *
  * Consecuencia buscada: un extra que no aplica ya no se muestra, así que el
  * barista no puede armar algo que se va a ignorar y la sacudida del chip
  * sobra. Cada grupo se pinta como lo que es: la leche, opción única en un
  * segmento; el café, un solo interruptor «Desca»; los extras, interruptores.
+ *
+ * Dos disposiciones, una por aparato:
+ *
+ * - **iPad** (> 560 px): la fila de 56 px de siempre, con el nombre de la
+ *   bebida delante. No cambia nada.
+ * - **Móvil**: el nombre sale de la fila y pasa a un rótulo de una línea
+ *   encima; debajo, los extras **envueltos en dos filas** de 44 px —la leche
+ *   primero, que es lo que más se pide, y el resto detrás—. Nicolas tenía que
+ *   desplazar la fila a lo ancho para llegar a «Sirope», y un extra al que hay
+ *   que desplazarse con la cola delante es un extra que no se pone.
  */
 export function ExtrasRow({
   actual,
@@ -106,19 +117,29 @@ export function ExtrasRow({
   ayuda,
   onToggle,
 }: ExtrasRowProps) {
+  const movil = esMovil.value;
   const bloques = useMemo(
     () => (product ? gruposDe(product, groups, options) : []),
     [product, groups, options],
   );
 
+  const pista = oneTap
+    ? 'Toca una bebida: se sirve al momento y sus extras salen aquí'
+    : 'Toca una bebida; sus extras salen aquí';
+
   if (!actual || !product) {
+    // En móvil el rótulo ocupa el sitio de la fila y las filas de extras no se
+    // dibujan: sin bebida no hay nada que poner ni que quitar.
+    if (movil) {
+      return (
+        <div class="extras-zona extras-zona--vacia">
+          <p class="extras__rotulo">{pista}</p>
+        </div>
+      );
+    }
     return (
       <div class="extras extras--vacia">
-        <p class="extras__pista">
-          {oneTap
-            ? 'Toca una bebida: se sirve al momento y sus extras salen aquí'
-            : 'Toca una bebida; sus extras salen aquí'}
-        </p>
+        <p class="extras__pista">{pista}</p>
       </div>
     );
   }
@@ -126,56 +147,102 @@ export function ExtrasRow({
   const marcada = (option: ModifierOption): boolean =>
     isOptionActive(actual.optionIds, option, options);
 
+  /**
+   * Los controles, en orden, con un salto de línea detrás del segmento de la
+   * leche cuando la disposición envuelve. El salto es un elemento de ancho
+   * completo y alto cero: con `flex-wrap`, obliga a que lo siguiente empiece
+   * abajo, sin depender de cuánto mida cada palabra.
+   */
+  const piezas: ComponentChildren[] = [];
+  bloques.forEach(({ group, options: groupOptions }, indice) => {
+    const porDefecto = groupOptions.filter((o) => o.isDefault);
+    const resto = groupOptions.filter((o) => !o.isDefault);
+
+    // Un grupo de opción única con un solo cambio posible («Normal» o
+    // «Descafeinado») no necesita segmento: es un interruptor.
+    if (group.type === 'single' && porDefecto.length === 1 && resto.length === 1) {
+      const option = resto[0]!;
+      piezas.push(
+        <Chip key={option.id} armed={marcada(option)} onClick={() => onToggle(option)}>
+          {CHIP_LABEL[option.id] ?? option.name}
+        </Chip>,
+      );
+      return;
+    }
+
+    if (group.type === 'single') {
+      piezas.push(
+        <div class="seg" role="group" aria-label={group.name} key={group.id}>
+          {groupOptions.map((option) => (
+            <button
+              type="button"
+              class="seg__opt"
+              key={option.id}
+              aria-pressed={marcada(option)}
+              onClick={() => onToggle(option)}
+            >
+              {CHIP_LABEL[option.id] ?? option.name}
+            </button>
+          ))}
+        </div>,
+      );
+      if (movil && indice < bloques.length - 1) {
+        piezas.push(<span class="extras__salto" key={`salto-${group.id}`} aria-hidden="true" />);
+      }
+      return;
+    }
+
+    for (const option of groupOptions) {
+      piezas.push(
+        <Chip key={option.id} armed={marcada(option)} onClick={() => onToggle(option)}>
+          {CHIP_LABEL[option.id] ?? option.name}
+        </Chip>,
+      );
+    }
+  });
+
+  if (movil) {
+    return (
+      <div class="extras-zona">
+        {/* Una línea, pequeña y truncada si hace falta: el nombre de la bebida
+            es contexto, no un control, y en la fila se comía el sitio de los
+            extras. */}
+        <p class="extras__rotulo">
+          {bloques.length === 0 ? (
+            // Cuatro bebidas se quedaron sin ningún modificador al retirarse la
+            // Tapa. Un rótulo con el nombre y nada más se lee como algo que
+            // todavía está cargando; decirlo cierra la pregunta de un vistazo.
+            <>
+              <span class="extras__bebida">{actual.productName}</span> · sin extras
+            </>
+          ) : (
+            <>
+              Extras de: <span class="extras__bebida">{actual.productName}</span>
+              {ayuda ? ` · ${ayuda}` : ''}
+            </>
+          )}
+        </p>
+        {bloques.length > 0 ? (
+          <div
+            class="extras extras--envuelta"
+            role="group"
+            aria-label={`Extras de ${actual.productName}`}
+          >
+            {piezas}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div class="extras" role="group" aria-label={`Extras de ${actual.productName}`}>
       <span class="extras__bebida">{actual.productName}</span>
-      {/* Cuatro bebidas se quedaron sin ningún modificador al retirarse la
-          Tapa. Una fila con el nombre y nada más se lee como algo que todavía
-          está cargando; decirlo cierra la pregunta de un vistazo. */}
       {bloques.length === 0 ? <span class="extras__pista">· sin extras</span> : null}
       {/* Va pegado al nombre y no al final: la fila se desplaza a lo ancho y
           cualquier cosa detrás del último extra se sale de la vista. */}
       {ayuda ? <span class="extras__ayuda">· {ayuda}</span> : null}
-
-      {bloques.map(({ group, options: groupOptions }) => {
-        const porDefecto = groupOptions.filter((o) => o.isDefault);
-        const resto = groupOptions.filter((o) => !o.isDefault);
-
-        // Un grupo de opción única con un solo cambio posible («Normal» o
-        // «Descafeinado») no necesita segmento: es un interruptor.
-        if (group.type === 'single' && porDefecto.length === 1 && resto.length === 1) {
-          const option = resto[0]!;
-          return (
-            <Chip key={option.id} armed={marcada(option)} onClick={() => onToggle(option)}>
-              {CHIP_LABEL[option.id] ?? option.name}
-            </Chip>
-          );
-        }
-
-        if (group.type === 'single') {
-          return (
-            <div class="seg" role="group" aria-label={group.name} key={group.id}>
-              {groupOptions.map((option) => (
-                <button
-                  type="button"
-                  class="seg__opt"
-                  key={option.id}
-                  aria-pressed={marcada(option)}
-                  onClick={() => onToggle(option)}
-                >
-                  {CHIP_LABEL[option.id] ?? option.name}
-                </button>
-              ))}
-            </div>
-          );
-        }
-
-        return groupOptions.map((option) => (
-          <Chip key={option.id} armed={marcada(option)} onClick={() => onToggle(option)}>
-            {CHIP_LABEL[option.id] ?? option.name}
-          </Chip>
-        ));
-      })}
+      {piezas}
     </div>
   );
 }
