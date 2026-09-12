@@ -2926,7 +2926,10 @@
     height: 4px;
     margin-inline-start: -18px;
     border-radius: var(--r-pill);
-    background: var(--line);
+    /* `--ink-3` y no `--line`: en noche la línea sobre la hoja se queda en
+       1,4:1 y el indicador desaparece justo cuando la pantalla es lo más
+       brillante del recinto. Con 4 × 36 px sigue siendo discreto. */
+    background: var(--ink-3);
     /* Desde el asa se arrastra siempre, sin pelear con el desplazamiento. */
     touch-action: none;
   }
