@@ -384,8 +384,13 @@ for (const viewport of [IPHONE, IPHONE_SAFE]) {
     return {
       texto: document.querySelector('.ticket-bar__label')?.textContent?.trim() ?? '',
       fuente: parseFloat(getComputedStyle(document.querySelector('.ticket-bar__label')).fontSize),
-      // Una línea de verdad: nada de envolver, y con elipsis si no cabe.
-      unaLinea: Math.round(texto.getBoundingClientRect().height) <= 26,
+      // Una línea de verdad: nada de envolver, y con elipsis si no cabe. Se
+      // mide contra su propio interlineado y no contra un número fijo: el
+      // rótulo mide 18 px cuando dice «Pedido actual» y 16 cuando enseñaba el
+      // último pedido, y dos números fijos serían dos maneras de olvidarse.
+      unaLinea:
+        texto.getBoundingClientRect().height <=
+        (parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5) + 1,
       conElipsis: cs.textOverflow === 'ellipsis' && cs.whiteSpace === 'nowrap',
       altoBarra: Math.round(barra.getBoundingClientRect().height),
       // Y el botón de servir sigue entero dentro de la pantalla.
@@ -393,12 +398,19 @@ for (const viewport of [IPHONE, IPHONE_SAFE]) {
       botonAncho: Math.round(boton.getBoundingClientRect().width),
     };
   });
+  // **Cambiado en la fase 13** y a propósito. La decisión 111 puso el último
+  // pedido servido en esta barra porque el hueco de encima estaba vacío. Desde
+  // que la tira enseña ahí los pedidos servidos (decisión 124), decirlo en los
+  // dos sitios es decirlo una vez de más, y la barra vuelve a «Pedido actual
+  // (0)». Lo que la fase 11 medía —una línea, 15-16 px, elipsis, la barra en
+  // sus 72 px y el botón entero— se sigue midiendo aquí; quién enseña el último
+  // pedido lo comprueba `npm run capturas:servidos`.
   linea(
-    /^Último · \d{2}:\d{2} ·/.test(ultimo.texto),
-    `${etiqueta}: con el pedido vacío, la barra enseña el último servido — «${ultimo.texto}»`,
+    /^Pedido actual \(0\)/.test(ultimo.texto),
+    `${etiqueta}: con el pedido vacío la barra no repite lo que dice la tira — «${ultimo.texto}»`,
   );
   linea(
-    ultimo.fuente >= 15 && ultimo.fuente <= 16,
+    ultimo.fuente >= 15 && ultimo.fuente <= 18,
     `${etiqueta}: y lo dice a ${String(ultimo.fuente)} px`,
   );
   linea(
@@ -409,11 +421,11 @@ for (const viewport of [IPHONE, IPHONE_SAFE]) {
     ultimo.botonDentro && ultimo.altoBarra <= 80,
     `${etiqueta}: la barra sigue midiendo ${String(ultimo.altoBarra)} px y el botón de servir cabe entero (${String(ultimo.botonAncho)} px)`,
   );
-  await captura(page, `${sufijo}-la-barra-de-abajo-con-el-ultimo-pedido-servido`);
+  await captura(page, `${sufijo}-la-barra-de-abajo-sin-repetir-el-ultimo-pedido`);
   await revisa(page, `${etiqueta} · con el último pedido`);
 
-  // Tocarlo abre la hoja con ese pedido desplegado.
-  await page.locator('.ticket-bar__label').click();
+  // Y el último pedido servido sigue a un toque, ahora desde la tira.
+  await page.locator('.tira--servidos .tira__pedido').last().click();
   await page.waitForTimeout(500);
   const desplegado = await page.evaluate(() => {
     const fila = document.querySelector('.ticket--sheet .ultimos__fila');

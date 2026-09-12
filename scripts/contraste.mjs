@@ -214,6 +214,43 @@ const PARES = [
     bgTinteAlpha: 0.14,
     nota: 'el progreso tiñe el fondo por debajo del texto',
   },
+  // --- Fase 13: los dos estados de la tira ---
+  {
+    id: 'rótulo del estado de la tira',
+    fg: '--ink-3',
+    bg: '--bg',
+    nota: '«Pedido actual» / «Ya servidos», 15 px',
+  },
+  {
+    id: 'línea del pedido en la tira',
+    fg: '--ink',
+    bg: '--surface',
+    nota: 'el estado vivo, tarjeta blanca, 16 px',
+  },
+  {
+    id: 'pedido servido en la tira',
+    fg: '--ink-2',
+    bg: '--bg',
+    nota: '«Cortado, Latte» sobre el fondo de la página, 16 px',
+  },
+  {
+    id: 'hora de un pedido servido en la tira',
+    fg: '--ink-3',
+    bg: '--bg',
+    nota: '«12:41» tabular delante de la frase, 16 px',
+  },
+  {
+    id: 'pedido servido con la fila pulsada',
+    fg: '--ink-2',
+    bg: '--surface-2',
+    nota: 'el fondo de pulsación de la fila entera',
+  },
+  {
+    id: 'hora con la fila pulsada',
+    fg: '--ink-3',
+    bg: '--surface-2',
+    nota: 'la hora es lo que menos contraste tiene de la fila',
+  },
 ];
 
 function medir(tema, nombreTema) {
