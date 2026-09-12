@@ -1762,3 +1762,155 @@ medida de la cabecera y es un objetivo que se usa en cada pedido. Lo mide
 **Sigue sin arreglar** el enlace «Carta y ajustes» del pie de Eventos (98 × 16 px
 en el iPad, decisión 115): es de una pantalla que no es la barra y sigue
 apuntado como `NOTA` en cada pasada de `capturas:peticiones`.
+
+---
+
+## 12/09/2026 · Fase 13 — la tira tiene dos estados
+
+La petición de Nicolas, textual, después de servir con ella:
+
+> «Una vez realizado el pedido, me gustaría que se viera directamente dónde se
+> iban acumulando los pedidos. De forma que si me olvido de algo, a simple
+> vista pueda repasarlo. Como arribita de donde sale hacer pedido, que queda un
+> espacio. Ver la forma para que quede bien.»
+
+### 123. La tira tiene dos estados, y siempre dice cuál está enseñando
+
+La tira de la fase 12 se dibujaba solo con el pedido a medias. Servido el
+pedido desaparecía y el hueco volvía a estar vacío justo en el momento en el
+que el barista levanta la cabeza y se pregunta qué acaba de servir.
+
+Ahora, en el mismo sitio y con el mismo presupuesto vertical medido:
+
+- **«Pedido actual»**: las líneas que se están montando, con su «×» y su
+  «Deshacer». Es la fase 12 sin tocar.
+- **«Ya servidos»**: con el pedido vacío, los pedidos servidos.
+
+Lo que **no** se hace es dejar que la misma caja cambie de significado sin
+avisar. Una tira que un segundo enseña lo que vas a servir y al siguiente lo que
+ya serviste, con la misma pinta, no es una ayuda: es una manera de servir dos
+veces el mismo café. Así que la tira **se nombra a sí misma**, siempre, en los
+dos estados y en el mismo sitio: un rótulo de 15 px en `--ink-3` encima de la
+lista. Lo que cambia entre estados es la palabra, no el sitio ni el tamaño.
+
+El color **acompaña, no manda**: el estado vivo es una tarjeta blanca
+(`--surface`) con el texto en tinta; la historia no es una tarjeta —se hunde en
+el fondo de la página (`--bg`) y se marca con un filo de 1 px— y el texto baja a
+`--ink-2`. El filo va en `box-shadow: inset` y no en `border` porque un borde de
+verdad sumaría 2 px al alto y la cuenta de ranuras va al píxel (la misma razón
+por la que la línea de la cabecera de una hoja es una sombra, decisión 120).
+
+Con el pedido vacío y **nada servido** no se dibuja nada: una caja vacía en el
+hueco no dice nada. En el **iPad** tampoco existe ninguno de los dos: allí el
+pedido y «Últimos pedidos» ya están enteros en la columna de 360 px.
+
+### 124. «Ya servidos»: la hora delante y ninguna «×»
+
+Cada fila es un pedido: la **hora** en tabular `--ink-3` y la frase del pedido
+detrás —«Latte · avena, 2 × Cortado»—, cortada con elipsis antes que empujar
+nada. La hora no es decoración: es lo que contesta «¿este es el de hace un
+momento o el de hace media hora?» sin restar de cabeza, y de paso es la señal de
+contenido —no de color— de que eso ya pasó.
+
+- **El más reciente abajo**, pegado a la barra, el mismo criterio que el otro
+  estado: lo último es lo que se mira.
+- **Tocar una fila** abre la hoja del pedido con **ese** pedido desplegado en
+  «Últimos pedidos», donde están Repetir, Editar y Anular. Es el gesto que ya
+  existía en la barra de abajo (decisión 111), movido a su fila.
+- **Sin «×»**. En «Pedido actual» la «×» quita una línea de algo que todavía no
+  existe y tiene ocho segundos de red. Aquí quitar sería **anular un pedido
+  servido**: eso cambia el contador, el medidor y el coste del evento, y se
+  queda donde está, en la hoja, con su «Deshacer» y su motivo. Una fila de
+  «×» de 44 px a un dedo de distancia de las bebidas es una anulación por
+  accidente esperando a que haya cola.
+- **«+N más · ver todo»** cuando hay más pedidos que filas, igual que en el otro
+  estado y abriendo la misma hoja.
+
+### 125. El rótulo cuesta 14 px, y catorce es una cifra medida
+
+El rótulo sale del hueco, que es lo único que la tira tiene. Medido en el
+navegador (`npm run capturas:servidos`), el presupuesto de la tira:
+
+| | 402 × 874 | 402 × 781 (el iPhone instalado) |
+|---|---|---|
+| «Pedido actual» (con una bebida elegida) | **103 px** | **62 px** |
+| «Ya servidos» (con el pedido vacío) | **211 px** | **170 px** |
+
+La diferencia no es un error: con el pedido vacío **el bloque de extras se
+repliega** —de 104 px a la línea «Toca una bebida; sus extras salen aquí»
+(decisión 110)— y deja 108 px libres. Por eso «Ya servidos» puede enseñar tres
+filas donde «Pedido actual» enseña una o dos.
+
+Y por eso el rótulo se mide contra el estado apretado, que es «Pedido actual»:
+
+- Con un rótulo de **20 px**, a 402 × 874 la tira se quedaría en una fila en vez
+  de dos, y a 402 × 781 se pasaría **2 px** del hueco: empujaría el grid, que es
+  la única cosa que la tira no puede hacer.
+- Con **14 px** entran exactamente las mismas filas que antes de esta fase en los
+  dos tamaños. Son 15 px de letra en una caja de 14 —una línea de rótulo, sin
+  aire que regalar— y la comprobación de que ningún texto baja de 15 px sigue en
+  verde, porque lo que se mide ahí es el tamaño de la letra.
+
+Para que los 14 px cupieran hizo falta además que **la tira dejara de pagar
+hueco de columna**: `.tira` lleva un margen negativo de `--work-gap` (8 px, 6 en
+pantallas bajas) y su rótulo hace de separación. El efecto que mide el hueco
+cuenta con ello y por eso ya no resta la separación.
+
+**Lo medido, con las catorce bebidas:**
+
+| | 402 × 874 | 402 × 781 |
+|---|---|---|
+| «Pedido actual», 2 líneas | 103 px de tira (2 filas) · holgura **0** | 58 px (1 fila) · holgura **4** |
+| «Ya servidos», 1 pedido | 58 px (1 fila) · holgura 153 | 58 px (1 fila) · holgura 112 |
+| «Ya servidos», 3 pedidos | 148 px (3 filas) · holgura 63 | 148 px (3 filas) · holgura 22 |
+| «Ya servidos», lleno | 192 px (3 filas + «+4 más») · holgura 19 | 147 px (2 filas + «+5 más») · holgura 23 |
+
+En los cuatro casos y en los dos tamaños, la última bebida se queda en el mismo
+píxel (687 y 635 px montando, 579 y 527 con el pedido vacío) y
+`scrollHeight === clientHeight` en el grid **y** en la página. El caso apretado
+es «Pedido actual» con dos líneas a 402 × 874: **0 px de holgura**, el rótulo
+pegado a la última fila de bebidas. Cabe y no empuja nada —está medido—, pero es
+el sitio por donde esto se rompe primero si la carta crece o el rótulo engorda.
+
+### 126. La barra de abajo deja de repetir el último pedido
+
+La decisión 111 puso «Último · 12:41 · Latte · avena, 2 × Cortado» en la barra
+de abajo porque el hueco de encima estaba vacío. Ya no lo está. Decir lo mismo
+dos veces a 44 px de distancia no es insistir, es gastar la única línea que
+tiene la barra.
+
+Así que la barra vuelve a **«Pedido actual (0)» / «Toca una bebida»** y el
+último pedido lo cuenta la tira, que además enseña los tres anteriores.
+
+**El texto de «Último …» se queda como recurso**, no como norma: sale cuando no
+lo cuenta nadie más. Hoy eso es una pantalla donde la tira no cabe ni con su
+rótulo y una fila —`cabeLaTira`, 58 px— y el caso de no haber servido nada
+todavía, donde la barra sigue diciendo «Sin pedidos todavía». Medido: en los dos
+tamaños de verdad la tira cabe de sobra, así que el recurso no se usa; está
+escrito para el iPhone que no tenemos delante.
+
+### 127. Un concepto, un nombre: «Pedido actual» y «Ya servidos»
+
+El encargo proponía «En el pedido» / «Servidos». Se cambian los dos, y por el
+mismo motivo:
+
+- **«Pedido actual»** y no «En el pedido»: el pedido en curso se llama «Pedido
+  actual» en la barra de abajo, en la cabecera de la hoja y en el ticket del
+  iPad. `DESIGN.md` lo dice —«un concepto, un nombre»— y `UX-REVISION-2 §2`
+  arregló exactamente este fallo hace dos fases. Que el rótulo repita el nombre
+  de la barra que tiene justo debajo no es redundancia: es la misma cosa
+  llamándose igual a 44 px de distancia.
+- **«Ya servidos»** y no «Servidos»: la cabecera de la barra cuenta «8
+  **servidas**», que son bebidas, y estas filas son **pedidos**. «Ya» hace el
+  trabajo temporal de un vistazo y no se confunde con la cifra de arriba.
+
+### 128. En el modo Rápido no se toca, y queda apuntado
+
+En Rápido cada toque sirve y no hay pedido que montar, así que el hueco está
+libre todo el rato y el estado «Ya servidos» encajaría ahí mejor que en ningún
+otro sitio: es el modo donde más fácil es perder la cuenta.
+
+No se cambia hoy: el modo Rápido tiene su propia manera de contar lo servido
+—la fila de extras sigue editando el último pedido durante ocho segundos— y
+mezclar las dos cosas sin medirlo es cambiar un modo que funciona la víspera de
+un evento. Queda escrito como propuesta en `docs/UX-REVISION-2.md`.

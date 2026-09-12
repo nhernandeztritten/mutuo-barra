@@ -140,6 +140,30 @@ decir lo mismo. Lo importante, que las dos se puedan deshacer, ya está (hallazg
 
 ---
 
+### G · Propuesta (12/09, fase 13) — «Ya servidos» también en el modo Rápido
+
+La fase 13 da a la tira un segundo estado: con el pedido vacío enseña los
+pedidos ya servidos. **En el modo Rápido no se dibuja**, y ahí es justo donde
+más falta haría: en Rápido cada toque sirve, el pedido siempre está vacío, el
+hueco está libre todo el rato y no hay ticket donde repasar nada. Es el modo en
+el que es más fácil perder la cuenta de lo que acabas de servir.
+
+No se cambia en la fase 13 por dos motivos, los dos de prudencia: el modo Rápido
+ya tiene su propia manera de contar lo servido —la fila de extras sigue editando
+el último pedido durante los ocho segundos que vive su «Deshacer» (SPEC §3.2
+regla 6)— y habría que medir si las dos cosas conviven sin que una fila de la
+tira contradiga lo que la fila de extras está editando.
+
+Lo que habría que medir antes de hacerlo:
+
+- El presupuesto vertical en Rápido, que **no** es el de la fase 13: allí el
+  bloque de extras **sí** está desplegado mientras vive el «Deshacer» del último
+  pedido, así que el hueco oscila entre 211 px y 103 px (a 402 × 874) cada ocho
+  segundos. Una tira que cambia de tamaño sola, con la cola delante, es
+  exactamente lo que la decisión 118 no quiere.
+- Si la fila que se está editando debe marcarse en la tira, y cómo, sin usar el
+  fondo `--surface-2`, que ahí significa otra cosa.
+
 ## Lo que no se ha tocado a propósito
 
 - **La navegación de `UX-REVISION-1`**: tres entradas, el ciclo de cuatro pasos,
