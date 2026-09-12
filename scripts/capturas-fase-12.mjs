@@ -49,7 +49,7 @@ async function captura(page, nombre) {
   await page.screenshot({ path: `${CAPTURAS}/${String(n).padStart(2, '0')}-${nombre}.png` });
 }
 
-async function abrir(viewport, movil = true) {
+async function abrir(viewport, movil = true, movimiento = 'no-preference') {
   const browser = await chromium.launch();
   const context = await browser.newContext({
     ...(movil ? devices['iPhone 15 Pro'] : {}),
@@ -60,6 +60,7 @@ async function abrir(viewport, movil = true) {
     hasTouch: movil,
     locale: 'es-ES',
     timezoneId: 'Europe/Madrid',
+    reducedMotion: movimiento === 'reduce' ? 'reduce' : 'no-preference',
   });
   const page = await context.newPage();
   const errores = [];
@@ -413,6 +414,45 @@ for (const viewport of [IPHONE, IPHONE_SAFE]) {
   );
   linea(page.errores.length === 0, `${etiqueta}: sin errores de consola${page.errores.length ? ` — ${page.errores.join(' | ')}` : ''}`);
 
+  await browser.close();
+}
+
+/* ================= Con el movimiento reducido ================= */
+
+{
+  const etiqueta = 'iPhone 402 × 781 · movimiento reducido';
+  console.log(`\n=== ${etiqueta} ===\n`);
+  const { browser, page } = await abrir(IPHONE_SAFE, true, 'reduce');
+  await abrirBarra(page, 'Boda sin movimiento');
+  await page.locator('.barra__count').click();
+  await page.waitForSelector('[role="dialog"][aria-label="Resumen"]');
+  await page.waitForTimeout(500);
+
+  // La hoja **no** sigue al dedo: se cierra al soltar si el recorrido pasó del
+  // umbral, y por el camino no se mueve nada.
+  const punto = await page.evaluate(() => {
+    const r = document.querySelector('.sheet .hoja__cabecera').getBoundingClientRect();
+    return { x: Math.round(r.left + 24), y: Math.round(r.top + r.height / 2) };
+  });
+  await page.mouse.move(punto.x, punto.y);
+  await page.mouse.down();
+  const movimientos = [];
+  for (let paso = 1; paso <= 6; paso += 1) {
+    await page.mouse.move(punto.x, punto.y + paso * 25);
+    movimientos.push(await page.evaluate(() => document.querySelector('.sheet')?.style.transform ?? '(cerrada)'));
+    await page.waitForTimeout(16);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  linea(
+    movimientos.every((t) => t === ''),
+    `${etiqueta}: la hoja no sigue al dedo mientras se arrastra (${movimientos.join('|') || 'sin transform'})`,
+  );
+  linea(
+    !(await page.evaluate(() => Boolean(document.querySelector('.sheet')))),
+    `${etiqueta}: y al soltar, pasado el umbral, se cierra igual`,
+  );
+  await captura(page, '402x781-movimiento-reducido-la-hoja-cerrada-sin-animacion');
   await browser.close();
 }
 
