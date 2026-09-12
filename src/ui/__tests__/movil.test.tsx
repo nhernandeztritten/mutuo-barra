@@ -268,6 +268,129 @@ describe('la barra inferior del pedido', () => {
   });
 });
 
+describe('la tira del pedido en curso', () => {
+  /** Las filas de la tira, en el orden en que se leen. */
+  function filasDeLaTira(): string[] {
+    return [...document.querySelectorAll('.tira__fila .tira__nombre')].map((f) =>
+      (f.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    );
+  }
+
+  function quitar(nombre: string): void {
+    const fila = [...document.querySelectorAll<HTMLButtonElement>('.tira__quitar')].find((b) =>
+      b.getAttribute('aria-label')?.startsWith(`Quitar ${nombre}`),
+    );
+    if (!fila) throw new Error(`No hay «×» de «${nombre}» en la tira`);
+    fireEvent.click(fila);
+  }
+
+  it('con el pedido vacío no se dibuja: el hueco se queda como estaba', async () => {
+    await setupMovil();
+    expect(document.querySelector('.tira')).toBeNull();
+  });
+
+  it('enseña las bebidas en el mismo orden que la hoja, la última abajo', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(filasDeLaTira()).toHaveLength(2));
+    expect(filasDeLaTira()).toEqual(['Cortado', 'Latte']);
+  });
+
+  it('la cantidad va delante y los extras detrás', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(filasDeLaTira()).toEqual(['2 × Cortado']));
+
+    const avena = [...document.querySelectorAll<HTMLButtonElement>('.extras .chip, .extras .seg__opt')].find(
+      (c) => c.textContent?.trim() === 'Avena',
+    );
+    fireEvent.click(avena!);
+    await waitFor(() => expect(filasDeLaTira()).toEqual(['2 × Cortado · avena']));
+  });
+
+  it('la línea actual se marca, y tocar otra la cambia', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(filasDeLaTira()).toHaveLength(2));
+
+    const filas = [...document.querySelectorAll('.tira__fila')];
+    expect(filas[1]?.classList.contains('is-actual')).toBe(true);
+
+    fireEvent.click(filas[0]!.querySelector<HTMLButtonElement>('.tira__nombre')!);
+    await waitFor(() =>
+      expect(document.querySelectorAll('.tira__fila')[0]?.classList.contains('is-actual')).toBe(true),
+    );
+    // La fila de extras pasa a esa bebida: es el mismo gesto que en la hoja.
+    expect(document.querySelector('.extras__rotulo')?.textContent).toContain('Cortado');
+  });
+
+  it('la «×» dice qué quita, y quitarla deja «Deshacer» que la devuelve entera', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(filasDeLaTira()).toHaveLength(1));
+
+    const avena = [...document.querySelectorAll<HTMLButtonElement>('.extras .seg__opt')].find(
+      (c) => c.textContent?.trim() === 'Avena',
+    );
+    fireEvent.click(avena!);
+    await waitFor(() => expect(filasDeLaTira()).toEqual(['Latte · avena']));
+
+    expect(
+      [...document.querySelectorAll('.tira__quitar')].map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Quitar Latte con avena del pedido']);
+
+    quitar('Latte');
+    await waitFor(() => expect(document.querySelector('.tira')).toBeNull());
+    expect(barraInferior()).not.toContain('Pedido actual (1)');
+
+    const aviso = screen.getByText('Quitada 1 Latte');
+    expect(aviso).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Deshacer' }));
+    // Vuelve la línea entera, con su extra: no se pierde lo que costó montar.
+    await waitFor(() => expect(filasDeLaTira()).toEqual(['Latte · avena']));
+  });
+
+  it('con más de una unidad, la «×» quita una y deja la línea', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(filasDeLaTira()).toEqual(['2 × Cortado']));
+
+    quitar('Cortado');
+    await waitFor(() => expect(filasDeLaTira()).toEqual(['Cortado']));
+    expect(barraInferior()).toContain('Pedido actual (1)');
+  });
+
+  it('servido el pedido, el «Deshacer» de lo quitado se retira: no cae en el siguiente', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(filasDeLaTira()).toHaveLength(2));
+
+    quitar('Latte');
+    await waitFor(() => expect(filasDeLaTira()).toEqual(['Cortado']));
+    expect(screen.queryByText('Quitada 1 Latte')).not.toBeNull();
+
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.ticket-bar .btn--action')!);
+    await waitFor(() => expect(screen.queryByText('Quitada 1 Latte')).toBeNull());
+    expect(document.querySelector('.tira')).toBeNull();
+    // Se espera a que el pedido acabe de escribirse: si no, la consulta que
+    // queda en vuelo se estrella contra la base que cierra la prueba siguiente.
+    await waitFor(() => expect(barraInferior()).toContain('Último'));
+  });
+
+  it('en el iPad no existe: ahí el pedido ya está entero en su columna', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(document.querySelector('.tira')).not.toBeNull());
+    esMovil.value = false;
+    await waitFor(() => expect(document.querySelector('.tira')).toBeNull());
+  });
+});
+
 describe('«Empezar de cero» desde la hoja «Más»', () => {
   /** Sirve una bebida y deja otra a medias en el pedido actual. */
   async function servirYDejarAMedias(): Promise<void> {

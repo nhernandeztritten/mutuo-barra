@@ -32,7 +32,7 @@ import { enPausa, eventConsumption, eventStats } from '../domain/stats';
 import { formatInt, formatQty, formatRate, formatTime } from '../domain/format';
 import { Button, HojaAbajo, HojaFila, Sheet, Tile } from '../ui/components';
 import { useIr } from '../ui/navegar';
-import { clearToasts, showToast, TOAST_ACTION_MS } from '../ui/toast';
+import { clearToasts, dismissToast, showToast, TOAST_ACTION_MS } from '../ui/toast';
 import {
   CATEGORY_COLOR,
   ExtrasRow,
@@ -85,6 +85,7 @@ import {
   type TicketLine,
 } from '../ui/ticket';
 import { PanelReinicio } from '../ui/reinicio';
+import { ranurasDe, repartoTira, TIRA_MAX_FILAS, TiraPedido } from '../ui/tira';
 import { barMode, esMovil } from '../ui/layout';
 
 const SERVE_FADE_MS = 180;
@@ -143,6 +144,15 @@ export function Barra() {
   const [now, setNow] = useState(() => new Date());
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const gridRef = useRef<HTMLDivElement>(null);
+  /**
+   * Ranuras de 44 px que caben en el hueco que sobra entre la última bebida y
+   * la barra del pedido. Es una medida del navegador, no un número de diseño:
+   * la tira vive de lo que sobra y nunca empuja el grid (ver `ui/tira.tsx`).
+   * Arranca en el tope: en jsdom no hay layout que medir y ahí manda el diseño.
+   */
+  const [ranuras, setRanuras] = useState(TIRA_MAX_FILAS + 1);
+  /** El aviso de «Quitada 1 Latte» vivo, para poder retirarlo al servir. */
+  const avisoQuitada = useRef<number | null>(null);
 
   /* ---- Ciclo de vida ---- */
 
@@ -174,6 +184,55 @@ export function Barra() {
     },
     [],
   );
+
+  /**
+   * Mide el hueco que le queda a la tira del pedido.
+   *
+   * Se mide contra **el borde inferior de la última bebida**, no con
+   * `scrollHeight − clientHeight`: esa resta nunca baja de cero y da siempre la
+   * misma respuesta, diga lo que diga el diseño (trampa aprendida en la fase 9).
+   *
+   * La cuenta suma de vuelta lo que la tira ya está ocupando, así que el número
+   * no depende de si la tira está puesta o no: sin eso, la tira se mediría a sí
+   * misma y el valor oscilaría entre dos tamaños en cada repintado.
+   */
+  useEffect(() => {
+    if (!esMovil.value) return;
+    const grid = gridRef.current;
+    const work = grid?.parentElement;
+    if (!grid || !work) return;
+    let pendiente = 0;
+
+    const medir = (): void => {
+      pendiente = 0;
+      // Sin layout (jsdom) no hay nada que medir: manda el valor de diseño.
+      if (grid.clientHeight === 0) return;
+      const tiles = grid.querySelectorAll('.tile');
+      const ultima = tiles[tiles.length - 1];
+      if (!ultima) return;
+      const relleno = Number.parseFloat(getComputedStyle(grid).paddingBlockEnd) || 0;
+      const hueco = grid.getBoundingClientRect().bottom - relleno - ultima.getBoundingClientRect().bottom;
+      const tira = work.querySelector('.tira');
+      const separacion = Number.parseFloat(getComputedStyle(work).rowGap) || 0;
+      const libre = hueco + (tira ? tira.getBoundingClientRect().height + separacion : 0) - separacion;
+      setRanuras(ranurasDe(libre));
+    };
+
+    const alCambiar = (): void => {
+      if (pendiente === 0) pendiente = requestAnimationFrame(medir);
+    };
+
+    medir();
+    const observador = typeof ResizeObserver === 'function' ? new ResizeObserver(alCambiar) : null;
+    observador?.observe(work);
+    observador?.observe(grid);
+    addEventListener('resize', alCambiar);
+    return () => {
+      observador?.disconnect();
+      removeEventListener('resize', alCambiar);
+      if (pendiente !== 0) cancelAnimationFrame(pendiente);
+    };
+  }, [esMovil.value]);
 
   function later(fn: () => void, ms: number): void {
     timers.current.push(setTimeout(fn, ms));
@@ -456,6 +515,13 @@ export function Barra() {
   async function serveTicket(payment: PaymentResult | null): Promise<void> {
     const toServe = lines;
     if (toServe.length === 0) return;
+    // El «Deshacer» de una bebida quitada apunta al pedido que se está
+    // sirviendo. Pasado este punto ese pedido ya no existe, y devolverle una
+    // línea sería meterla en el siguiente: el aviso se retira aquí.
+    if (avisoQuitada.current !== null) {
+      dismissToast(avisoQuitada.current);
+      avisoQuitada.current = null;
+    }
     // Se captura antes de vaciar: `clearTicket` cierra también la corrección.
     const corrige = editando;
     setFading(toServe);
@@ -487,6 +553,31 @@ export function Barra() {
     // la corrección se monta entera y se confirma con «Servir».
     if (rapido) void serve([line], null);
     else setCurrentLineId(addLine(line));
+  }
+
+  /**
+   * La «×» de la tira: quita esa línea del pedido en curso —una unidad si hay
+   * más de una— y ofrece «Deshacer» ocho segundos.
+   *
+   * Se guarda **la línea entera**, no su id: si era la última unidad, la línea
+   * deja de existir y deshacer tiene que poder reconstruirla con sus extras, su
+   * nota y su coste. `restoreTicket` la devuelve y, si entretanto volvió a
+   * haber una igual, las funde, que es lo mismo que hace añadirla a mano.
+   */
+  function quitarLinea(line: TicketLine): void {
+    const devuelta: TicketLine = { ...line, qty: 1 };
+    setQty(line.id, line.qty - 1);
+    // Quitada la última unidad, el id ya no existe: manda la última que quede.
+    if (line.qty <= 1) setCurrentLineId(null);
+    const id = showToast(`Quitada 1 ${line.productName}`, {
+      label: 'Deshacer',
+      onAction: () => {
+        avisoQuitada.current = null;
+        restoreTicket([devuelta]);
+        setCurrentLineId(null);
+      },
+    });
+    avisoQuitada.current = id;
   }
 
   /* ---- Cabecera ---- */
@@ -641,6 +732,15 @@ export function Barra() {
    */
   const ultimo = ultimos[0] ?? null;
   const verUltimo = esMovil.value && !pausado && !editando && !rapido && drinks === 0;
+
+  /**
+   * La tira del pedido en curso. Solo en el móvil: en el iPad el pedido ya está
+   * entero en su columna de 360 px y ahí no falta nada. Con el pedido vacío no
+   * se dibuja —una caja vacía en el hueco no dice nada— y el hueco se queda
+   * como estaba.
+   */
+  const verTira = esMovil.value && lines.length > 0;
+  const reparto = repartoTira(lines.length, ranuras);
 
   /**
    * Servir (o cobrar). Corrigiendo en modo venta y con el **mismo total**, no
@@ -897,6 +997,22 @@ export function Barra() {
               ))}
             </div>
           </div>
+
+          {/* El pedido en curso, a la vista sobre la barra. Va **después** del
+              grid y no antes: así el ojo lo encuentra pegado a la barra del
+              pedido, que es donde se mira al servir, y el grid no se mueve ni
+              un píxel cuando la tira aparece o desaparece. */}
+          {verTira ? (
+            <TiraPedido
+              lineas={lines}
+              filas={reparto.filas}
+              sobran={reparto.sobran}
+              currentLineId={currentLine?.id ?? null}
+              onSelect={(line) => setCurrentLineId(line.id)}
+              onQuitar={quitarLinea}
+              onVerTodo={() => setSheetOpen(true)}
+            />
+          ) : null}
         </div>
 
         <TicketPanel {...ticketProps} />

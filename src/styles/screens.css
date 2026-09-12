@@ -2451,6 +2451,12 @@
   display: none;
 }
 
+/* La tira del pedido en curso es del móvil: en el iPad el pedido entero está
+   en su columna de 360 px y repetirlo debajo del grid sería decirlo dos veces. */
+.tira {
+  display: none;
+}
+
 /* ================= Móvil (≤ 560 px): un iPhone detrás de la barra =================
 
    Todo lo de esta sección vale **solo** por debajo del corte. El iPad está en
@@ -2710,6 +2716,138 @@
     font-size: var(--fs-meta);
   }
 
+  /* En el móvil el grid no se desplaza nunca —las catorce bebidas caben de una,
+     que es de lo que va el grid de tres columnas—, así que la cola de
+     desplazamiento de 8 px es hueco muerto. Devolverlo es lo que hace que a
+     402 × 874 quepan dos filas de la tira en vez de una. */
+  .grid-wrap {
+    padding-block-end: 0;
+  }
+
+  /* ---- La tira del pedido en curso ----
+
+     Ocupa el hueco que ya sobraba entre la última bebida y la barra del
+     pedido. `flex: none` y el grid con `flex: 1 1 auto`: el grid cede de abajo
+     —donde no hay ninguna bebida— y los tiles no se mueven ni un píxel. Cuántas
+     filas caben lo mide la barra y lo escribe en `--tira-filas`. */
+  .tira {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    /* Sin hueco entre el rótulo y la lista a propósito: la cuenta de ranuras
+       de `ui/tira.tsx` va en múltiplos de 45 px y un hueco suelto de 4 px la
+       desborda justo lo suficiente para comerse la última fila de bebidas. */
+    gap: 0;
+    min-width: 0;
+  }
+
+  /* «+3 más · ver todo»: abre la hoja del pedido. Es texto, no una píldora —lo
+     que importa aquí son las bebidas—, pero con sus 44 px de objetivo. */
+  .tira__mas {
+    display: flex;
+    align-items: center;
+    min-height: var(--h-step);
+    padding-inline: var(--s-2);
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: var(--fs-meta);
+    font-weight: 600;
+    text-align: start;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Se desplaza aquí dentro, nunca la página. `--tira-filas` lo pone la barra
+     con el hueco medido en el navegador. */
+  .tira__lista {
+    max-height: calc(var(--tira-filas, 4) * 45px - 1px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    border-radius: var(--r-chip);
+    background: var(--surface);
+  }
+
+  .tira__lista::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tira__fila {
+    display: flex;
+    align-items: center;
+    min-height: var(--h-step);
+    border-block-end: 1px solid var(--line);
+  }
+
+  .tira__fila:last-child {
+    border-block-end: 0;
+  }
+
+  /* La línea actual, con fondo y el nombre en 600. Nunca una franja lateral:
+     DESIGN.md las prohíbe. */
+  .tira__fila.is-actual {
+    background: var(--surface-2);
+  }
+
+  .tira__fila.is-actual .tira__bebida {
+    font-weight: 600;
+  }
+
+  .tira__nombre {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    min-height: var(--h-step);
+    padding-inline: var(--s-3);
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: var(--fs-body);
+    font-weight: 500;
+    text-align: start;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .tira__qty {
+    flex: none;
+    font-weight: 600;
+  }
+
+  .tira__bebida {
+    flex: none;
+  }
+
+  /* Los extras, en gris: son la aclaración del nombre, no otro nombre. Se
+     cortan antes que empujar a la «×» fuera de la fila. */
+  .tira__mods {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--ink-3);
+    font-weight: 400;
+  }
+
+  .tira__quitar {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--h-step);
+    min-height: var(--h-step);
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    transition: background-color var(--t-press) var(--ease);
+  }
+
+  .tira__quitar:active {
+    background: var(--bg);
+  }
+
   /* El toast lleva «Deshacer», que es un control de verdad: no puede caer
      encima de la barra inferior ni del botón de servir. */
   .toast-layer {
@@ -2864,13 +3002,23 @@
   }
 }
 
-/* ---- Pantallas de móvil bajas (un iPhone SE, 667 px) ----
+/* ---- Pantallas de móvil bajas (≤ 820 px de alto) ----
    En 874 px de alto las cinco filas de 80 entran con holgura; en 667 faltan
    42 px. El orden para recuperarlos lo fija el propio problema: primero el
    alto del tile —72 sigue muy por encima de los 44 de objetivo táctil— y
-   después el hueco entre tiles. El texto no se toca: sigue en 18 px. */
+   después el hueco entre tiles. El texto no se toca: sigue en 18 px.
 
-@media (max-width: 560px) and (max-height: 750px) {
+   **El corte sube de 750 a 820 px en la fase 12.** El iPhone 17 Pro instalado
+   deja 781 px útiles —874 menos 59 de la muesca y 34 de la franja de abajo— y
+   ahí la holgura del grid era de 10 px: no cabía ni una fila de la tira del
+   pedido. Bajar el tile a 72 y el hueco a 6 devuelve ~50 px, que es justo lo
+   que DESIGN.md tenía escrito como primer recurso. Se hace **por tamaño de
+   pantalla y no por si la tira está puesta**: un grid que encoge al tocar la
+   primera bebida mueve los objetivos debajo del dedo, y eso con cola delante
+   es peor que un tile 8 px más bajo. A 874 (Safari con sus barras) no cambia
+   nada: el tile sigue en 80. */
+
+@media (max-width: 560px) and (max-height: 820px) {
   :root {
     --h-tile: 72px;
   }
