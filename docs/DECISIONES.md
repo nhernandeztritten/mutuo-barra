@@ -1397,3 +1397,179 @@ Queda un cabo suelto que no es de copy y está en `UX-REVISION-2`, «Para despu�
 del evento»: esa barra reaparece en Eventos bajo «Próximos · Paso 1 de 4 · listo
 para abrir», sin decir que ya sirvió noventa cafés. El dato está guardado; la
 portada no lo cuenta.
+
+---
+
+## 12/09/2026 · Fase 11 — las cuatro peticiones de Nicolas
+
+> **Nota de numeración**: el encargo de esta sesión hablaba de «116 decisiones»
+> y de seguir desde la 117. En el archivo la última era la **109**, así que
+> estas siguen desde la 110. No hay ningún hueco: las 110-116 nunca existieron.
+
+### 110. En el móvil, todos los extras a la vista en dos filas
+
+Nicolas, probándola el día del evento: «debería poder ver todas las opciones
+arriba de una». La fila de extras llevaba el nombre de la bebida y siete
+controles en 402 px de ancho y se desplazaba a lo ancho: para llegar a «Sirope»
+había que arrastrarla. Un extra al que hay que desplazarse, con la cola delante,
+es un extra que no se pone — y «de avena» y «sin lactosa» son justo los dos que
+más se piden.
+
+Qué se hace, solo por debajo de los 560 px:
+
+- **El nombre de la bebida sale de la fila** y pasa a un rótulo de una línea
+  encima, a 15 px y en `--ink-3`, con el nombre en tinta: «Extras de: **Latte**».
+  Sin bebida dice «Toca una bebida; sus extras salen aquí» y no se dibuja
+  ninguna fila. Sin modificadores, «Filtro · sin extras», que es la frase de la
+  decisión 105 movida de sitio.
+- **Los extras envuelven en dos filas** con `flex-wrap`: arriba el segmento de
+  la leche —Vaca · Avena · Sin lactosa—, abajo Desca · Doble · Iced · Sirope. El
+  salto no se deja al azar: un elemento de ancho completo y alto cero detrás del
+  segmento obliga a que la leche se quede sola, dijeran lo que dijeran los
+  anchos de las palabras.
+- **Chips de 44 px, no de 56**, y texto de 16 px. Dos filas de 56 costarían 24 px
+  más de alto, y ese alto sale del grid de bebidas. 44 sigue siendo el objetivo
+  táctil de `DESIGN.md`.
+
+Medido en el navegador (`npm run capturas:peticiones`):
+
+| | 402 × 874 | 402 × 781 (safe areas fuera) |
+|---|---|---|
+| Bloque de extras | 126 px (antes 56) | 126 px |
+| Alto del tile | 80 px | 80 px |
+| Holgura del grid con las 14 bebidas | **103 px** | **10 px** |
+| `scrollWidth` del bloque de extras | 378 ≤ 378 | 378 ≤ 378 |
+
+Entra a las dos medidas **sin bajar el tile a 72 px**, que era el primer recurso
+previsto. A 402 × 781 quedan 10 px: si la carta creciera, ahí es donde se rompe
+primero. El límite de la decisión 95 —más de 15 bebidas activas y vuelve a haber
+scroll— se estrecha con esto: hoy caben 14 con 10 px de sobra.
+
+**En el iPad no cambia nada**: la fila sigue midiendo 56 px, en una sola línea,
+con el nombre dentro y los chips a 17 px. Medido en los dos giros.
+
+### 111. Con el pedido vacío, la barra de abajo enseña el último servido
+
+«Debajo debería aparecer el último pedido, o para hacer clic y verlo.»
+
+«Pedido actual (0)» no decía nada que el botón de al lado —«Toca una bebida»— no
+dijera ya. En su sitio, y **solo en el móvil y solo con el pedido vacío**, va el
+último pedido servido en una línea: «Último · 12:41 · Latte · avena, 2 ×
+Cortado», a 16 px, con la hora en `--ink-3` y puntos suspensivos si no cabe.
+Tocarlo abre la hoja del pedido **con ese pedido ya desplegado** en «Últimos
+pedidos», con sus tres acciones. Sin pedidos dice «Sin pedidos todavía».
+
+Qué **no** cambia: en cuanto el pedido tiene una línea vuelve «Pedido actual
+(N)» (decisión 108), y en pausa, corrigiendo o en modo Rápido mandan sus
+etiquetas. El modo Rápido se queda con «Modo rápido activo» a propósito: ahí el
+pedido siempre está vacío, y esa etiqueta es lo único que dice en la barra de
+abajo en qué modo estás.
+
+### 112. El contador de «servidas» abre el histórico
+
+«Así como si aprietas en las servidas que se vea un histórico.»
+
+La cifra de la cabecera pasa a ser un botón que abre el Resumen **directamente
+en su lista de pedidos** —el histórico entero, con «Anular» y su «Deshacer»—.
+Sigue leyéndose como una cifra: sin borde, sin relleno de color y con los mismos
+32/24 px. Lo que gana es 44 px de alto, un fondo de pulsación y
+`aria-label="Ver el histórico de bebidas servidas"`.
+
+Va en los dos aparatos, no solo en el móvil: en el iPad «Últimos pedidos» está a
+la vista en su columna, pero son cinco, y el resto también se busca desde ahí.
+
+Detalle que costó medir: el relleno que le da aire al fondo de la pulsación
+**se compensa con un margen negativo**. Sin eso la cabecera crecía 16 px y la
+medida conocida de 1024 × 768 —donde ya no cabe— pasaba de 1108 a 1124 px. Con
+la compensación vuelve a 1108 clavados, que es el número de `UX-REVISION-2`.
+
+### 113. El aviso, del tamaño del móvil
+
+«El botoncito de deshacer queda un poco grande en relación a la página.»
+
+El aviso estaba dimensionado para el iPad: 56 px de alto, 18 px de letra, ancho
+libre y «Deshacer» como una píldora dentro de otra. En un iPhone se comía media
+pantalla cada vez que se servía algo. Por debajo de 560 px:
+
+- **Una sola línea**, 44 px de alto, 15 px de letra, ancho al contenido y como
+  mucho el 92 % del viewport. Medido: 44 px de alto y 245 px de ancho (61 %) con
+  «2 bebidas servidas · Deshacer».
+- **«Deshacer» deja de ser una píldora**: texto subrayado y en negrita dentro de
+  la misma cápsula, con sus 44 px de objetivo táctil intactos.
+- **Cola máxima de dos** en vez de tres. El «Deshacer» que importa es el último,
+  y tres cápsulas apiladas llegaban a la fila de extras. En el iPad siguen tres.
+- Sigue **encima de la barra del pedido** y sin taparla (decisión 98), y sigue
+  subiendo arriba cuando hay una hoja abierta (decisión 106). Los ocho segundos
+  de los avisos con acción no se tocan.
+
+### 114. «Empezar de cero» un evento, con doble validación
+
+«La parte de ir al evento, que esté abierto o algo, también se debería poder
+empezar de cero, con doble validación.»
+
+El caso es real y es el de hoy: Nicolas abrió la barra del evento de verdad para
+probarla y quiere dejarla limpia antes de servir el primer café.
+
+**Qué hace `repo.resetEvent`**, y sobre todo qué no hace:
+
+- Todos los pedidos **vivos** del evento reciben `voidedAt` y
+  `voidReason: 'reinicio'`. Nada se borra: es la regla de la app desde la fase 1.
+  Salen del contador, del ritmo, del medidor, de «Últimos pedidos» y de las
+  estadísticas —que ya descartan lo anulado— y siguen en la lista del Resumen,
+  tachados y con la etiqueta **«Reinicio»**, que no es «Anulado»: nadie se
+  equivocó, eran las pruebas.
+- `openedAt` vuelve a ahora y `pausas` se vacía: lo que se mide es el servicio de
+  verdad, no el de las pruebas.
+- **`stockStart`, las notas, los lotes y todos los datos del evento se
+  conservan.** Reiniciar no es volver a preparar el evento.
+- El pedido en curso se vacía, y con él la corrección abierta si la hubiera.
+
+**Dónde**: en la hoja «Más» del móvil, la última fila, separada de «Cerrar
+barra» por su propia línea —las dos son destructivas, pero cerrar termina el
+evento y esta lo deja en el punto de salida—; y en el iPad, en la tarjeta de la
+barra abierta de Eventos, debajo de «Cerrar barra» y separada por una línea.
+Es la misma vía que la decisión 104 eligió para pausar, y por el mismo motivo:
+la cabecera de la barra del iPad no admite un control más.
+
+**Las tres redes**, en orden:
+
+1. Un toque **no hace nada**: despliega un panel en el sitio —nunca una ventana
+   emergente— que dice qué se pierde, con las cifras de verdad: «Se anularán 3
+   bebidas servidas y el pedido en curso. La carga y los datos del evento se
+   conservan.» Sin nada servido lo dice también: «No hay nada servido todavía:
+   solo se pone a cero el reloj de la barra.»
+2. Dentro del panel hay que **mantener pulsado 1,5 s**. El progreso se pinta con
+   `transform: scaleX`, que no toca el layout; con `prefers-reduced-motion` no
+   hay animación y en su sitio baja una cuenta 3 · 2 · 1. Soltar antes cancela y
+   no dice nada. Vale también con el teclado —barra o Intro— y la repetición de
+   la tecla no reinicia la cuenta.
+3. Después, **«Evento reiniciado · Deshacer» ocho segundos**. `undoResetEvent`
+   quita el `voidedAt` de **esos pedidos concretos** —un pedido que ya estaba
+   anulado antes del reinicio no se toca—, restaura `openedAt` y las `pausas`
+   anteriores, y devuelve el pedido a medias entero.
+
+Dos cosas que se decidieron por el camino:
+
+- **«Cancelar» va antes del botón que reinicia**, no después. Medido en el
+  navegador: con «Cancelar» debajo, el panel entraba por el pie de una hoja que
+  ya llega al 86 % de la pantalla y lo único visible era el botón que reinicia.
+  El panel además se desplaza solo hasta quedar entero a la vista. La salida
+  tiene que verse antes que la acción.
+- **El relleno del progreso va al 14 %, no al 18 %.** A 18 % el rojo del texto
+  sobre el fondo ya teñido caía a 4,47:1 en noche, por debajo del mínimo de
+  `DESIGN.md`. A 14 % son **5,80:1 en claro y 4,81:1 en noche**, y el par está
+  ahora en `npm run contraste` («botón Mantén pulsado con el relleno detrás»)
+  para que nadie lo suba sin enterarse. Por lo mismo, pulsado el botón **no**
+  oscurece su fondo: refuerza el borde por dentro, que no cambia el contraste ni
+  mueve la fila.
+
+### 115. Lo que se encontró y **no** se ha arreglado hoy
+
+En el iPad, el enlace «Carta y ajustes» del pie de Eventos mide **98 × 16 px**.
+La regla que le da 44 px de alto a un enlace dentro de una frase vive solo dentro
+de `@media (max-width: 560px)` desde la fase 9, así que arriba del corte nunca se
+aplicó. Es anterior a esta sesión —se ve en el commit de ayer— y hoy hay una boda
+de verdad: tocar CSS que no pide ninguna de las cuatro peticiones, para arreglar
+un enlace de ayuda de una pantalla que no es la barra, es un riesgo que no paga.
+Queda medido en cada pasada de `npm run capturas:peticiones` con la etiqueta
+`NOTA`, como se hizo con la cabecera de 1024 × 768.

@@ -1,6 +1,6 @@
 # Mutuo · Barra — punto de partida para retomar
 
-**Última sesión**: 11/09/2026 (auditoría UX 2 y retirada de la Tapa) · **Evento real**: boda del 12/09/2026 (Nicolas la usa en su **iPhone 17 Pro**, no lleva iPad)
+**Última sesión**: 12/09/2026 (fase 11: las cuatro peticiones de Nicolas tras probarla) · **Evento real**: boda del 12/09/2026 (Nicolas la usa en su **iPhone 17 Pro**, no lleva iPad)
 **Qué leer**: este archivo entero. Con esto se continúa sin conocer la conversación anterior.
 
 ---
@@ -32,7 +32,7 @@ Lo que Square no sabe: qué llevabas cargado, cuánto queda y cuánto costó de 
 | `DESIGN.md` | Paleta violeta de Mutuo, tamaños táctiles, motion, **prohibiciones** |
 | `docs/UX-REVISION-1.md` | Por qué la navegación es como es. **Leer antes de tocarla** |
 | `docs/UX-REVISION-2.md` | Auditoría de coherencia del 11/09: los 18 hallazgos, qué se arregló y **qué se dejó para después del evento** |
-| `docs/DECISIONES.md` | 90+ decisiones fechadas. Respetarlas o discutirlas, no ignorarlas |
+| `docs/DECISIONES.md` | **115** decisiones fechadas. Respetarlas o discutirlas, no ignorarlas. Las 110-115 son las de hoy |
 | `docs/capturas/fase-*/` | Capturas de verificación de cada fase |
 
 ## 4. Cómo está montado
@@ -44,30 +44,39 @@ Vite + Preact + TypeScript + `@preact/signals` + Dexie (IndexedDB) + `vite-plugi
 ```
 npm run dev        # 5173, con --host
 npm run preview    # 4173, la build, con --host
-npm test           # 389 tests
+npm test           # 414 tests
 npm run typecheck
 npm run capturas            # recorrido completo en navegador real (1180 y 820)
 npm run capturas:movil      # el iPhone: 402, 393 y 375
 npm run capturas:auditoria  # la fase 10: 402 × 874 + los dos giros del iPad
+npm run capturas:peticiones # la fase 11: 402 × 874 y 402 × 781 + el iPad
 ```
 
-## 5. Qué hace la app (estado a 11/09)
+## 5. Qué hace la app (estado a 12/09)
 
 **Navegación**: tres entradas (`Eventos · Resultados · Carta y ajustes`) y un ciclo visible de cuatro pasos por evento: **1 Preparar → 2 Servir → 3 Cerrar → 4 Resultados**.
 
 - **Preparar**: datos del evento, carga real con sugerencia por invitados, y bloque **Lotes** (litros de batch/cold brew → gramos de café y agua, que suman a la carga).
-- **Servir (la barra)**: sin la **Tapa** (decisión del 11/09: se retiró de la carta; los tres insumos siguen en Ajustes sin contarse, y los pedidos viejos conservan su línea). Se puede **pausar y reanudar el servicio** sin cerrar el evento (bodas a dos turnos); el tiempo en pausa no cuenta en la duración. pestañas de categoría con «Todas» por defecto, grid de bebidas, **fila de extras contextual** (tocas la bebida y arriba salen *solo* sus extras), ticket, «Servir», deshacer 8 s, **modo Rápido** (cada toque sirve), modo **Noche**, **Resumen** en hoja lateral, **Últimos pedidos** con desplegar / Repetir / **Editar** / Anular.
+- **Servir (la barra)**: sin la **Tapa** (decisión del 11/09: se retiró de la carta; los tres insumos siguen en Ajustes sin contarse, y los pedidos viejos conservan su línea). Se puede **pausar y reanudar el servicio** sin cerrar el evento (bodas a dos turnos); el tiempo en pausa no cuenta en la duración. pestañas de categoría con «Todas» por defecto, grid de bebidas, **fila de extras contextual** (tocas la bebida y arriba salen *solo* sus extras), ticket, «Servir», deshacer 8 s, **modo Rápido** (cada toque sirve), modo **Noche**, **Resumen** en hoja lateral (también tocando la cifra de **servidas** de la cabecera), **Últimos pedidos** con desplegar / Repetir / **Editar** / Anular, y **«Empezar de cero»** con doble validación (panel + mantener pulsado 1,5 s) y su «Deshacer».
 - **Cerrar**: recuento de lo que queda («no contado» si no lo rellenas), notas, resultado en vivo.
 - **Resultados**: tabla ordenable entre eventos, comparativas, exportar CSV/JSON e importar (idempotente por uuid).
 - **Carta y ajustes**: editar carta y recetas, insumos y costes, **Métodos y ratios** (espresso 1:2, filtro 1:16, cold brew 1:10, infusión 1:100, matcha 1:80), dispositivo, copia de seguridad.
 
 **Ratios**: la app compara cada receta con su ratio clásico y **avisa**, nunca reescribe (los costes del escandallo están medidos). Destapó que el Flat white no cabe en su vaso y que el té no tenía ingrediente.
 
-## 5 bis. Móvil (11/09)
+## 5 bis. Móvil (11/09, ampliado el 12/09)
 
 Corte en **560 px**. En iPhone: menú sin desplazar («Ajustes»), cabecera de una fila con **«Más»** (hoja desde abajo: Rápido, Noche, Resumen, Pausar, Cerrar barra), **grid de 3 columnas** con las 14 bebidas visibles **sin scroll**, y el pedido como barra fija abajo. Medido: holgura +165 px a 402×874 y +72 px con safe areas simuladas.
 
-**Límite conocido**: con **más de 15 bebidas activas** vuelve a haber scroll en el móvil instalado (medido: 18 bebidas → −16 px a 402×781). No ampliar la carta sin volver a medir.
+**Fase 11 (12/09), lo que Nicolas pidió después de probarla**:
+
+- **Extras en dos filas, todos a la vista**, sin desplazar a lo ancho. El nombre de la bebida sale de la fila y pasa a un rótulo de una línea encima («Extras de: **Latte**»); debajo, la leche arriba y Desca · Doble · Iced · Sirope abajo, en chips de 44 px y 16 px de letra.
+- **La barra de abajo enseña el último pedido servido** cuando el pedido actual está vacío, y tocarla lo abre desplegado en «Últimos pedidos».
+- **El contador de «servidas» es tocable** y abre el histórico entero (Resumen → Pedidos). En los dos aparatos.
+- **El aviso «Deshacer» cabe en una línea** de 44 px y cola máxima de dos. En el iPad, como estaba.
+- **«Empezar de cero»**: última fila de la hoja «Más» y de la tarjeta de la barra abierta en el iPad, con panel + mantener pulsado 1,5 s + «Deshacer» de 8 s. No borra nada: `voidReason: 'reinicio'`.
+
+**Límite conocido, más estrecho que ayer**: con las **14 bebidas** de hoy quedan **10 px de holgura a 402 × 781** y 103 a 402 × 874 (antes 72 y 165: los extras en dos filas cuestan 70 px). Una bebida más y probablemente ya no cabe. **No ampliar la carta sin volver a medir con `npm run capturas:peticiones`**; el primer recurso previsto es bajar el tile de 80 a 72 px.
 
 **Sin verificar**: `env(safe-area-inset-*)` reales, `display: standalone` y Safari de verdad. Todo es Chromium con emulación.
 
@@ -89,7 +98,10 @@ Corte en **560 px**. En iPhone: menú sin desplazar («Ajustes»), cabecera de u
 - **Nada de ventanas emergentes centradas en la barra.** Hojas laterales o desde abajo, sí.
 - **La cabecera de la barra no cabe a 1024 × 768** («Cerrar barra» acaba en 1108 px de 1024). Viene de antes; está en `UX-REVISION-2`, «Para después del evento». A 1180 × 820 cabe con 16 px de sobra.
 - **Los tests del escandallo son intocables**: si una cifra cambia, se ha roto algo (Cortado 0,7428 €, Latte con avena 1,1444 €, Flat white 1,277 €, Americano 1,254 €).
-- **Verificar en navegador, no solo en tests.** Varios fallos reales (medidor que no pintaba, ritmo a 0/h, toasts apilados) solo se vieron en capturas.
+- **Verificar en navegador, no solo en tests.** Varios fallos reales (medidor que no pintaba, ritmo a 0/h, toasts apilados) solo se vieron en capturas. En la fase 11, dos más: «Cancelar» del panel de reinicio caía por debajo del borde de la hoja, y el relleno del botón de mantener pulsado bajaba el rojo a 4,47:1 en noche. Ninguno de los dos lo ve un test.
+- **Tocar la cabecera de la barra cuesta píxeles.** A 1024 × 768 ya no cabe (1108 px de 1024, medido en cada pasada). Al hacer tocable el contador, su relleno la hacía crecer 16 px: se compensa con margen negativo. Cualquier cosa que se añada ahí tiene que medirse a 1024.
+- **`scrollHeight` nunca baja de `clientHeight`.** Medir la holgura de un contenedor con scroll restando esos dos da cero siempre, diga lo que diga el diseño. Se mide contra el borde inferior del último hijo.
+- **En Playwright, `page.mouse` no desplaza la página.** Una caja medida hace dos segundos dentro de una hoja que se desplaza ya no está donde estaba, y la pulsación cae en el aire — con la prueba pasando en verde. `scripts/capturas-fase-11.mjs` vuelve a medir antes de cada pulsación y comprueba que el botón se entera (`.is-pulsando`).
 
 ## 8. Método de trabajo
 

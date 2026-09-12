@@ -161,12 +161,70 @@ const PARES = [
   { id: 'punto ámbar del aviso', fg: '--warn', bg: '--surface', nota: 'no es texto: 3:1', grande: true },
   { id: 'cuenta de un lote', fg: '--ink-2', bg: '--bg', nota: '«4 L → 250 g de café», 15 px' },
   { id: 'campo de un ratio', fg: '--ink-2', bg: '--bg', nota: '«1 g de café por __ ml», 15 px' },
+  // --- Fase 11: las cuatro peticiones del 12/09 ---
+  {
+    id: 'rótulo de los extras',
+    fg: '--ink-3',
+    bg: '--bg',
+    nota: '«Extras de:», 15 px encima de las dos filas',
+  },
+  {
+    id: 'nombre de la bebida en el rótulo',
+    fg: '--ink',
+    bg: '--bg',
+    nota: '«Latte», 15 px en negrita',
+  },
+  {
+    id: 'último pedido en la barra de abajo',
+    fg: '--ink',
+    bg: '--surface',
+    nota: '«Latte avena, 2 × Cortado», 16 px',
+  },
+  {
+    id: 'hora del último pedido',
+    fg: '--ink-3',
+    bg: '--surface',
+    nota: '«Último · 12:41», 16 px',
+  },
+  {
+    id: 'aviso de «Empezar de cero»',
+    fg: '--ink',
+    bg: '--surface',
+    nota: 'lo que se va a anular, 16 px',
+  },
+  {
+    id: '«Empezar de cero» de Eventos',
+    fg: '--danger',
+    bg: '--surface',
+    nota: 'la entrada de la zona destructiva del iPad',
+  },
+  {
+    id: 'botón «Mantén pulsado» en reposo',
+    fg: '--danger',
+    bg: '--surface',
+    nota: '16 px en negrita: se juzga como texto normal',
+  },
+  {
+    id: 'botón «Mantén pulsado» con el relleno detrás',
+    fg: '--danger',
+    bg: '--surface',
+    // El relleno del progreso pasa **por debajo** del texto: lo que el ojo ve
+    // es el rojo sobre la superficie ya teñida, no sobre la superficie limpia.
+    bgTinte: '--danger',
+    bgTinteAlpha: 0.14,
+    nota: 'el progreso tiñe el fondo por debajo del texto',
+  },
 ];
 
 function medir(tema, nombreTema) {
   return PARES.map((par) => {
     const bajo = toRgb(resolve(par.bajo ?? '--bg', tema));
-    const bg0 = toRgb(resolve(par.bg, tema));
+    const bgLimpio = toRgb(resolve(par.bg, tema));
+    // Un fondo teñido por algo que pasa por debajo del texto (el relleno de
+    // progreso de «Mantén pulsado»): lo que el ojo compara es la mezcla.
+    const bg0 = par.bgTinte
+      ? mix(toRgb(resolve(par.bgTinte, tema)), bgLimpio, par.bgTinteAlpha ?? 1)
+      : bgLimpio;
     const fg0 = toRgb(resolve(par.fg, tema));
     const fgSobreBg = par.alpha ? mix(fg0, bg0, par.alpha) : fg0;
     const elem = par.elemAlpha ?? 1;
