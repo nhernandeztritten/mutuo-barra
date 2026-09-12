@@ -137,6 +137,65 @@ export function loadTicket(eventId: string): TicketLine[] {
   return lines;
 }
 
+/**
+ * El pedido guardado de un evento, tal cual está en `localStorage`. Es lo que
+ * «Empezar de cero» se lleva y lo que su «Deshacer» devuelve.
+ */
+export interface TicketGuardado {
+  lines: TicketLine[];
+  editingOrderId: string | null;
+}
+
+/** Lee el pedido guardado de un evento **sin** cargarlo en la barra. */
+export function leerTicket(eventId: string): TicketGuardado {
+  try {
+    const raw = localStorage.getItem(storageKey(eventId));
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    const lines = Array.isArray(parsed) ? (parsed as TicketLine[]) : [];
+    return { lines, editingOrderId: lines.length > 0 ? localStorage.getItem(editKey(eventId)) : null };
+  } catch {
+    return { lines: [], editingOrderId: null };
+  }
+}
+
+/**
+ * Vacía el pedido guardado de un evento y devuelve lo que había. Si ese evento
+ * es el que la barra tiene cargado, también vacía lo que hay en memoria: si no,
+ * la pantalla seguiría enseñando un pedido que ya no existe en ningún sitio.
+ */
+export function vaciarTicketDe(eventId: string): TicketGuardado {
+  const guardado = leerTicket(eventId);
+  try {
+    localStorage.removeItem(storageKey(eventId));
+    localStorage.removeItem(editKey(eventId));
+  } catch {
+    // Sin almacenamiento se pierde la red de la recarga, no el vaciado.
+  }
+  if (ticketEventId.value === eventId) {
+    ticket.value = [];
+    editingOrderId.value = null;
+  }
+  return guardado;
+}
+
+/** Devuelve un pedido guardado exactamente como estaba. El «Deshacer» del reinicio. */
+export function devolverTicketA(eventId: string, guardado: TicketGuardado): void {
+  const { lines, editingOrderId: editando } = guardado;
+  try {
+    if (lines.length === 0) localStorage.removeItem(storageKey(eventId));
+    else localStorage.setItem(storageKey(eventId), JSON.stringify(lines));
+    if (editando === null) localStorage.removeItem(editKey(eventId));
+    else localStorage.setItem(editKey(eventId), editando);
+  } catch {
+    // Igual que siempre: en memoria sí vuelve.
+  }
+  if (ticketEventId.value === eventId) {
+    seqCounter = lines.reduce((max, l) => Math.max(max, l.seq), seqCounter);
+    ticket.value = lines;
+    editingOrderId.value = lines.length > 0 ? editando : null;
+  }
+}
+
 /** Olvida el pedido en memoria sin tocar lo guardado (al desmontar la barra). */
 export function detachTicket(): void {
   ticketEventId.value = null;

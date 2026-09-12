@@ -2312,6 +2312,106 @@
   border-color: var(--ink-3);
 }
 
+/* ================= Empezar de cero =================
+   Panel desplegado en el sitio, nunca una ventana emergente: DESIGN.md las
+   prohíbe en el flujo de servir. Primero dice qué se anula; después ofrece el
+   botón que hay que mantener pulsado. Un toque no hace nada. */
+
+.reinicio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+}
+
+.reinicio__aviso {
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.reinicio__cancelar {
+  align-self: stretch;
+}
+
+/* El botón de mantener pulsado. El relleno va detrás del texto y crece con
+   `transform: scaleX`, que no toca el layout ni reflota nada. */
+.mantener {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--h-chip);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-chip);
+  background: var(--surface);
+  color: var(--danger);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  text-align: center;
+  /* Sin esto, arrastrar el dedo mientras se mantiene desplaza la hoja. */
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+/* El 0,14 no es estético: es el máximo que deja el texto rojo por encima de
+   4,5:1 sobre el fondo ya teñido, en claro y en noche. Lo mide
+   `npm run contraste` con el par «botón Mantén pulsado con el relleno detrás»;
+   si se sube, ese par se pone en rojo. */
+.mantener__relleno {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  background: var(--danger);
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.mantener__texto {
+  position: relative;
+}
+
+.mantener__cuenta {
+  font-weight: 700;
+}
+
+/* Pulsado, el borde se refuerza por dentro: con `border-width` la fila entera
+   se movería un píxel, y el fondo no se toca porque oscurecerlo por debajo del
+   texto rojo es justo lo que baja el contraste. */
+.mantener.is-pulsando {
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+/* Sin animación: en su sitio va la cuenta atrás 3 · 2 · 1, que dice lo mismo
+   sin nada que se mueva. */
+@media (prefers-reduced-motion: reduce) {
+  .mantener__relleno {
+    display: none;
+  }
+}
+
+/* La vía del iPad: debajo de «Cerrar barra» y separada por su línea. */
+.live-destructivo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-block-start: var(--s-2);
+  padding-block-start: var(--s-4);
+  border-block-start: 1px solid var(--line);
+}
+
+.live-destructivo__abrir {
+  align-self: start;
+  color: var(--danger);
+}
+
 /* ---- Servicio en pausa ----
    El evento sigue abierto; lo que está parado es el servicio. Ámbar y no rojo:
    no es un error ni un cierre, es un turno que se retoma. */

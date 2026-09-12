@@ -11,7 +11,15 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useRoute } from 'preact-iso';
 import { ChevronLeft, Moon, Sun, Zap } from 'lucide-preact';
-import { addOrder, listOrders, replaceOrderLines, unvoidOrder, voidOrder } from '../data/repo';
+import {
+  addOrder,
+  listOrders,
+  replaceOrderLines,
+  resetEvent,
+  undoResetEvent,
+  unvoidOrder,
+  voidOrder,
+} from '../data/repo';
 import {
   VOID_DESHACER,
   VOID_EDITADO,
@@ -48,6 +56,7 @@ import {
   optionsById,
   pausarServicio,
   reanudarServicio,
+  refreshEvents,
   setOneTap,
   setTheme,
 } from '../ui/store';
@@ -58,6 +67,7 @@ import {
   clearTicket,
   contentFor,
   detachTicket,
+  devolverTicketA,
   editingOrderId,
   lastLine,
   lineContent,
@@ -71,8 +81,10 @@ import {
   ticketTotal,
   toggleOption,
   undoLast,
+  vaciarTicketDe,
   type TicketLine,
 } from '../ui/ticket';
+import { PanelReinicio } from '../ui/reinicio';
 import { barMode, esMovil } from '../ui/layout';
 
 const SERVE_FADE_MS = 180;
@@ -118,6 +130,12 @@ export function Barra() {
    * controles que no son servir; aquí abajo sí, y con sitio para explicarlos.
    */
   const [masOpen, setMasOpen] = useState(false);
+  /**
+   * El panel de «Empezar de cero», desplegado dentro de la hoja «Más». Es la
+   * primera de las dos validaciones: dice qué se anula antes de ofrecer el
+   * botón que hay que mantener pulsado.
+   */
+  const [reinicioAbierto, setReinicioAbierto] = useState(false);
   /** El pedido que se acaba de repetir, para el fundido de su fila. */
   const [repetido, setRepetido] = useState<string | null>(null);
   /** La fila de «Últimos pedidos» desplegada. Solo una a la vez. */
@@ -579,6 +597,41 @@ export function Barra() {
     })();
   }
 
+  /**
+   * «Empezar de cero». No borra nada: los pedidos vivos quedan anulados con
+   * motivo `reinicio` y el reloj de la barra vuelve a ahora. La carga, las
+   * notas y los datos del evento no se tocan.
+   *
+   * Tercera red de seguridad, después del panel y de la pulsación mantenida:
+   * ocho segundos de «Deshacer» que devuelven los pedidos, el reloj, los tramos
+   * de pausa y el pedido que estuviera a medias.
+   */
+  function reiniciarEvento(): void {
+    void (async () => {
+      setMasOpen(false);
+      setReinicioAbierto(false);
+      const guardado = vaciarTicketDe(event!.id);
+      const antes = await resetEvent(event!.id);
+      await reloadOrders();
+      await refreshEvents();
+      setCurrentLineId(null);
+      setQuickEdit(null);
+      setAbierto(null);
+      showToast('Evento reiniciado', {
+        label: 'Deshacer',
+        onAction: () => {
+          void (async () => {
+            await undoResetEvent(event!.id, antes);
+            devolverTicketA(event!.id, guardado);
+            await reloadOrders();
+            await refreshEvents();
+            showToast('Reinicio deshecho');
+          })();
+        },
+      });
+    })();
+  }
+
   const editingProduct = editing ? products.find((p) => p.id === editing.productId) : undefined;
   const drinks = ticketDrinks(lines);
   /**
@@ -932,7 +985,13 @@ export function Barra() {
           hace. «Cerrar barra» va la última y separada, que es la única de las
           cuatro que termina el evento. */}
       {masOpen ? (
-        <HojaAbajo title="Más" onClose={() => setMasOpen(false)}>
+        <HojaAbajo
+          title="Más"
+          onClose={() => {
+            setMasOpen(false);
+            setReinicioAbierto(false);
+          }}
+        >
           <p class="hoja-abajo__dato">
             <span class="num">{formatRate(stats.lastHourRate)}</span> en la última hora
             {stockCafe > 0 ? (
@@ -997,6 +1056,24 @@ export function Barra() {
               route(`/evento/${event.id}/cerrar`);
             }}
           />
+          {/* Separada de «Cerrar barra» por su propia línea: las dos son
+              destructivas, pero cerrar termina el evento y esta lo deja en el
+              punto de salida. Un toque no hace nada: despliega el panel. */}
+          <div class="hoja-abajo__sep" />
+          <HojaFila
+            nombre="Empezar de cero"
+            pista="anula lo servido y pone el reloj a cero"
+            tono="terminal"
+            onClick={() => setReinicioAbierto((abierto) => !abierto)}
+          />
+          {reinicioAbierto ? (
+            <PanelReinicio
+              servidas={stats.served}
+              enCurso={drinks}
+              onReiniciar={reiniciarEvento}
+              onCancelar={() => setReinicioAbierto(false)}
+            />
+          ) : null}
         </HojaAbajo>
       ) : null}
 

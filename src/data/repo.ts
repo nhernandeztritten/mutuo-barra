@@ -17,10 +17,12 @@ import type {
   ModifierOption,
   Order,
   OrderLine,
+  Pausa,
   Product,
   Settings,
   StockMap,
 } from './types';
+import { VOID_REINICIO } from './types';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -275,6 +277,72 @@ export async function resumeService(id: string, database: BarraDb = db): Promise
   if (!ultima || ultima.hasta !== null) return current;
   const cerradas = [...pausas.slice(0, -1), { ...ultima, hasta: nowIso() }];
   return updateEvent(id, { pausas: cerradas }, database);
+}
+
+/* ---------------- Empezar de cero ---------------- */
+
+/**
+ * Lo que hay que guardar para poder deshacer un reinicio. Vive en memoria de la
+ * pantalla durante los ocho segundos del aviso: es la tercera red de seguridad,
+ * después del panel y de la pulsación mantenida.
+ */
+export interface ReinicioDeshacer {
+  /** Solo los pedidos que **este** reinicio anuló. Lo que ya estaba anulado, anulado se queda. */
+  orderIds: string[];
+  openedAt: string | null;
+  pausas: Pausa[];
+}
+
+/**
+ * Empieza el evento de cero sin borrar nada (append-only, la regla de la app
+ * desde la fase 1).
+ *
+ * Todos los pedidos vivos del evento reciben `voidedAt` y el motivo `reinicio`,
+ * así que salen de «Últimos pedidos», del contador y de las estadísticas —que
+ * ya descartan lo anulado— y siguen en la lista del Resumen, tachados y con su
+ * etiqueta. El reloj de la barra (`openedAt`) vuelve a ahora y los tramos de
+ * pausa se vacían: lo que se está midiendo es el servicio de verdad, no el de
+ * las pruebas.
+ *
+ * Lo que **no** toca: `stockStart`, las notas, los lotes y todos los datos del
+ * evento. Reiniciar no es volver a prepararlo.
+ */
+export async function resetEvent(
+  id: string,
+  database: BarraDb = db,
+): Promise<ReinicioDeshacer> {
+  const current = await database.events.get(id);
+  if (!current) throw new Error(`Evento no encontrado: ${id}`);
+  const orders = await listOrders(id, database);
+  const vivos = orders.filter((o) => o.voidedAt === null);
+  const now = nowIso();
+  for (const order of vivos) {
+    await database.orders.put({ ...order, voidedAt: now, voidReason: VOID_REINICIO });
+  }
+  const antes: ReinicioDeshacer = {
+    orderIds: vivos.map((o) => o.id),
+    openedAt: current.openedAt,
+    pausas: (current.pausas ?? []).map((p) => ({ ...p })),
+  };
+  await updateEvent(id, { openedAt: now, pausas: [] }, database);
+  return antes;
+}
+
+/**
+ * Deshace un reinicio: devuelve exactamente los pedidos que aquel reinicio
+ * anuló —ni uno más— y restaura el reloj y los tramos de pausa de antes.
+ */
+export async function undoResetEvent(
+  id: string,
+  antes: ReinicioDeshacer,
+  database: BarraDb = db,
+): Promise<void> {
+  for (const orderId of antes.orderIds) {
+    const order = await database.orders.get(orderId);
+    if (!order) continue;
+    await database.orders.put({ ...order, voidedAt: null, voidReason: '' });
+  }
+  await updateEvent(id, { openedAt: antes.openedAt, pausas: antes.pausas }, database);
 }
 
 export interface CloseEventInput {

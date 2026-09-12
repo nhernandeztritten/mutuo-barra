@@ -391,8 +391,9 @@ const hojaMas = await page.evaluate(() => {
 });
 linea(hojaMas.abajo, 'la hoja «Más» sube desde abajo, no se planta en el centro');
 linea(
-  hojaMas.nombres.join(' · ') === 'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra',
-  `sus cinco filas, con «Cerrar barra» la última: ${hojaMas.nombres.join(' · ')}`,
+  hojaMas.nombres.join(' · ') ===
+    'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra · Empezar de cero',
+  `sus seis filas, con «Empezar de cero» la última: ${hojaMas.nombres.join(' · ')}`,
 );
 linea(
   hojaMas.pistas[0] === 'un toque, una bebida',
@@ -540,8 +541,9 @@ const orden = await page.evaluate(() =>
   [...document.querySelectorAll('.hoja-abajo .hoja-fila__nombre')].map((el) => el.textContent.trim()),
 );
 linea(
-  orden.join(' · ') === 'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra',
-  `«Pausar servicio» va antes de «Cerrar barra»: ${orden.join(' · ')}`,
+  orden.join(' · ') ===
+    'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra · Empezar de cero',
+  `«Pausar servicio» va antes de «Cerrar barra», y «Empezar de cero» la última: ${orden.join(' · ')}`,
 );
 await page.getByRole('button', { name: /^Pausar servicio/ }).click();
 await page.waitForSelector('.barra__pausa');

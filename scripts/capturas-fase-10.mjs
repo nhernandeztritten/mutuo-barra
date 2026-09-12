@@ -268,8 +268,9 @@ const filasMas = await page.evaluate(() =>
   [...document.querySelectorAll('.hoja-fila__nombre')].map((e) => e.textContent.trim()),
 );
 linea(
-  filasMas.join(' · ') === 'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra',
-  `la hoja «Más» ofrece las cinco: ${filasMas.join(' · ')}`,
+  filasMas.join(' · ') ===
+    'Rápido · Noche · Resumen · Pausar servicio · Cerrar barra · Empezar de cero',
+  `la hoja «Más» ofrece las seis: ${filasMas.join(' · ')}`,
 );
 await page.keyboard.press('Escape');
 await page.waitForTimeout(250);

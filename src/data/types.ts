@@ -228,9 +228,12 @@ export interface OrderLine {
  * - `deshacer`: el «Deshacer» de un toast, dentro de sus 8 s.
  * - `editado`: el pedido se corrigió; el que lo sustituye lo apunta en
  *   `replacesOrderId`. En el Resumen sale como «Corregido», no como «Anulado».
+ * - `reinicio`: el evento se empezó de cero. No es un error del barista: son
+ *   las pruebas de antes de servir de verdad. En el Resumen sale «Reinicio».
  */
 export const VOID_DESHACER = 'deshacer';
 export const VOID_EDITADO = 'editado';
+export const VOID_REINICIO = 'reinicio';
 
 export interface Order {
   id: string;

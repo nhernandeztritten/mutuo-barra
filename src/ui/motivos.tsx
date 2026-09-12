@@ -6,7 +6,7 @@
  * entre tres motivos costaba más que el error que pretendía documentar
  * (`docs/DECISIONES.md`).
  */
-import { VOID_DESHACER, VOID_EDITADO } from '../data/types';
+import { VOID_DESHACER, VOID_EDITADO, VOID_REINICIO } from '../data/types';
 
 /** Motivo que se guarda cuando el barista anula a mano. */
 export const VOID_MANUAL = 'anulado';
@@ -15,6 +15,9 @@ export function etiquetaDeAnulacion(voidReason: string): string {
   // `editado` no es una anulación para el barista: ese pedido se corrigió y en
   // su sitio hay otro con la misma hora.
   if (voidReason === VOID_EDITADO) return 'Corregido';
+  // `reinicio` tampoco: nadie se equivocó, se empezó el evento de cero y esas
+  // bebidas eran las pruebas de antes de servir.
+  if (voidReason === VOID_REINICIO) return 'Reinicio';
   if (voidReason === VOID_DESHACER) return 'Anulado · Deshecho';
   return 'Anulado';
 }

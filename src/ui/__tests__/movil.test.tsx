@@ -17,6 +17,7 @@ import { Barra } from '../../routes/barra';
 import { ToastHost } from '../components';
 import { dispositivo, esteDispositivo } from '../instalacion';
 import { esMovil, MOVIL_MAX, observarMovil } from '../layout';
+import { MANTENER_MS } from '../mantener';
 import { loadCatalog, loadSettings, refreshEvents } from '../store';
 import { clearToasts } from '../toast';
 import { detachTicket } from '../ticket';
@@ -127,7 +128,7 @@ describe('la señal de móvil', () => {
 });
 
 describe('la cabecera de la barra en móvil', () => {
-  it('los cuatro controles que no son servir viven en la hoja «Más»', async () => {
+  it('los controles que no son servir viven en la hoja «Más»', async () => {
     await setupMovil();
     expect(document.querySelector('.hoja-abajo')).toBeNull();
 
@@ -141,13 +142,14 @@ describe('la cabecera de la barra en móvil', () => {
       'Resumen',
       'Pausar servicio',
       'Cerrar barra',
+      'Empezar de cero',
     ]);
     // Cada acción dice qué hace: en la cabecera del iPad no cabía.
     expect(filas[0]?.pista).toBe('un toque, una bebida');
     expect(filas[3]?.pista).toBe('el evento sigue abierto; nadie pierde nada');
   });
 
-  it('«Cerrar barra» va la última, y «Pausar servicio» justo antes, cada una con su línea', async () => {
+  it('las tres salidas van separadas por su línea, y «Empezar de cero» la última', async () => {
     await setupMovil();
     fireEvent.click(botonMas());
     await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
@@ -156,13 +158,13 @@ describe('la cabecera de la barra en móvil', () => {
     const separadores = hijos
       .map((el, i) => (el.classList.contains('hoja-abajo__sep') ? i : -1))
       .filter((i) => i > -1);
-    const cerrar = hijos.findIndex((el) => el.classList.contains('hoja-fila--terminal'));
-    // Dos líneas: una antes de pausar y otra antes de cerrar. Parar no es
-    // cerrar, y las dos se separan de los interruptores de arriba.
-    expect(separadores).toHaveLength(2);
-    expect(cerrar).toBe(hijos.length - 1);
-    expect(cerrar).toBe(separadores[1]! + 1);
+    // Tres líneas: una antes de pausar, otra antes de cerrar y otra antes de
+    // empezar de cero. Las tres son salidas y ninguna significa lo mismo.
+    expect(separadores).toHaveLength(3);
     expect(hijos[separadores[0]! + 1]?.textContent).toContain('Pausar servicio');
+    expect(hijos[separadores[1]! + 1]?.textContent).toContain('Cerrar barra');
+    expect(hijos[separadores[2]! + 1]?.textContent).toContain('Empezar de cero');
+    expect(hijos[hijos.length - 1]?.textContent).toContain('Empezar de cero');
   });
 
   it('la hoja es de abajo y se cierra con Escape', async () => {
@@ -263,6 +265,163 @@ describe('la barra inferior del pedido', () => {
     expect(hoja?.textContent).toContain('Deshacer último');
     // El botón grande, el último de la hoja: no se mueve nunca de sitio.
     expect(hoja?.querySelector('.ticket__foot .btn--action')?.textContent).toBe('Servir 1 bebida');
+  });
+});
+
+describe('«Empezar de cero» desde la hoja «Más»', () => {
+  /** Sirve una bebida y deja otra a medias en el pedido actual. */
+  async function servirYDejarAMedias(): Promise<void> {
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(barraInferior()).toContain('Pedido actual (1)'));
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.ticket-bar .btn--action')!);
+    await waitFor(() => expect(barraInferior()).toContain('Último'));
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(barraInferior()).toContain('Pedido actual (1)'));
+  }
+
+  async function abrirPanel(): Promise<void> {
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+    const fila = [...document.querySelectorAll<HTMLButtonElement>('.hoja-abajo .hoja-fila')].find(
+      (f) => f.textContent?.startsWith('Empezar de cero'),
+    );
+    fireEvent.click(fila!);
+    await waitFor(() => expect(document.querySelector('.reinicio')).not.toBeNull());
+  }
+
+  it('un toque en la fila despliega el panel y no reinicia nada', async () => {
+    await setupMovil();
+    await servirYDejarAMedias();
+    await abrirPanel();
+
+    expect(document.querySelector('.reinicio__aviso')?.textContent).toBe(
+      'Se anularán 1 bebida servida y el pedido en curso. La carga y los datos del evento se conservan.',
+    );
+    // Ni el contador ni el pedido se han movido con ese toque.
+    expect(document.querySelector('.barra__count-value')?.textContent).toBe('1');
+    expect(barraInferior()).toContain('Pedido actual (1)');
+  });
+
+  it('«Cancelar» cierra el panel y deja el evento como estaba', async () => {
+    await setupMovil();
+    await servirYDejarAMedias();
+    await abrirPanel();
+
+    fireEvent.click(
+      [...document.querySelectorAll<HTMLButtonElement>('.reinicio .btn')].find(
+        (b) => b.textContent?.trim() === 'Cancelar',
+      )!,
+    );
+    await waitFor(() => expect(document.querySelector('.reinicio')).toBeNull());
+    expect(document.querySelector('.barra__count-value')?.textContent).toBe('1');
+  });
+
+  it('mantener pulsado reinicia, y «Deshacer» lo devuelve todo', async () => {
+    await setupMovil();
+    await servirYDejarAMedias();
+    await abrirPanel();
+
+    const mantener = document.querySelector<HTMLButtonElement>('.reinicio .mantener')!;
+    // Soltar antes de tiempo: no pasa nada.
+    fireEvent.pointerDown(mantener);
+    await new Promise((r) => setTimeout(r, 200));
+    fireEvent.pointerUp(mantener);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(document.querySelector('.barra__count-value')?.textContent).toBe('1');
+
+    // Aguantando el segundo y medio sí.
+    fireEvent.pointerDown(mantener);
+    await new Promise((r) => setTimeout(r, MANTENER_MS + 120));
+
+    await waitFor(() =>
+      expect(document.querySelector('.barra__count-value')?.textContent).toBe('0'),
+    );
+    // El pedido a medias también se va, y la hoja se cierra sola.
+    expect(barraInferior()).toContain('Sin pedidos todavía');
+    expect(document.querySelector('.hoja-abajo')).toBeNull();
+
+    const aviso = [...document.querySelectorAll('.toast')].pop();
+    expect(aviso?.textContent).toContain('Evento reiniciado');
+    fireEvent.click(aviso!.querySelector<HTMLButtonElement>('.toast__action')!);
+
+    await waitFor(() =>
+      expect(document.querySelector('.barra__count-value')?.textContent).toBe('1'),
+    );
+    // Y el pedido a medias vuelve entero.
+    await waitFor(() => expect(barraInferior()).toContain('Pedido actual (1)'));
+  });
+});
+
+describe('los extras de la bebida, todos a la vista', () => {
+  /** Los controles de la fila envuelta, en orden. */
+  function extras(): string[] {
+    return [...document.querySelectorAll('.extras--envuelta .chip, .extras--envuelta .seg__opt')].map(
+      (b) => b.textContent?.trim() ?? '',
+    );
+  }
+
+  it('sin bebida, el rótulo lo dice y no hay ninguna fila de extras', async () => {
+    await setupMovil();
+    expect(document.querySelector('.extras__rotulo')?.textContent).toBe(
+      'Toca una bebida; sus extras salen aquí',
+    );
+    expect(document.querySelector('.extras--envuelta')).toBeNull();
+  });
+
+  it('el nombre de la bebida sale de la fila y pasa al rótulo de encima', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(document.querySelector('.extras--envuelta')).not.toBeNull());
+
+    expect(document.querySelector('.extras__rotulo')?.textContent).toBe('Extras de: Latte');
+    expect(document.querySelector('.extras__bebida')?.textContent).toBe('Latte');
+    // Y ya no está dentro de la fila de controles, que es lo que la desbordaba.
+    expect(document.querySelector('.extras--envuelta .extras__bebida')).toBeNull();
+  });
+
+  it('los siete extras del Latte están presentes, con la leche sola en la primera fila', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(document.querySelector('.extras--envuelta')).not.toBeNull());
+
+    expect(extras()).toEqual([
+      'Vaca',
+      'Avena',
+      'Sin lactosa',
+      'Desca',
+      'Doble',
+      'Iced',
+      'Sirope',
+    ]);
+    // El salto de ancho completo va justo detrás del segmento de la leche: sin
+    // él, «Desca» se colaría en la primera fila y «Sirope» se saldría.
+    const fila = document.querySelector('.extras--envuelta');
+    const hijos = [...(fila?.children ?? [])];
+    const salto = hijos.findIndex((el) => el.classList.contains('extras__salto'));
+    const seg = hijos.findIndex((el) => el.classList.contains('seg'));
+    expect(seg).toBeGreaterThanOrEqual(0);
+    expect(salto).toBe(seg + 1);
+    expect(hijos[salto + 1]?.textContent).toBe('Desca');
+  });
+
+  it('una bebida sin extras lo dice en el rótulo y no dibuja filas vacías', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Filtro'));
+    await waitFor(() =>
+      expect(document.querySelector('.extras__rotulo')?.textContent).toContain('sin extras'),
+    );
+    expect(document.querySelector('.extras__rotulo')?.textContent).toBe('Filtro · sin extras');
+    expect(document.querySelector('.extras--envuelta')).toBeNull();
+  });
+
+  it('en el iPad la fila sigue siendo la de siempre, con el nombre dentro', async () => {
+    await setupMovil();
+    esMovil.value = false;
+    fireEvent.click(tile('Latte'));
+    await waitFor(() => expect(document.querySelector('.extras .extras__bebida')).not.toBeNull());
+    expect(document.querySelector('.extras--envuelta')).toBeNull();
+    expect(document.querySelector('.extras__rotulo')).toBeNull();
+    expect(document.querySelector('.extras__salto')).toBeNull();
   });
 });
 

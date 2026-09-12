@@ -16,7 +16,10 @@ import {
   pauseEvent,
   replaceOrderLines,
   reopenEvent,
+  resetEvent,
+  undoResetEvent,
   unvoidOrder,
+  updateEvent,
   voidOrder,
 } from '../repo';
 import { INGREDIENTS, MODIFIER_GROUPS, MODIFIER_OPTIONS, PRODUCTS, SEED_VERSION } from '../seed';
@@ -157,6 +160,106 @@ describe('ciclo de vida del evento', () => {
     await createEvent({ name: 'Antiguo', date: '2026-01-10' }, db);
     await createEvent({ name: 'Reciente', date: '2026-09-12' }, db);
     expect((await listEvents(undefined, db)).map((e) => e.name)).toEqual(['Reciente', 'Antiguo']);
+  });
+});
+
+describe('empezar el evento de cero', () => {
+  it('anula lo servido con motivo «reinicio» y no borra ninguna fila', async () => {
+    const e = await createEvent({ name: 'Boda', stockStart: { cafe: 3000 }, notes: 'Sin gluten' }, db);
+    await openEvent(e.id, db);
+    const uno = await addOrder({ eventId: e.id, lines: [latteConAvena()] }, db);
+    const dos = await addOrder({ eventId: e.id, lines: [latteConAvena()] }, db);
+
+    const antes = await resetEvent(e.id, db);
+
+    const orders = await listOrders(e.id, db);
+    expect(orders).toHaveLength(2);
+    for (const o of orders) {
+      expect(o.voidedAt).not.toBeNull();
+      expect(o.voidReason).toBe('reinicio');
+    }
+    expect(new Set(antes.orderIds)).toEqual(new Set([uno.id, dos.id]));
+  });
+
+  it('pone el reloj a cero y vacía las pausas, y conserva la carga y los datos', async () => {
+    const e = await createEvent(
+      { name: 'Boda', stockStart: { cafe: 3000, leche_vaca: 12000 }, notes: 'Dos turnos', guestsExpected: 120 },
+      db,
+    );
+    await openEvent(e.id, db);
+    // Reloj puesto a una hora concreta del pasado: así se ve que el reinicio lo
+    // mueve, sin depender de que dos `new Date()` seguidos caigan en
+    // milisegundos distintos.
+    const viejo = '2026-09-11T18:00:00.000Z';
+    await updateEvent(
+      e.id,
+      {
+        openedAt: viejo,
+        pausas: [{ desde: '2026-09-11T20:00:00.000Z', hasta: '2026-09-11T21:00:00.000Z' }],
+      },
+      db,
+    );
+
+    await resetEvent(e.id, db);
+
+    const tras = (await db.events.get(e.id))!;
+    expect(tras.pausas).toEqual([]);
+    expect(tras.openedAt).not.toBe(viejo);
+    expect(tras.openedAt).not.toBeNull();
+    expect(Date.parse(tras.openedAt!)).toBeGreaterThan(Date.parse(viejo));
+    expect(tras.status).toBe('live');
+    // Lo que no se toca: reiniciar no es volver a preparar el evento.
+    expect(tras.stockStart).toEqual({ cafe: 3000, leche_vaca: 12000 });
+    expect(tras.notes).toBe('Dos turnos');
+    expect(tras.guestsExpected).toBe(120);
+  });
+
+  it('deshacer devuelve los pedidos, el reloj y las pausas exactamente como estaban', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    const abierto = await openEvent(e.id, db);
+    const pausas = [{ desde: '2026-09-12T20:00:00.000Z', hasta: null }];
+    await updateEvent(e.id, { pausas }, db);
+    const uno = await addOrder({ eventId: e.id, lines: [latteConAvena()] }, db);
+
+    const antes = await resetEvent(e.id, db);
+    await undoResetEvent(e.id, antes, db);
+
+    const vuelto = (await db.orders.get(uno.id))!;
+    expect(vuelto.voidedAt).toBeNull();
+    expect(vuelto.voidReason).toBe('');
+    const tras = (await db.events.get(e.id))!;
+    expect(tras.openedAt).toBe(abierto.openedAt);
+    expect(tras.pausas).toEqual(pausas);
+  });
+
+  it('un pedido ya anulado antes del reinicio no se toca al deshacer', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    await openEvent(e.id, db);
+    const viejo = await addOrder({ eventId: e.id, lines: [latteConAvena()] }, db);
+    const vivo = await addOrder({ eventId: e.id, lines: [latteConAvena()] }, db);
+    await voidOrder(viejo.id, 'anulado', db);
+    const anuladoEn = (await db.orders.get(viejo.id))!.voidedAt;
+
+    const antes = await resetEvent(e.id, db);
+    expect(antes.orderIds).toEqual([vivo.id]);
+
+    await undoResetEvent(e.id, antes, db);
+
+    // El que ya estaba anulado sigue anulado, con su hora y su motivo.
+    const sigue = (await db.orders.get(viejo.id))!;
+    expect(sigue.voidedAt).toBe(anuladoEn);
+    expect(sigue.voidReason).toBe('anulado');
+    expect((await db.orders.get(vivo.id))!.voidedAt).toBeNull();
+  });
+
+  it('reiniciar dos veces seguidas no anula por segunda vez lo ya anulado', async () => {
+    const e = await createEvent({ name: 'Boda' }, db);
+    await openEvent(e.id, db);
+    await addOrder({ eventId: e.id, lines: [latteConAvena()] }, db);
+
+    await resetEvent(e.id, db);
+    const segundo = await resetEvent(e.id, db);
+    expect(segundo.orderIds).toEqual([]);
   });
 });
 

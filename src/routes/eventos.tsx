@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import { AlertTriangle, CalendarPlus, ChevronRight, Coffee, Pause, Play, Smartphone } from 'lucide-preact';
-import { createEvent, listAllOrders, openEvent } from '../data/repo';
+import { createEvent, listAllOrders, openEvent, resetEvent, undoResetEvent } from '../data/repo';
 import type { BarEvent, Order } from '../data/types';
 import { closeStats, enPausa, eventStats, loadSuggestion } from '../domain/stats';
 import { formatDateLong, formatInt, formatMoney, formatRate } from '../domain/format';
@@ -15,6 +15,9 @@ import { Button } from '../ui/components';
 import { conBase, useIr } from '../ui/navegar';
 import { estaInstalada, esteDispositivo } from '../ui/instalacion';
 import { ComoFunciona, Etiqueta } from '../ui/piezas';
+import { PanelReinicio } from '../ui/reinicio';
+import { devolverTicketA, leerTicket, ticketDrinks, vaciarTicketDe } from '../ui/ticket';
+import { showToast } from '../ui/toast';
 import {
   closedEvents,
   descartarAvisoInstalacion,
@@ -285,6 +288,31 @@ function LiveCard({
 }) {
   const stats = eventStats(event, orders, products.value);
   const pausado = enPausa(event);
+  /** El panel de «Empezar de cero», desplegado en el sitio. Nunca un modal. */
+  const [reinicio, setReinicio] = useState(false);
+  /** El pedido a medias de ese evento, leído sin cargarlo en la barra. */
+  const enCurso = ticketDrinks(leerTicket(event.id).lines);
+
+  function reiniciar(): void {
+    void (async () => {
+      setReinicio(false);
+      const guardado = vaciarTicketDe(event.id);
+      const antes = await resetEvent(event.id);
+      await refreshEvents();
+      showToast('Evento reiniciado', {
+        label: 'Deshacer',
+        onAction: () => {
+          void (async () => {
+            await undoResetEvent(event.id, antes);
+            devolverTicketA(event.id, guardado);
+            await refreshEvents();
+            showToast('Reinicio deshecho');
+          })();
+        },
+      });
+    })();
+  }
+
   return (
     <article class={['card', 'card--live', pausado ? 'card--pausa' : ''].filter(Boolean).join(' ')}>
       <div class="row row--tight">
@@ -342,6 +370,23 @@ function LiveCard({
           ? 'El evento sigue abierto y nada se ha perdido: reanuda cuando vuelva el servicio.'
           : 'Puedes salir y volver; la barra sigue abierta hasta que la cierres.'}
       </p>
+
+      {/* Zona destructiva, separada por su línea y debajo de «Cerrar barra»:
+          esta es la vía del iPad, donde la cabecera de la barra no admite un
+          control más (decisión 104). Un toque solo despliega el panel. */}
+      <div class="live-destructivo">
+        <Button variant="ghost" class="live-destructivo__abrir" onClick={() => setReinicio((v) => !v)}>
+          Empezar de cero
+        </Button>
+        {reinicio ? (
+          <PanelReinicio
+            servidas={stats.served}
+            enCurso={enCurso}
+            onReiniciar={() => void reiniciar()}
+            onCancelar={() => setReinicio(false)}
+          />
+        ) : null}
+      </div>
     </article>
   );
 }
