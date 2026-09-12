@@ -1573,3 +1573,192 @@ de verdad: tocar CSS que no pide ninguna de las cuatro peticiones, para arreglar
 un enlace de ayuda de una pantalla que no es la barra, es un riesgo que no paga.
 Queda medido en cada pasada de `npm run capturas:peticiones` con la etiqueta
 `NOTA`, como se hizo con la cabecera de 1024 × 768.
+
+## 12/09/2026 · Fase 12 — el pedido a la vista y salir de la hoja
+
+Dos peticiones de Nicolas usándola en el evento, textuales:
+
+> «Por encimita del pedido actual, que al apretar se puede ver lo que se lleva
+> del pedido, arriba de eso, que aparezca cuáles bebidas voy cargando, al menos
+> la última clickeada, con posibilidad de deshacer o borrarla. Queda un espacio
+> ahí. También, al apretar en servidas, te lleva al histórico de pedidos, pero
+> cuesta para volver atrás; debería poder hacer todo de una, quizás que se abra
+> como pop up, o con una cruz o un movimiento se pueda volver.»
+
+### 116. La tira del pedido en curso, en el hueco que ya sobraba
+
+En el iPad el pedido está siempre a la vista en su columna de 360 px. En el
+iPhone está **detrás de un toque**, y con la cola delante ese toque no se da: el
+barista monta el pedido a ciegas y lo comprueba al servir, que es tarde.
+
+Entre la última fila de bebidas y la barra del pedido sobraba sitio. Ahí va la
+tira, **solo por debajo de 560 px**:
+
+- **El mismo orden que la hoja**: la más reciente la última, pegada a la barra,
+  que es donde mira el ojo justo después de tocar una bebida.
+- **Una fila de 44 px por línea**: la cantidad delante si hay más de una
+  («2 × Cortado»), el nombre, y los extras detrás en `--ink-3` («· avena»), que
+  se cortan con elipsis antes que empujar nada. Tocar el nombre convierte esa
+  línea en la bebida actual de la fila de extras —el mismo gesto que en la
+  hoja—, y se marca con fondo `--surface-2`, nunca con una franja lateral.
+- **Una «×» de 44 × 44** al final de la fila, con `aria-label` «Quitar Latte con
+  avena del pedido»: quita una unidad si hay más de una y la línea entera si
+  queda una.
+- **Con el pedido vacío la tira no existe.** Una caja vacía en el hueco no dice
+  nada, y el hueco es exactamente igual de útil vacío.
+
+Va **después** del grid y no antes: así el ojo la encuentra pegada a la barra
+del pedido y, sobre todo, el grid cede espacio **por abajo**, donde no hay
+ninguna bebida. Medido en los dos tamaños: la última bebida queda en el mismo
+píxel con la tira puesta y con la tira escondida (687 px a 402 × 874, 635 px a
+402 × 781), con cero scroll de grid y cero de página.
+
+En el **iPad no cambia nada**: la tira ni se dibuja.
+
+### 117. Cuántas filas se ven lo mide el navegador, no el diseño
+
+La tentación era fijar «cuatro filas». Con las catorce bebidas de hoy, cuatro
+filas (190 px) no caben en ningún iPhone, y lo que se come no es aire: es la
+última fila de la carta.
+
+Así que se mide. `ranurasDe(libre)` divide el hueco real —medido contra el borde
+inferior de la última bebida, que es la única medida que no miente (la trampa de
+`scrollHeight − clientHeight` de la fase 9)— entre ranuras de 45 px: 44 de
+objetivo táctil más la línea que separa. Una como mínimo —«al menos la última
+clickeada»— y cinco como tope, que son las cuatro filas y el rótulo.
+
+La cuenta suma de vuelta lo que la tira ya está ocupando, así que el número no
+depende de si la tira está puesta: sin eso la tira se mediría a sí misma y
+oscilaría entre dos tamaños en cada repintado.
+
+**Lo medido**, con las catorce bebidas y una bebida elegida (el bloque de extras
+en sus 126 px):
+
+| | 402 × 874 | 402 × 781 (safe areas fuera) |
+|---|---|---|
+| Alto del tile | 80 px | 72 px |
+| Hueco libre sin la tira | 103 px | 62 px |
+| Presupuesto de la tira (menos el hueco de la columna) | 95 px | 56 px |
+| Ranuras | **2** | **1** |
+| Tira con 1 línea | 44 px | 44 px |
+| Tira con 2 líneas | 89 px (2 filas) | 44 px (1 fila) |
+| Tira con 5 líneas | 88 px: «+4 más · ver todo» y 1 fila | 44 px (1 fila) |
+| Holgura que queda | 7 px | 12 px |
+
+Con más líneas de las que caben, la lista **se desplaza dentro de sí misma** y
+se va sola a la más reciente al añadir. Encima, un rótulo de 15 px «+N más · ver
+todo» que abre la hoja del pedido.
+
+**El rótulo ocupa una ranura**, así que con una sola no sale: enseñar «+4 más» y
+ninguna bebida sería cambiar el dato por el aviso de que hay un dato. En ese
+caso la cuenta entera la da la barra de abajo, «Pedido actual (5)», que está
+justo debajo, mide 44 px y abre la misma hoja. Es el caso del iPhone instalado.
+
+### 118. El presupuesto vertical: el tile a 72 px por debajo de 820 px de alto
+
+A 402 × 781 —el iPhone 17 Pro instalado, que es el aparato de verdad— la holgura
+con una bebida elegida era de **10 px**. Ahí no cabe ni una fila de 44.
+
+Dos ajustes, los dos por tamaño de pantalla:
+
+- **El corte de las pantallas bajas sube de 750 a 820 px.** Con eso el iPhone
+  instalado pasa a tiles de 72 px y hueco de 6 entre tiles, que es exactamente
+  el primer recurso que `DESIGN.md` ya tenía escrito. Devuelve ~48 px. De paso
+  cubre el iPhone 15/16 instalado (759 px útiles), que con tiles de 80 ya se
+  quedaba sin holgura y nadie lo había medido.
+- **El grid deja de reservar 8 px de cola de desplazamiento en el móvil.** Ahí
+  el grid no se desplaza nunca —de eso va el grid de tres columnas—, así que esa
+  cola es hueco muerto. Son los 8 px que hacen que a 402 × 874 quepan dos filas
+  en vez de una.
+
+**Por tamaño de pantalla y no por si la tira está puesta**: se probó la vía de
+encoger el grid solo cuando aparece la tira y se descartó. Un grid que encoge al
+tocar la primera bebida **mueve los objetivos debajo del dedo**, y con la cola
+delante eso es peor que un tile 8 px más bajo. 72 px sigue muy por encima de los
+44 de objetivo táctil y el texto no se toca: sigue en 18 px.
+
+El grid ya baja 108 px al tocar la primera bebida porque el bloque de extras
+crece (decisión 110). Eso es de la fase 11 y no lo hace la tira; queda apuntado
+como `NOTA` en cada pasada de `npm run capturas:pedido`.
+
+### 119. Quitar una bebida tiene red, y la red caduca al servir
+
+Cada «×» deja un aviso «Quitada 1 Latte · Deshacer» de ocho segundos. Se guarda
+**la línea entera**, no su id: si era la última unidad la línea deja de existir,
+y deshacer tiene que poder reconstruirla con sus extras, su nota y su coste. Si
+entretanto volvió a haber una igual, se funden, que es lo mismo que hace
+añadirla a mano.
+
+Y una que se vio probándola: **el aviso se retira al servir**. Su «Deshacer»
+apunta al pedido que se acaba de servir; pasados dos segundos ese pedido ya no
+existe y la línea habría caído en el siguiente, sin que nadie lo notara hasta el
+recuento.
+
+El aviso, además, **sube por encima de la tira**: lleva «Deshacer», que es un
+control de verdad, y debajo hay ahora una fila de «×». Si cayera encima, un
+toque para quitar la bebida siguiente daría en «Deshacer». Es la decisión 98 una
+fila más arriba. Lo que ocupa la tira se calcula, no se mide (`altoDeLaTira`),
+para que el aviso sepa dónde ponerse en el mismo repintado.
+
+### 120. La cabecera de una hoja va pegada arriba
+
+El diagnóstico de la segunda petición, medido: al tocar «servidas» la hoja del
+Resumen se abre **ya desplazada** hasta la lista de pedidos —724 px a 402 × 874,
+817 px a 402 × 781— y con eso el título y la «X» se quedaban fuera de la
+pantalla. La única salida a la vista no existía, y de ahí «cuesta para volver
+atrás».
+
+No se convierte en ventana emergente centrada: `DESIGN.md` las prohíbe en el
+flujo de servir y en un móvil el centro de la pantalla es justo donde no llega
+el pulgar. Se arregla la hoja, en las tres: la lateral, la de abajo y la del
+pedido.
+
+- `position: sticky` en la cabecera, con el título y la **«X» de ≥ 44 px**
+  siempre a la vista. Medido con la hoja abierta por el ancla: el botón de
+  cerrar cae en (314, 48) y mide 64 × 56 px, entero dentro del viewport, en los
+  dos tamaños y en los dos giros del iPad.
+- **El margen negativo con su relleno del mismo tamaño** es lo que hace que,
+  pegada, tape también el relleno de la hoja. Y `top: 0` **no vale**: medido en
+  el navegador, pega la cabecera por debajo del relleno de arriba y por ese
+  hueco de 24 px se veía asomar el contenido que pasaba por detrás. Se pega con
+  el relleno en negativo.
+- **El ancla reserva sitio para la cabecera** (`scroll-margin-block-start` con
+  su alto real): abrir por «Pedidos» ya no deja sus primeras líneas debajo del
+  título.
+- La línea inferior aparece **solo cuando hay algo desplazado debajo**, y va en
+  `box-shadow`: un borde que aparece y desaparece mueve la hoja un píxel.
+
+### 121. Deslizar para cerrar, con su asa, y solo en el móvil
+
+El segundo camino de salida, el que la mano intenta sola en un iPhone: arrastrar
+la hoja hacia abajo **más de 80 px** la cierra; menos, vuelve a su sitio.
+
+- **No rompe el scroll interno**: el gesto solo arranca cuando nada entre el
+  sitio que se toca y la hoja está desplazado. Con la lista a medias, el dedo
+  desplaza. Desde el **asa** o la cabecera se arrastra siempre: son el tirador,
+  y por eso llevan `touch-action: none` mientras la hoja va en `pan-y`.
+- **Asa** de 4 × 36 px centrada arriba, el indicador que la gente ya reconoce.
+  Va dentro de la cabecera pegada y posicionada en absoluto: no le roba alto a
+  la hoja. En el iPad no se dibuja.
+- Con **`prefers-reduced-motion`** la hoja no sigue al dedo: se cierra al soltar
+  si el recorrido pasó del umbral, y nada se mueve por el camino.
+- **Solo por debajo de 560 px.** En el iPad la hoja entra por el lado, hay
+  teclado y ratón, y arrastrar hacia abajo no significa nada: comprobado que
+  arrastrar 200 px allí no cierra nada.
+- Escape, tocar el fondo y el foco devuelto al abrir y cerrar siguen exactamente
+  igual.
+
+### 122. Lo que se encontró de paso y **sí** se ha arreglado
+
+En el iPad, el nombre de una línea del ticket —el botón que la convierte en la
+bebida actual— medía **140 × 35 px**. La regla que le da 44 px de alto vivía
+solo dentro de `@media (max-width: 560px)` desde la fase 9, así que arriba del
+corte nunca se aplicó. Es el mismo patrón que el enlace de la decisión 115.
+
+Este sí se arregla: entra dentro de la fila de 56 px sin moverla, no toca ninguna
+medida de la cabecera y es un objetivo que se usa en cada pedido. Lo mide
+`npm run capturas:pedido` en los dos giros.
+
+**Sigue sin arreglar** el enlace «Carta y ajustes» del pie de Eventos (98 × 16 px
+en el iPad, decisión 115): es de una pantalla que no es la barra y sigue
+apuntado como `NOTA` en cada pasada de `capturas:peticiones`.

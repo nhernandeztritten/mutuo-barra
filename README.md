@@ -61,6 +61,10 @@ npm run dev        # http://localhost:5173 (ya escucha en toda la red local)
 | `npm run capturas` | Recorre la app entera y guarda las capturas (necesita `preview`) |
 | `npm run capturas:ultimos` | «Últimos pedidos»: orden, límite, repetir y «Ver todos» (necesita `preview`) |
 | `npm run capturas:editar` | Desplegar, anular y corregir un pedido servido (necesita `preview`) |
+| `npm run capturas:movil` | La barra en un iPhone: 402, 393 y 375 px (necesita `preview`) |
+| `npm run capturas:auditoria` | La revisión de coherencia: 402 × 874 y los dos giros del iPad |
+| `npm run capturas:peticiones` | Extras en dos filas, último pedido, contador y «Empezar de cero» |
+| `npm run capturas:pedido` | La tira del pedido en curso y salir de la hoja (402 × 874 y 402 × 781) |
 
 Las tres últimas hablan con la app construida:
 
@@ -191,6 +195,10 @@ scripts/
   capturas.mjs      el recorrido de la app en capturas
   capturas-fase-6.mjs  «Últimos pedidos»: orden, límite, repetir, «Ver todos»
   capturas-fase-7.mjs  desplegar, anular y corregir un pedido ya servido
+  capturas-fase-9.mjs  la barra en un iPhone: 402, 393 y 375 px
+  capturas-fase-10.mjs la revisión de coherencia y los dos giros del iPad
+  capturas-fase-11.mjs extras en dos filas, último pedido, contador, reinicio
+  capturas-fase-12.mjs la tira del pedido en curso y salir de la hoja
 ```
 
 Todo es **append-only con uuid y deviceId**: anular un pedido escribe `voidedAt`,

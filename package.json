@@ -20,7 +20,8 @@
     "capturas:editar": "node scripts/capturas-fase-7.mjs",
     "capturas:movil": "node scripts/capturas-fase-9.mjs",
     "capturas:auditoria": "node scripts/capturas-fase-10.mjs",
-    "capturas:peticiones": "node scripts/capturas-fase-11.mjs"
+    "capturas:peticiones": "node scripts/capturas-fase-11.mjs",
+    "capturas:pedido": "node scripts/capturas-fase-12.mjs"
   },
   "dependencies": {
     "@fontsource/archivo": "^5.3.0",

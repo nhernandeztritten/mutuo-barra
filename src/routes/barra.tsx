@@ -85,7 +85,7 @@ import {
   type TicketLine,
 } from '../ui/ticket';
 import { PanelReinicio } from '../ui/reinicio';
-import { ranurasDe, repartoTira, TIRA_MAX_FILAS, TiraPedido } from '../ui/tira';
+import { altoDeLaTira, ranurasDe, repartoTira, TIRA_MAX_FILAS, TiraPedido } from '../ui/tira';
 import { barMode, esMovil } from '../ui/layout';
 
 const SERVE_FADE_MS = 180;
@@ -257,6 +257,28 @@ export function Barra() {
     () => (categoriaActiva === null ? tiles : tiles.filter((p) => p.category === categoriaActiva)),
     [tiles, categoriaActiva],
   );
+
+  /**
+   * La tira del pedido en curso. Solo en el móvil: en el iPad el pedido ya está
+   * entero en su columna de 360 px y ahí no falta nada. Con el pedido vacío no
+   * se dibuja —una caja vacía en el hueco no dice nada— y el hueco se queda
+   * como estaba.
+   */
+  const verTira = esMovil.value && ticket.value.length > 0;
+  const reparto = repartoTira(ticket.value.length, ranuras);
+  /**
+   * Lo que la tira le quita al aviso. `--s-2` es el hueco de la columna.
+   *
+   * El aviso lleva «Deshacer», que es un control de verdad, y debajo de él hay
+   * ahora una fila de «×»: si cayera encima, un toque para quitar la bebida
+   * siguiente daría en «Deshacer». Es la decisión 98 una fila más arriba.
+   */
+  const altoTira = verTira ? altoDeLaTira(reparto) + 8 : 0;
+  useEffect(() => {
+    const raiz = document.documentElement;
+    raiz.style.setProperty('--tira-alto', `${String(altoTira)}px`);
+    return () => raiz.style.removeProperty('--tira-alto');
+  }, [altoTira]);
 
   if (!event || event.status !== 'live') {
     return (
@@ -732,15 +754,6 @@ export function Barra() {
    */
   const ultimo = ultimos[0] ?? null;
   const verUltimo = esMovil.value && !pausado && !editando && !rapido && drinks === 0;
-
-  /**
-   * La tira del pedido en curso. Solo en el móvil: en el iPad el pedido ya está
-   * entero en su columna de 360 px y ahí no falta nada. Con el pedido vacío no
-   * se dibuja —una caja vacía en el hueco no dice nada— y el hueco se queda
-   * como estaba.
-   */
-  const verTira = esMovil.value && lines.length > 0;
-  const reparto = repartoTira(lines.length, ranuras);
 
   /**
    * Servir (o cobrar). Corrigiendo en modo venta y con el **mismo total**, no

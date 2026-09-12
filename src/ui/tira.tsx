@@ -69,6 +69,18 @@ export function repartoTira(lineas: number, ranuras: number): RepartoTira {
   return { filas, sobran: lineas - filas };
 }
 
+/**
+ * Lo que ocupa la tira, en píxeles, a partir del reparto.
+ *
+ * Lo necesita el aviso: «Deshacer» es un control de verdad y no puede caer
+ * encima de otro (decisión 98), y desde esta fase debajo del aviso hay una fila
+ * de «×». Se calcula, no se mide: así el aviso sabe dónde ponerse en el mismo
+ * repintado en el que la tira cambia de tamaño.
+ */
+export function altoDeLaTira(reparto: RepartoTira): number {
+  return TIRA_FILA * reparto.filas - 1 + (reparto.sobran > 0 ? TIRA_FILA - 1 : 0);
+}
+
 /** «Latte con avena»: lo que dice la etiqueta accesible de la «×». */
 export function etiquetaDeLinea(line: TicketLine): string {
   if (line.modifiers.length === 0) return line.productName;
