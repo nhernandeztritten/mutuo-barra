@@ -311,21 +311,27 @@ export async function resetEvent(
   id: string,
   database: BarraDb = db,
 ): Promise<ReinicioDeshacer> {
-  const current = await database.events.get(id);
-  if (!current) throw new Error(`Evento no encontrado: ${id}`);
-  const orders = await listOrders(id, database);
-  const vivos = orders.filter((o) => o.voidedAt === null);
-  const now = nowIso();
-  for (const order of vivos) {
-    await database.orders.put({ ...order, voidedAt: now, voidReason: VOID_REINICIO });
-  }
-  const antes: ReinicioDeshacer = {
-    orderIds: vivos.map((o) => o.id),
-    openedAt: current.openedAt,
-    pausas: (current.pausas ?? []).map((p) => ({ ...p })),
-  };
-  await updateEvent(id, { openedAt: now, pausas: [] }, database);
-  return antes;
+  // En una transacción: reiniciar toca muchos pedidos y luego el evento, y un
+  // fallo a mitad dejaría medio evento anulado y el reloj sin mover, que es un
+  // estado que nadie podría deshacer porque el «Deshacer» ni siquiera llegaría
+  // a existir. O entra todo, o no entra nada.
+  return database.transaction('rw', [database.events, database.orders], async () => {
+    const current = await database.events.get(id);
+    if (!current) throw new Error(`Evento no encontrado: ${id}`);
+    const orders = await listOrders(id, database);
+    const vivos = orders.filter((o) => o.voidedAt === null);
+    const now = nowIso();
+    for (const order of vivos) {
+      await database.orders.put({ ...order, voidedAt: now, voidReason: VOID_REINICIO });
+    }
+    const antes: ReinicioDeshacer = {
+      orderIds: vivos.map((o) => o.id),
+      openedAt: current.openedAt,
+      pausas: (current.pausas ?? []).map((p) => ({ ...p })),
+    };
+    await updateEvent(id, { openedAt: now, pausas: [] }, database);
+    return antes;
+  });
 }
 
 /**
@@ -337,12 +343,16 @@ export async function undoResetEvent(
   antes: ReinicioDeshacer,
   database: BarraDb = db,
 ): Promise<void> {
-  for (const orderId of antes.orderIds) {
-    const order = await database.orders.get(orderId);
-    if (!order) continue;
-    await database.orders.put({ ...order, voidedAt: null, voidReason: '' });
-  }
-  await updateEvent(id, { openedAt: antes.openedAt, pausas: antes.pausas }, database);
+  // Por el mismo motivo que `resetEvent`: deshacer a medias sería peor que no
+  // deshacer, porque el aviso ya se habría ido.
+  await database.transaction('rw', [database.events, database.orders], async () => {
+    for (const orderId of antes.orderIds) {
+      const order = await database.orders.get(orderId);
+      if (!order) continue;
+      await database.orders.put({ ...order, voidedAt: null, voidReason: '' });
+    }
+    await updateEvent(id, { openedAt: antes.openedAt, pausas: antes.pausas }, database);
+  });
 }
 
 export interface CloseEventInput {
