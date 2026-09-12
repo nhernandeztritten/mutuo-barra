@@ -6,7 +6,16 @@
  * aquí se prueba la aritmética, que es la que decide qué se ve.
  */
 import { describe, expect, it } from 'vitest';
-import { etiquetaDeLinea, ranurasDe, repartoTira, TIRA_FILA, TIRA_MAX_FILAS } from '../tira';
+import {
+  altoDeLaTira,
+  cabeLaTira,
+  etiquetaDeLinea,
+  ranurasDe,
+  repartoTira,
+  TIRA_FILA,
+  TIRA_MAX_FILAS,
+  TIRA_ROTULO,
+} from '../tira';
 import type { TicketLine } from '../ticket';
 
 function linea(parcial: Partial<TicketLine> = {}): TicketLine {
@@ -32,27 +41,72 @@ describe('ranurasDe: el hueco manda, no el diseño', () => {
     expect(TIRA_MAX_FILAS).toBe(4);
   });
 
+  it('el rótulo del estado cuesta 14 px, y sale del hueco antes que las filas', () => {
+    expect(TIRA_ROTULO).toBe(14);
+    // Con 20 px el estado «Pedido actual» perdería una fila a 402 × 874.
+    expect(ranurasDe(103)).toBe(2);
+    expect(Math.floor((103 - 20 + 1) / TIRA_FILA)).toBe(1);
+  });
+
   it('sin hueco sigue habiendo una ranura: «al menos la última clickeada»', () => {
     expect(ranurasDe(0)).toBe(1);
     expect(ranurasDe(-40)).toBe(1);
     expect(ranurasDe(10)).toBe(1);
   });
 
-  it('el hueco medido a 402 × 874 (95 px) da dos ranuras', () => {
-    expect(ranurasDe(95)).toBe(2);
+  it('«Pedido actual»: el hueco medido es 103 px a 402 × 874 y 62 a 402 × 781', () => {
+    expect(ranurasDe(103)).toBe(2);
+    expect(ranurasDe(62)).toBe(1);
   });
 
-  it('el hueco medido a 402 × 781 (54 px) da una', () => {
-    expect(ranurasDe(54)).toBe(1);
+  it('«Ya servidos»: con los extras replegados sobran 211 px a 874 y 170 a 781', () => {
+    expect(ranurasDe(211)).toBe(4);
+    expect(ranurasDe(170)).toBe(3);
   });
 
-  it('nunca pasa de cinco: las cuatro filas y el rótulo', () => {
+  it('nunca pasa de cinco: las cuatro filas y el «+N más»', () => {
     expect(ranurasDe(1000)).toBe(5);
   });
 
   it('una medida rota cae del lado prudente: una fila, que nunca empuja el grid', () => {
     expect(ranurasDe(Number.NaN)).toBe(1);
     expect(ranurasDe(Number.POSITIVE_INFINITY)).toBe(1);
+  });
+});
+
+describe('cabeLaTira: cuándo no se dibuja y manda la barra de abajo', () => {
+  it('hace falta sitio para el rótulo y una fila entera', () => {
+    expect(cabeLaTira(TIRA_ROTULO + TIRA_FILA - 1)).toBe(true);
+    expect(cabeLaTira(TIRA_ROTULO + TIRA_FILA - 2)).toBe(false);
+  });
+
+  it('en los dos tamaños medidos cabe, en los dos estados', () => {
+    for (const libre of [62, 103, 170, 211]) expect(cabeLaTira(libre)).toBe(true);
+  });
+
+  it('sin medida (jsdom) se da por buena: ahí manda el diseño', () => {
+    expect(cabeLaTira(Number.NaN)).toBe(true);
+  });
+});
+
+describe('altoDeLaTira: lo que la tira le quita al aviso', () => {
+  it('el rótulo, las filas y su línea de separación', () => {
+    expect(altoDeLaTira({ filas: 1, sobran: 0 })).toBe(14 + 44);
+    expect(altoDeLaTira({ filas: 2, sobran: 0 })).toBe(14 + 89);
+  });
+
+  it('con «+N más» se suma su ranura', () => {
+    expect(altoDeLaTira({ filas: 2, sobran: 3 })).toBe(14 + 89 + 44);
+  });
+
+  it('cabe en el hueco medido de cada estado y tamaño', () => {
+    // «Pedido actual»: 402 × 874 (103 px) y 402 × 781 (62 px).
+    expect(altoDeLaTira(repartoTira(2, ranurasDe(103)))).toBeLessThanOrEqual(103);
+    expect(altoDeLaTira(repartoTira(5, ranurasDe(103)))).toBeLessThanOrEqual(103);
+    expect(altoDeLaTira(repartoTira(5, ranurasDe(62)))).toBeLessThanOrEqual(62);
+    // «Ya servidos»: 211 px y 170 px.
+    expect(altoDeLaTira(repartoTira(9, ranurasDe(211)))).toBeLessThanOrEqual(211);
+    expect(altoDeLaTira(repartoTira(9, ranurasDe(170)))).toBeLessThanOrEqual(170);
   });
 });
 
