@@ -85,7 +85,15 @@ import {
   type TicketLine,
 } from '../ui/ticket';
 import { PanelReinicio } from '../ui/reinicio';
-import { altoDeLaTira, ranurasDe, repartoTira, TIRA_MAX_FILAS, TiraPedido } from '../ui/tira';
+import {
+  altoDeLaTira,
+  cabeLaTira,
+  ranurasDe,
+  repartoTira,
+  TIRA_MAX_FILAS,
+  TiraPedido,
+  TiraServidos,
+} from '../ui/tira';
 import { barMode, esMovil } from '../ui/layout';
 
 const SERVE_FADE_MS = 180;
@@ -151,6 +159,12 @@ export function Barra() {
    * Arranca en el tope: en jsdom no hay layout que medir y ahí manda el diseño.
    */
   const [ranuras, setRanuras] = useState(TIRA_MAX_FILAS + 1);
+  /**
+   * Si la tira cabe siquiera con su rótulo y una fila. Si no cabe, no se dibuja
+   * y la barra de abajo se queda con el texto del último pedido, que es lo que
+   * había antes de esta fase. Arranca en `true`: en jsdom no hay nada que medir.
+   */
+  const [cabe, setCabe] = useState(true);
   /** El aviso de «Quitada 1 Latte» vivo, para poder retirarlo al servir. */
   const avisoQuitada = useRef<number | null>(null);
 
@@ -195,6 +209,11 @@ export function Barra() {
    * La cuenta suma de vuelta lo que la tira ya está ocupando, así que el número
    * no depende de si la tira está puesta o no: sin eso, la tira se mediría a sí
    * misma y el valor oscilaría entre dos tamaños en cada repintado.
+   *
+   * **La tira no paga hueco de columna**: su rótulo hace de separación y por eso
+   * `.tira` lleva el margen negativo de `--work-gap`. Lo que sobra es el hueco
+   * entero. Son los 8 px (6 en pantallas bajas) que hacen que el rótulo quepa en
+   * el estado «Pedido actual» a 402 × 781 sin tocarle una fila al grid.
    */
   useEffect(() => {
     if (!esMovil.value) return;
@@ -213,9 +232,9 @@ export function Barra() {
       const relleno = Number.parseFloat(getComputedStyle(grid).paddingBlockEnd) || 0;
       const hueco = grid.getBoundingClientRect().bottom - relleno - ultima.getBoundingClientRect().bottom;
       const tira = work.querySelector('.tira');
-      const separacion = Number.parseFloat(getComputedStyle(work).rowGap) || 0;
-      const libre = hueco + (tira ? tira.getBoundingClientRect().height + separacion : 0) - separacion;
+      const libre = hueco + (tira ? tira.getBoundingClientRect().height : 0);
       setRanuras(ranurasDe(libre));
+      setCabe(cabeLaTira(libre));
     };
 
     const alCambiar = (): void => {
@@ -259,27 +278,37 @@ export function Barra() {
   );
 
   /**
-   * La tira del pedido en curso. Solo en el móvil: en el iPad el pedido ya está
-   * entero en su columna de 360 px y ahí no falta nada. Con el pedido vacío no
-   * se dibuja —una caja vacía en el hueco no dice nada— y el hueco se queda
-   * como estaba.
+   * Los dos estados de la tira. Solo en el móvil: en el iPad el pedido y
+   * «Últimos pedidos» ya están enteros en su columna de 360 px.
    *
-   * En **modo Rápido** tampoco: ahí el toque sirve y no monta nada, así que la
-   * tira enseñaría una lista congelada justo mientras entran bebidas, y se
-   * leería como «lo que acabo de servir», que es lo contrario de lo que es.
-   * Es el mismo motivo por el que ese modo esconde el ticket.
+   * - **«Pedido actual»**: hay líneas montándose. Es el estado de la fase 12.
+   * - **«Ya servidos»**: el pedido está vacío y hay pedidos servidos. Nicolas:
+   *   «si me olvido de algo, a simple vista pueda repasarlo». Con el pedido
+   *   vacío el bloque de extras se repliega y el hueco pasa de 95 a 211 px a
+   *   402 × 874, así que aquí caben tres o cuatro filas, no una.
+   *
+   * Sin pedidos servidos y con el pedido vacío no se dibuja nada: una caja
+   * vacía en el hueco no dice nada, y el hueco es igual de útil vacío.
+   *
+   * En **modo Rápido** no se dibuja ninguno de los dos: ahí el toque sirve y no
+   * monta nada. El estado «Pedido actual» enseñaría una lista congelada, y el
+   * de servidos está pendiente de medir en ese modo (`docs/UX-REVISION-2.md`).
    */
-  const verTira =
-    esMovil.value && ticket.value.length > 0 && !(oneTap.value && editingOrderId.value === null);
-  const reparto = repartoTira(ticket.value.length, ranuras);
+  const servidosTotal = orders.reduce((n, o) => n + (o.voidedAt === null ? 1 : 0), 0);
+  const rapidoAhora = oneTap.value && editingOrderId.value === null;
+  const pedidoVacio = ticket.value.length === 0;
+  const verTira = esMovil.value && cabe && !pedidoVacio && !rapidoAhora;
+  const verServidos =
+    esMovil.value && cabe && pedidoVacio && !rapidoAhora && servidosTotal > 0;
+  const reparto = repartoTira(verServidos ? servidosTotal : ticket.value.length, ranuras);
   /**
-   * Lo que la tira le quita al aviso. `--s-2` es el hueco de la columna.
+   * Lo que la tira le quita al aviso. Los 8 px son el hueco de la columna.
    *
    * El aviso lleva «Deshacer», que es un control de verdad, y debajo de él hay
    * ahora una fila de «×»: si cayera encima, un toque para quitar la bebida
    * siguiente daría en «Deshacer». Es la decisión 98 una fila más arriba.
    */
-  const altoTira = verTira ? altoDeLaTira(reparto) + 8 : 0;
+  const altoTira = verTira || verServidos ? altoDeLaTira(reparto) + 8 : 0;
   useEffect(() => {
     const raiz = document.documentElement;
     raiz.style.setProperty('--tira-alto', `${String(altoTira)}px`);
@@ -754,12 +783,16 @@ export function Barra() {
   const editingProduct = editing ? products.find((p) => p.id === editing.productId) : undefined;
   const drinks = ticketDrinks(lines);
   /**
-   * El último pedido servido, que en el móvil ocupa la barra de abajo mientras
-   * el pedido actual está vacío: es lo que el barista se pregunta cuando
-   * levanta la cabeza, y ahí no hacía falta un «(0)».
+   * El último pedido servido en la barra de abajo (fase 11) es ahora **el
+   * recurso**, no lo normal: con el estado «Ya servidos» a la vista justo
+   * encima, la barra lo diría dos veces y una de las dos sobra. Así que la
+   * barra vuelve a «Pedido actual (0)» siempre que la tira esté contándolo, y
+   * conserva el texto de «Último …» solo cuando no lo cuenta nadie: pantallas
+   * donde la tira no cabe ni con una fila (`cabe`).
    */
   const ultimo = ultimos[0] ?? null;
-  const verUltimo = esMovil.value && !pausado && !editando && !rapido && drinks === 0;
+  const verUltimo =
+    esMovil.value && !pausado && !editando && !rapido && drinks === 0 && !verServidos;
 
   /**
    * Servir (o cobrar). Corrigiendo en modo venta y con el **mismo total**, no
@@ -1017,10 +1050,10 @@ export function Barra() {
             </div>
           </div>
 
-          {/* El pedido en curso, a la vista sobre la barra. Va **después** del
-              grid y no antes: así el ojo lo encuentra pegado a la barra del
-              pedido, que es donde se mira al servir, y el grid no se mueve ni
-              un píxel cuando la tira aparece o desaparece. */}
+          {/* La tira, a la vista sobre la barra. Va **después** del grid y no
+              antes: así el ojo la encuentra pegada a la barra del pedido, que
+              es donde se mira al servir, y el grid no se mueve ni un píxel
+              cuando la tira aparece, desaparece o cambia de estado. */}
           {verTira ? (
             <TiraPedido
               lineas={lines}
@@ -1029,6 +1062,19 @@ export function Barra() {
               currentLineId={currentLine?.id ?? null}
               onSelect={(line) => setCurrentLineId(line.id)}
               onQuitar={quitarLinea}
+              onVerTodo={() => setSheetOpen(true)}
+            />
+          ) : verServidos ? (
+            <TiraServidos
+              // El más reciente **abajo**, pegado a la barra: el mismo criterio
+              // que el otro estado. `ultimosPedidos` los da del revés.
+              pedidos={[...ultimos].slice(0, reparto.filas).reverse()}
+              filas={reparto.filas}
+              sobran={reparto.sobran}
+              onAbrir={(pedido) => {
+                setAbierto(pedido.id);
+                setSheetOpen(true);
+              }}
               onVerTodo={() => setSheetOpen(true)}
             />
           ) : null}

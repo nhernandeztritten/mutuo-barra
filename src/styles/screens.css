@@ -2621,8 +2621,13 @@
 
   /* ---- La zona de trabajo ---- */
 
+  /* `--work-gap` en vez de un número suelto: la tira lo cancela con un margen
+     negativo para no pagar hueco de columna (su rótulo hace de separación), y
+     el efecto que mide el hueco cuenta con ello. */
   .barra__work {
-    gap: var(--s-2);
+    --work-gap: var(--s-2);
+
+    gap: var(--work-gap);
     padding: var(--s-3);
     padding-inline: max(var(--s-3), env(safe-area-inset-left)) max(var(--s-3), env(safe-area-inset-right));
     /* El hueco de la barra inferior fija, más la franja del indicador. */
@@ -2743,21 +2748,46 @@
     padding-block-end: 0;
   }
 
-  /* ---- La tira del pedido en curso ----
+  /* ---- La tira: «Pedido actual» y «Ya servidos» ----
 
      Ocupa el hueco que ya sobraba entre la última bebida y la barra del
      pedido. `flex: none` y el grid con `flex: 1 1 auto`: el grid cede de abajo
      —donde no hay ninguna bebida— y los tiles no se mueven ni un píxel. Cuántas
-     filas caben lo mide la barra y lo escribe en `--tira-filas`. */
+     filas caben lo mide la barra y lo escribe en `--tira-filas`.
+
+     **No paga hueco de columna**: el margen negativo cancela el `gap` de
+     `.barra__work` y el rótulo hace de separación. Son los 8 px (6 en pantallas
+     bajas) que hacen que el rótulo quepa en «Pedido actual» a 402 × 781 sin
+     quitarle una fila al grid. */
   .tira {
     display: flex;
     flex-direction: column;
     flex: none;
-    /* Sin hueco entre el rótulo y la lista a propósito: la cuenta de ranuras
-       de `ui/tira.tsx` va en múltiplos de 45 px y un hueco suelto de 4 px la
+    /* Sin hueco entre las partes a propósito: la cuenta de ranuras de
+       `ui/tira.tsx` va en múltiplos de 45 px y un hueco suelto de 4 px la
        desborda justo lo suficiente para comerse la última fila de bebidas. */
     gap: 0;
     min-width: 0;
+    margin-block-start: calc(var(--work-gap) * -1);
+  }
+
+  /* El rótulo que dice cuál de los dos estados se está mirando. Es lo que
+     separa «lo que estoy montando» de «lo que ya serví», y manda sobre el
+     color: el contraste de superficie solo acompaña.
+
+     **14 px de caja para 15 px de letra**, y es una cifra medida: con 20 la
+     tira se pasaría 2 px del hueco a 402 × 781 y empujaría el grid, y a
+     402 × 874 se quedaría en una fila en vez de dos. Ver `TIRA_ROTULO`. */
+  .tira__rotulo {
+    height: 14px;
+    padding-inline: var(--s-2);
+    color: var(--ink-3);
+    font-size: var(--fs-meta);
+    font-weight: 500;
+    line-height: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* «+3 más · ver todo»: abre la hoja del pedido. Es texto, no una píldora —lo
@@ -2865,6 +2895,58 @@
 
   .tira__quitar:active {
     background: var(--bg);
+  }
+
+  /* ---- «Ya servidos»: lo mismo, dicho más bajo ----
+
+     El estado vivo es una tarjeta blanca sobre el hueso; la historia no es una
+     tarjeta: se hunde en el fondo de la página y se marca con un filo de 1 px.
+     El filo va en `box-shadow` y no en `border` porque un borde de verdad
+     sumaría 2 px al alto y la cuenta de ranuras va al píxel. El texto baja a
+     `--ink-2` y la hora a `--ink-3`; el color acompaña, el rótulo manda. */
+  .tira--servidos .tira__lista {
+    background: var(--bg);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  /* La fila entera es el objetivo: 44 px de alto y todo el ancho. Aquí no hay
+     «×» —anular es destructivo y se queda en la hoja, con su «Deshacer»—, así
+     que tocar una fila solo la abre desplegada. */
+  .tira__pedido {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: var(--h-step);
+    padding-inline: var(--s-3);
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    font-size: var(--fs-body);
+    font-weight: 500;
+    text-align: start;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: background-color var(--t-press) var(--ease);
+  }
+
+  .tira__pedido:active {
+    background: var(--surface-2);
+  }
+
+  /* La hora contesta «¿este es el de hace un momento o el de hace media
+     hora?» sin restar de cabeza, y de paso es la señal de que esto ya pasó. */
+  .tira__hora {
+    flex: none;
+    color: var(--ink-3);
+    font-weight: 400;
+  }
+
+  .tira__frase {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* El toast lleva «Deshacer», que es un control de verdad: no puede caer
@@ -3071,6 +3153,6 @@
   }
 
   .barra__work {
-    gap: 6px;
+    --work-gap: 6px;
   }
 }
