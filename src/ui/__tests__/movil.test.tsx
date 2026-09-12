@@ -499,6 +499,20 @@ describe('la tira del pedido en curso', () => {
     await waitFor(() => expect(barraInferior()).toContain('Último'));
   });
 
+  it('en modo Rápido no se dibuja: ahí el toque sirve y no monta nada', async () => {
+    await setupMovil();
+    fireEvent.click(tile('Cortado'));
+    await waitFor(() => expect(document.querySelector('.tira')).not.toBeNull());
+
+    fireEvent.click(botonMas());
+    await waitFor(() => expect(document.querySelector('.hoja-abajo')).not.toBeNull());
+    const rapido = [...document.querySelectorAll<HTMLButtonElement>('.hoja-abajo .hoja-fila')].find(
+      (f) => f.textContent?.startsWith('Rápido'),
+    );
+    fireEvent.click(rapido!);
+    await waitFor(() => expect(document.querySelector('.tira')).toBeNull());
+  });
+
   it('en el iPad no existe: ahí el pedido ya está entero en su columna', async () => {
     await setupMovil();
     fireEvent.click(tile('Cortado'));

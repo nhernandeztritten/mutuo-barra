@@ -263,8 +263,14 @@ export function Barra() {
    * entero en su columna de 360 px y ahí no falta nada. Con el pedido vacío no
    * se dibuja —una caja vacía en el hueco no dice nada— y el hueco se queda
    * como estaba.
+   *
+   * En **modo Rápido** tampoco: ahí el toque sirve y no monta nada, así que la
+   * tira enseñaría una lista congelada justo mientras entran bebidas, y se
+   * leería como «lo que acabo de servir», que es lo contrario de lo que es.
+   * Es el mismo motivo por el que ese modo esconde el ticket.
    */
-  const verTira = esMovil.value && ticket.value.length > 0;
+  const verTira =
+    esMovil.value && ticket.value.length > 0 && !(oneTap.value && editingOrderId.value === null);
   const reparto = repartoTira(ticket.value.length, ranuras);
   /**
    * Lo que la tira le quita al aviso. `--s-2` es el hueco de la columna.
