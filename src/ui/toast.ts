@@ -3,6 +3,7 @@
  * «Deshacer» here for 8 s (SPEC §3.2 regla 5).
  */
 import { signal } from '@preact/signals';
+import { esMovil } from './layout';
 
 export interface ToastAction {
   label: string;
@@ -20,9 +21,16 @@ export const toasts = signal<ToastItem[]>([]);
 
 /**
  * Tope de la pila. En modo un toque se sirve una bebida por toque y sin tope la
- * pantalla se llena de avisos idénticos; el «Deshacer» que importa es el último.
+ * pantalla se llena de avisos idénticos; el «Deshacer» que importa es el
+ * último.
+ *
+ * En un móvil el tope baja a **dos**: la pantalla mide 402 px de ancho y la
+ * pila crece hacia arriba justo encima de la barra del pedido. Con tres, el
+ * tercero llegaba a tapar la fila de extras. En el iPad se quedan tres.
  */
-const MAX_TOASTS = 3;
+export function maxToasts(): number {
+  return esMovil.value ? 2 : 3;
+}
 
 let nextId = 0;
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
@@ -58,15 +66,16 @@ export function showToast(
   timeout = action ? TOAST_ACTION_MS : TOAST_INFO_MS,
 ): number {
   const id = ++nextId;
+  const tope = maxToasts();
   const queue = [...toasts.value, { id, message, action, timeout }];
-  for (const stale of queue.slice(0, Math.max(0, queue.length - MAX_TOASTS))) {
+  for (const stale of queue.slice(0, Math.max(0, queue.length - tope))) {
     const timer = timers.get(stale.id);
     if (timer !== undefined) {
       clearTimeout(timer);
       timers.delete(stale.id);
     }
   }
-  toasts.value = queue.slice(-MAX_TOASTS);
+  toasts.value = queue.slice(-tope);
   timers.set(
     id,
     setTimeout(() => dismissToast(id), timeout),

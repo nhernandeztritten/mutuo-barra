@@ -2584,7 +2584,42 @@
   /* El toast lleva «Deshacer», que es un control de verdad: no puede caer
      encima de la barra inferior ni del botón de servir. */
   .toast-layer {
-    inset-block-end: calc(var(--h-action) + var(--s-3) + env(safe-area-inset-bottom));
+    inset-block-end: calc(var(--h-action) + var(--s-2) + env(safe-area-inset-bottom));
+  }
+
+  /* ---- El aviso, del tamaño del móvil ----
+
+     Estaba dimensionado para el iPad —56 px de alto, 18 px de letra, ancho
+     libre— y aquí se comía media pantalla cada vez que se servía algo. Una
+     sola línea, 44 px, 15 px de letra y el ancho justo del contenido: sigue
+     siendo un control de verdad, pero deja ver la barra que hay detrás. */
+  .toast {
+    max-width: 92vw;
+    min-height: var(--h-step);
+    gap: var(--s-2);
+    padding: 0 var(--s-1) 0 var(--s-4);
+    font-size: var(--fs-meta);
+  }
+
+  .toast > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* «Deshacer» deja de ser una píldora dentro de otra: texto enfatizado en el
+     mismo fondo, con sus 44 px de objetivo táctil. */
+  .toast__action {
+    flex: none;
+    min-width: var(--h-step);
+    min-height: var(--h-step);
+    padding: 0 var(--s-3);
+    background: transparent;
+    font-size: var(--fs-meta);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   /* ---- Barra inferior del pedido y su hoja ---- */
